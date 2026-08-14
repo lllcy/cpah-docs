@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  windows:
+    name: Build Windows release
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Verify tag matches package version
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ("v$version" -ne "${{ github.ref_name }}") {
+            throw "Tag ${{ github.ref_name }} does not match package version $version"
+          }
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and verify release
+        run: npm run release
+
+      - name: Attest executable provenance
+        uses: actions/attest-build-provenance@v4.2.2
+        with:
+          subject-path: release/CPAH-Docs-*.exe
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            release/CPAH-Docs-*.exe `
+            release/SHA256SUMS.txt `
+            --title "CPAH Docs ${{ github.ref_name }}" `
+            --generate-notes

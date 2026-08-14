@@ -1,0 +1,19 @@
+## Rust 依赖
+
+以下内容由 [cargo-about](https://github.com/EmbarkStudios/cargo-about) 根据锁定的依赖图生成。
+
+{{#each licenses}}
+### {{name}}
+
+用于：
+{{#each used_by}}
+- [{{crate.name}} {{crate.version}}]({{#if crate.repository}}{{crate.repository}}{{else}}https://crates.io/crates/{{crate.name}}{{/if}})
+{{/each}}
+
+<details>
+<summary>查看许可证正文</summary>
+
+<pre>{{text}}</pre>
+</details>
+
+{{/each}}

@@ -1,0 +1,42 @@
+# Frontend dependencies and build output
+/node_modules/
+/dist/
+/coverage/
+/release/
+
+# Rust / Tauri build output
+/src-tauri/target/
+/src-tauri/target-*/
+/src-tauri/gen/schemas/
+
+# Local runtime and E2E state
+/e2e/runs/
+/test-artifacts/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+settings.json
+
+# Environment files, credentials, and certificates
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+debug-ai*.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editors and operating systems
+/.idea/
+/.vscode/
+/.vs/
+.DS_Store
+Thumbs.db
+Desktop.ini
