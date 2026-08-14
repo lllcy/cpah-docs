@@ -658,6 +658,8 @@ mod tests {
         std::fs::write(output.join("index.md"), "generated index").unwrap();
         std::fs::write(output.join(".trash/b.md"), "b").unwrap();
         std::fs::write(output.join("nested/c.md.cpah.tmp"), "c").unwrap();
+        let input = dunce::canonicalize(input).unwrap();
+        let output = dunce::canonicalize(output).unwrap();
         let profile = WatchProfile {
             id: "p".into(),
             name: "p".into(),

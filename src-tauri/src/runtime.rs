@@ -1041,6 +1041,9 @@ mod tests {
     use super::*;
 
     fn temporary_profile(input: &Path, output: &Path) -> WatchProfile {
+        std::fs::create_dir_all(output).unwrap();
+        let input = dunce::canonicalize(input).unwrap();
+        let output = dunce::canonicalize(output).unwrap();
         WatchProfile {
             id: "mirror-test".to_string(),
             name: "mirror-test".to_string(),
