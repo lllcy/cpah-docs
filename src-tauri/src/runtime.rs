@@ -1212,7 +1212,10 @@ mod tests {
 
         assert!(output.join("客户甲").join("空目录").is_dir());
         assert!(output.join("客户乙").is_dir());
-        assert_eq!(files, vec![input.join("客户乙").join("报告.pdf")]);
+        let expected = Path::new(&profile.input_dir)
+            .join("客户乙")
+            .join("报告.pdf");
+        assert_eq!(files, vec![expected]);
     }
 
     #[test]
