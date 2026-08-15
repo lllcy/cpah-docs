@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/lllcy/cpah-docs?display_name=tag)](https://github.com/lllcy/cpah-docs/releases)
 
-一个 Windows 单文件桌面工具：递归监控多个目录，将 Office、PDF、图片和文本转换为 Markdown，并在输出目录中保持原有文件夹结构。可选的 Agent 文档分类会从用户配置的候选类别中选择标签，并写入 Markdown 的 `cpah_categories` YAML 字段。
+一个支持 Windows 和 macOS 的桌面工具：递归监控多个目录，将 Office、PDF、图片和文本转换为 Markdown，并在输出目录中保持原有文件夹结构。可选的 Agent 文档分类会从用户配置的候选类别中选择标签，并写入 Markdown 的 `cpah_categories` YAML 字段。
 
 ## 主要功能
 
@@ -14,7 +14,7 @@
 - 云端解析：PDF、PNG、JPG、JPEG、WEBP、BMP、旧版 DOC、旧版 PPT 使用 MinerU。
 - 可按目录配置单分类或多分类候选类别；在“分类任务”页独立开始、停止、重试并查看 Token 用量。
 - SQLite 保存任务状态，程序重启后恢复队列和 MinerU 轮询；帮助页提供离线运行诊断和脱敏报告。
-- Token 与 API Key 保存到 Windows 凭据管理器；关闭窗口后驻留系统托盘。
+- Token 与 API Key 保存到系统凭据库（Windows 凭据管理器或 macOS 钥匙串）；关闭窗口后驻留 Windows 系统托盘或 macOS 菜单栏。
 
 输出目录会镜像输入目录的子文件夹（包括空文件夹）：
 
@@ -58,7 +58,7 @@ cpah_categories:
 - 本地转换不上传文件。
 - 使用 MinerU 时，待解析文档会发送到设置中的 MinerU 服务。
 - 开启 Agent 分类时，Markdown 内容会发送到设置中的 OpenAI Chat Completions Tool Calling 兼容服务。
-- MinerU Token 和 Agent API Key 不写入 `settings.json`，仅保存在当前 Windows 用户的凭据管理器。
+- MinerU Token 和 Agent API Key 不写入 `settings.json`，仅保存在系统凭据库（Windows 凭据管理器或 macOS 钥匙串）。
 - 输入和输出目录不能相同、互相包含或与其他配置交叉；目录符号链接不会被跟随。
 - 云端上传、下载、ZIP 条目及解压内容均设置大小和条目数量安全上限，拒绝路径穿越。
 - 普通 Markdown、转换结果和设置文件使用同目录临时文件原子替换，设置损坏时会尝试恢复上一份有效备份。
@@ -66,9 +66,12 @@ cpah_categories:
 
 ## 使用与分发
 
-从 [GitHub Releases](https://github.com/lllcy/cpah-docs/releases) 下载 `CPAH-Docs-v<版本>-windows-x64.exe` 后即可运行，不需要 Python 或 Node.js。目标电脑需要 Microsoft Edge WebView2 Runtime；现代 Windows 10/11 通常已自带。
+从 [GitHub Releases](https://github.com/lllcy/cpah-docs/releases) 下载对应平台的产物即可运行，不需要 Python、Node.js 或 Rust：
 
-当前公开构建尚未进行商业代码签名，Windows SmartScreen 可能显示“未知发布者”。请只从本仓库 Release 下载，并使用同一页面提供的 `SHA256SUMS.txt` 校验文件完整性。
+- Windows x64：`CPAH-Docs-v<版本>-windows-x64.exe`。需要 Microsoft Edge WebView2 Runtime，现代 Windows 10/11 通常已自带。
+- macOS 通用版：`CPAH-Docs-v<版本>-macos-universal.dmg`，同时支持 Apple Silicon 和 Intel Mac。打开 DMG 后将 CPAH Docs 拖入“应用程序”。
+
+当前公开构建尚未使用商业/Apple Developer 证书签名，macOS 版本也尚未公证。Windows SmartScreen 可能显示“未知发布者”；macOS Gatekeeper 可能要求在 Finder 中右键选择“打开”，或在“系统设置 → 隐私与安全性”确认打开。请只从本仓库 Release 下载，并使用同一页面提供的 `SHA256SUMS.txt` 校验文件完整性。
 
 首次启动后：
 
@@ -82,20 +85,20 @@ cpah_categories:
 
 全新安装的默认状态是：目录监听运行、格式转换停止、Agent 分类停止。已有用户升级后继续保持设置文件中保存的状态。每个目录的“启用”是该目录参与监听、转换、分类和索引的总开关；“格式说明”中的扩展名开关只决定哪些文件会进入转换队列。
 
-点击窗口关闭按钮只会隐藏到系统托盘；需要完全关闭时，请使用托盘菜单中的“退出”。
+点击窗口关闭按钮只会隐藏到 Windows 系统托盘或 macOS 菜单栏；需要完全关闭时，请使用图标菜单中的“退出”。
 
 ## 开发与验证
 
-开发环境需要 Node.js 24+、Rust 1.97+，以及 Visual Studio Installer 的“使用 C++ 的桌面开发”（MSVC x64/x86 与 Windows SDK）。
+开发环境需要 Node.js 24.15+ 和 Rust 1.97+。Windows 还需要 Visual Studio Installer 的“使用 C++ 的桌面开发”（MSVC x64/x86 与 Windows SDK）；macOS 需要 Xcode Command Line Tools 或完整 Xcode。
 
-```powershell
+```shell
 npm ci
 npm run tauri dev
 ```
 
 验证与生产构建：
 
-```powershell
+```shell
 npm run build
 cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 cargo test --manifest-path src-tauri/Cargo.toml --all-targets
@@ -103,27 +106,27 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 npm run tauri build
 ```
 
-执行完整发布检查并生成单文件 EXE 与 SHA-256：
+执行完整发布检查并生成当前平台的发布产物与 SHA-256：
 
-```powershell
+```shell
 npm run release
 ```
 
-产物位于 `release/CPAH-Docs-v<版本>-windows-x64.exe` 和 `release/SHA256SUMS.txt`；`src-tauri/target` 只是本机构建缓存。
+Windows 生成 `release/CPAH-Docs-v<版本>-windows-x64.exe`；macOS 生成 `release/CPAH-Docs-v<版本>-macos-universal.dmg`。两者都会生成 `release/SHA256SUMS.txt`，`src-tauri/target` 只是本机构建缓存。推送与版本一致的 `v*` 标签后，GitHub Actions 会并行构建 Windows x64 和 macOS 通用版，并在两个构建都成功后发布同一个 GitHub Release。
 
-真实 Agent Tool Calling 回归测试需要设置 `CPAHDOCS_AGENT_BASE_URL`、`CPAHDOCS_AGENT_MODEL` 和 `CPAHDOCS_AGENT_API_KEY`，再运行两个被忽略的 E2E 用例。所有真实 E2E 资料只能放在 Git 忽略的本机目录中。
+真实 MinerU 回归测试需要设置 `CPAHDOCS_MINERU_E2E` 和 `CPAHDOCS_MINERU_TOKEN`（也可使用应用已保存的 Token）。真实 Agent Tool Calling 回归测试需要设置 `CPAHDOCS_AGENT_BASE_URL`、`CPAHDOCS_AGENT_MODEL` 和 `CPAHDOCS_AGENT_API_KEY`，再运行被忽略的 E2E 用例。所有真实 E2E 资料只能放在 Git 忽略的本机目录中。
 
 第三方许可清单可通过 `scripts/generate-third-party-licenses.ps1` 重新生成，生成时需要 [cargo-about 0.9.1](https://github.com/EmbarkStudios/cargo-about/releases/tag/0.9.1)。
 
 ## 数据位置
 
-设置、上一份有效设置备份、SQLite 任务数据库和滚动日志位于 Tauri 的应用数据目录 `com.cpah.docs`。从早期内部版本首次升级时，程序会迁移旧目录和 Windows 凭据。生成的 Markdown、分层索引与附件只写入对应监控配置的输出目录。
+设置、上一份有效设置备份、SQLite 任务数据库和滚动日志位于 Tauri 的应用数据目录 `com.cpah.docs`（Windows 的用户应用数据目录或 macOS 的 `~/Library/Application Support/com.cpah.docs`）。从早期内部版本首次升级时，程序会迁移旧目录和系统凭据。生成的 Markdown、分层索引与附件只写入对应监控配置的输出目录。
 
 ## 开源与安全
 
 - 项目代码采用 [MIT License](LICENSE)，第三方组件许可证见 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)。
 - 参与开发请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
 - 安全漏洞请按照 [SECURITY.md](SECURITY.md) 私下报告，不要发布包含凭据或真实文档的公开 Issue。
-- CI 会在每次提交和 Pull Request 上自动构建前端，并执行 Rust 格式、测试和 Clippy 检查；依赖安全检查每周运行。
+- CI 会在 Windows 和 macOS 上自动构建前端，并执行 Rust 格式、测试和 Clippy 检查；依赖安全检查每周运行。
 
 CPAH Docs 与 MinerU、OpenAI 及其他模型服务提供方不存在隶属或官方合作关系。使用云端解析或模型分类前，请自行确认对应服务条款、数据处理规则与费用。

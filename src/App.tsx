@@ -59,7 +59,7 @@ export default function App() {
   const [rescanning, setRescanning] = useState(false);
   const [retryingFailed, setRetryingFailed] = useState(false);
   const [healthReport, setHealthReport] = useState<HealthReport | null>(null);
-  const [appVersion, setAppVersion] = useState("1.1.0");
+  const [appVersion, setAppVersion] = useState("1.1.1");
   const [checkingHealth, setCheckingHealth] = useState(false);
   const [copyingDiagnostics, setCopyingDiagnostics] = useState(false);
   const [pausing, setPausing] = useState(false);
@@ -255,7 +255,10 @@ export default function App() {
 
   async function chooseDirectory(profileId: string, field: "inputDir" | "outputDir") {
     if (previewMode) {
-      const selected = field === "inputDir" ? "C:\\Users\\Demo\\Documents\\待转换文档" : "D:\\MarkdownKnowledgeBase\\转换结果";
+      const macOS = navigator.userAgent.includes("Mac");
+      const selected = macOS
+        ? field === "inputDir" ? "/Users/demo/Documents/待转换文档" : "/Users/demo/Documents/Markdown知识库"
+        : field === "inputDir" ? "C:\\Users\\Demo\\Documents\\待转换文档" : "D:\\MarkdownKnowledgeBase\\转换结果";
       patchProfile(profileId, { [field]: selected });
       return;
     }
@@ -461,7 +464,7 @@ export default function App() {
     setCheckingHealth(true);
     try {
       const report = previewMode
-        ? { appVersion: "1.1.0", checkedAt: new Date().toISOString(), overall: "ok", checks: [{ id: "preview", title: "预览模式", level: "ok", detail: "界面预览正常。" }], counts: { conversionPending: 0, conversionActive: 0, conversionWaitingMineru: 0, conversionFailed: 0, classificationPending: 0, classificationActive: 0, classificationFailed: 0, classificationOutdated: 0 } } as HealthReport
+        ? { appVersion: "1.1.1", checkedAt: new Date().toISOString(), overall: "ok", checks: [{ id: "preview", title: "预览模式", level: "ok", detail: "界面预览正常。" }], counts: { conversionPending: 0, conversionActive: 0, conversionWaitingMineru: 0, conversionFailed: 0, classificationPending: 0, classificationActive: 0, classificationFailed: 0, classificationOutdated: 0 } } as HealthReport
         : await invoke<HealthReport>("run_health_check");
       setHealthReport(report);
       setNotice({ kind: "success", message: report.overall === "ok" ? "运行检查完成，所有项目正常。" : "运行检查完成，请查看诊断结果。" });
@@ -475,7 +478,7 @@ export default function App() {
   async function copyDiagnostics() {
     setCopyingDiagnostics(true);
     try {
-      const report = previewMode ? "CPAH Docs 诊断信息\n版本: 1.1.0\n预览模式" : await invoke<string>("get_diagnostic_report");
+      const report = previewMode ? "CPAH Docs 诊断信息\n版本: 1.1.1\n预览模式" : await invoke<string>("get_diagnostic_report");
       await navigator.clipboard.writeText(report);
       setNotice({ kind: "success", message: "诊断信息已复制，凭据和完整路径已隐藏。" });
     } catch (error) {

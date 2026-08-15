@@ -195,7 +195,7 @@ export function DirectoriesView({ profiles, persistedProfiles, selectedId, onSel
                     <Button variant="outline" onClick={() => onChooseDirectory(selected.id, "outputDir")}>选择</Button>
                     <IconAction label="打开输出目录" variant="outline" disabled={!selected.outputDir} onClick={() => selected.outputDir && onOpenDirectory(selected.outputDir)}><ArrowUpRight /></IconAction>
                   </div>
-                  <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">请在选择窗口或资源管理器中新建一个专用文件夹。它不能与监控目录相同或互相包含；输出会保留原目录结构、生成同名 `.md`，并在根目录自动维护 `index.md`。</p>
+                  <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">请在选择窗口、Finder 或文件资源管理器中新建一个专用文件夹。它不能与监控目录相同或互相包含；输出会保留原目录结构、生成同名 `.md`，并在根目录自动维护 `index.md`。</p>
                 </div>
 
                 <div className="border-t pt-5">

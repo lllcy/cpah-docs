@@ -438,10 +438,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "requires CPAHDOCS_MINERU_E2E and a MinerU token in Windows Credential Manager"]
+    #[ignore = "requires CPAHDOCS_MINERU_E2E and CPAHDOCS_MINERU_TOKEN or a saved MinerU token"]
     async fn real_mineru_upload_poll_and_download() {
         let source = PathBuf::from(std::env::var("CPAHDOCS_MINERU_E2E").unwrap());
-        let token = crate::state::AppState::read_mineru_token().unwrap();
+        let token = std::env::var("CPAHDOCS_MINERU_TOKEN")
+            .or_else(|_| crate::state::AppState::read_mineru_token())
+            .unwrap();
         let base_url = std::env::var("CPAHDOCS_MINERU_BASE_URL")
             .unwrap_or_else(|_| "https://mineru.net/api/v4".to_string());
         let client = MinerUClient::new().unwrap();

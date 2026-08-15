@@ -49,8 +49,19 @@ const faqItems = [
   ["为什么需要两个文件夹？", "原始文档和转换结果分开后，程序可以安全镜像目录结构，也不会重复处理刚生成的 Markdown。"],
   ["两个文件夹可以互相包含吗？", "不可以。它们不能相同或互相包含，建议在同一上级目录下并列创建。"],
   ["文件没有转换成功怎么办？", "先在转换任务页查看错误。常见原因包括文件被占用、文档加密、格式开关关闭，或 MinerU 尚未配置。"],
-  ["关闭窗口后程序还会运行吗？", "会。关闭主窗口后程序会留在系统托盘；需要完全关闭时，请在托盘菜单中选择“退出”。"],
+  ["关闭窗口后程序还会运行吗？", "会。关闭主窗口后程序会留在 Windows 系统托盘或 macOS 菜单栏；需要完全关闭时，请在图标菜单中选择“退出”。"],
 ] as const;
+
+const isMacOS = navigator.userAgent.includes("Mac");
+const sourcePathExample = isMacOS
+  ? "/Users/you/Documents/原始资料/项目A/报告.pdf"
+  : "D:\\我的文档\\原始资料\\项目A\\报告.pdf";
+const outputPathExample = isMacOS
+  ? "/Users/you/Documents/Markdown输出/项目A/报告.md"
+  : "D:\\我的文档\\Markdown输出\\项目A\\报告.md";
+const assetPathExample = isMacOS
+  ? "/Users/you/Documents/Markdown输出/项目A/报告.assets/"
+  : "D:\\我的文档\\Markdown输出\\项目A\\报告.assets\\";
 
 export function HelpView({ hasProfiles, onStartSetup, onOpenFormats, onOpenSettings, onOpenConversionTasks, onOpenClassificationTasks, healthReport, appVersion, checkingHealth, copyingDiagnostics, onRunHealthCheck, onCopyDiagnostics, onLoadThirdPartyLicenses }: HelpViewProps) {
   const [thirdPartyLicenses, setThirdPartyLicenses] = useState<string | null>(null);
@@ -118,13 +129,13 @@ export function HelpView({ hasProfiles, onStartSetup, onOpenFormats, onOpenSetti
               <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 max-[720px]:grid-cols-1">
                 <div className="min-w-0">
                   <p className="text-[10px] font-medium text-muted-foreground">监控目录 · 原始文档</p>
-                  <code className="mt-1 block break-all text-[11px] leading-5">D:\我的文档\原始资料\项目A\报告.pdf</code>
+                  <code className="mt-1 block break-all text-[11px] leading-5">{sourcePathExample}</code>
                 </div>
                 <ArrowRight className="size-3.5 text-muted-foreground max-[720px]:rotate-90" />
                 <div className="min-w-0">
                   <p className="text-[10px] font-medium text-muted-foreground">输出目录 · Markdown</p>
-                  <code className="mt-1 block break-all text-[11px] leading-5">D:\我的文档\Markdown输出\项目A\报告.md</code>
-                  <code className="block break-all text-[10px] leading-4 text-muted-foreground">D:\我的文档\Markdown输出\项目A\报告.assets\</code>
+                  <code className="mt-1 block break-all text-[11px] leading-5">{outputPathExample}</code>
+                  <code className="block break-all text-[10px] leading-4 text-muted-foreground">{assetPathExample}</code>
                 </div>
               </div>
               <div className="mt-4 border-t pt-3 text-[10px] leading-4 text-muted-foreground">
@@ -158,7 +169,7 @@ export function HelpView({ hasProfiles, onStartSetup, onOpenFormats, onOpenSetti
               </div>
               <div className="grid min-h-[66px] grid-cols-[20px_minmax(0,1fr)] items-center gap-3 py-3">
                 <ShieldCheck className="size-3.5 text-muted-foreground" />
-                <div><p className="text-[11px] font-medium">数据与凭据</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">任务记录保存在本机；Token 和 API Key 保存在当前 Windows 用户的凭据管理器。</p></div>
+                <div><p className="text-[11px] font-medium">数据与凭据</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">任务记录保存在本机；Token 和 API Key 保存在系统凭据库（Windows 凭据管理器或 macOS 钥匙串）。</p></div>
               </div>
             </div>
           </div>

@@ -1072,6 +1072,137 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn mock_provider_reads_markdown_and_writes_yaml() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(10)))
+                .unwrap();
+            let mut request = Vec::new();
+            let mut buffer = [0_u8; 4096];
+            let mut expected_length = None;
+            loop {
+                let read = stream.read(&mut buffer).unwrap();
+                if read == 0 {
+                    break;
+                }
+                request.extend_from_slice(&buffer[..read]);
+                if expected_length.is_none()
+                    && let Some(header_end) =
+                        request.windows(4).position(|part| part == b"\r\n\r\n")
+                {
+                    let headers = String::from_utf8_lossy(&request[..header_end]);
+                    let content_length = headers
+                        .lines()
+                        .find_map(|line| {
+                            let (name, value) = line.split_once(':')?;
+                            name.eq_ignore_ascii_case("content-length")
+                                .then(|| value.trim().parse::<usize>().ok())
+                                .flatten()
+                        })
+                        .unwrap_or(0);
+                    expected_length = Some(header_end + 4 + content_length);
+                }
+                if expected_length.is_some_and(|length| request.len() >= length) {
+                    break;
+                }
+            }
+            let request_text = String::from_utf8_lossy(&request);
+            assert!(request_text.starts_with("POST /v1/chat/completions "));
+            assert!(request_text.contains("update_document_categories"));
+            let body = json!({
+                "id": "chatcmpl-cpah-test",
+                "object": "chat.completion",
+                "created": 1,
+                "model": "cpah-mock",
+                "choices": [{
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": null,
+                        "tool_calls": [{
+                            "id": "call-cpah-test",
+                            "type": "function",
+                            "function": {
+                                "name": "update_document_categories",
+                                "arguments": "{\"categories\":[\"审计资料\"]}"
+                            }
+                        }]
+                    },
+                    "finish_reason": "tool_calls"
+                }],
+                "usage": {
+                    "prompt_tokens": 20,
+                    "completion_tokens": 5,
+                    "total_tokens": 25
+                }
+            })
+            .to_string();
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        });
+
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("agent-mock.md");
+        fs::write(
+            &path,
+            "---\nsource: test.pdf\nconverter: test\n---\n# 审计资料\n\n这是一份审计工作底稿。\n",
+        )
+        .unwrap();
+        let config = TaggingConfig {
+            enabled: true,
+            selection_mode: TagSelectionMode::Single,
+            labels: labels(),
+        };
+        let storage = Storage::new(temporary.path().join("data")).unwrap();
+        let job = storage
+            .put_tag_job(
+                "profile",
+                &path,
+                Path::new("agent-mock.md"),
+                &schema_hash(&config).unwrap(),
+                crate::models::TagJobStatus::Queued,
+                true,
+            )
+            .unwrap();
+        let settings = AgentSettings {
+            base_url: format!("http://{address}/v1"),
+            model: "cpah-mock".to_string(),
+            configured: true,
+            concurrency: 1,
+        };
+        let result = run_tag_agent(
+            storage,
+            job.id,
+            path.clone(),
+            config,
+            settings,
+            "test-key".to_string(),
+        )
+        .await
+        .unwrap();
+        server.join().unwrap();
+
+        assert_eq!(result.categories, vec!["审计资料"]);
+        assert_eq!(result.api_calls, 1);
+        assert_eq!(result.input_tokens, 20);
+        assert_eq!(result.output_tokens, 5);
+        let output = fs::read_to_string(path).unwrap();
+        assert!(output.contains("source: test.pdf"));
+        assert!(output.contains("cpah_categories:\n  - 审计资料"));
+    }
+
+    #[tokio::test]
     #[ignore = "requires CPAHDOCS_AGENT_BASE_URL, CPAHDOCS_AGENT_MODEL and CPAHDOCS_AGENT_API_KEY"]
     async fn compatible_provider_performs_real_tool_calling() {
         let settings = AgentSettings {

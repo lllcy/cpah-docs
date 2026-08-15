@@ -152,8 +152,16 @@ fn has_stem_collision(source_path: &Path) -> Result<bool> {
 }
 
 pub fn convert_locally(source_path: &Path) -> Result<ConversionArtifact> {
+    let is_legacy_xls = source_path
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case("xls"));
     let options = ConversionOptions {
-        extract_images: true,
+        // anytomd's image extraction opens spreadsheet bytes as an OOXML ZIP.
+        // Legacy BIFF .xls workbooks are compound binary files, so requesting
+        // image extraction makes an otherwise valid workbook fail before
+        // calamine can read it.
+        extract_images: !is_legacy_xls,
         extract_comments: false,
         max_total_image_bytes: 256 * 1024 * 1024,
         max_input_bytes: 512 * 1024 * 1024,
@@ -574,6 +582,16 @@ mod tests {
         let artifact = convert_locally(&source).unwrap();
 
         assert!(artifact.markdown.contains("Absolute slide target"));
+    }
+
+    #[test]
+    fn converts_legacy_xls_without_treating_it_as_an_ooxml_zip() {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy.xls");
+
+        let artifact = convert_locally(&source).unwrap();
+
+        assert!(artifact.markdown.contains("XLS 回归重试"));
+        assert!(artifact.assets.is_empty());
     }
 
     #[test]

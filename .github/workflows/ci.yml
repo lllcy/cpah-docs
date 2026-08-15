@@ -14,9 +14,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  windows:
-    name: Windows build and test
-    runs-on: windows-latest
+  desktop:
+    name: ${{ matrix.name }} build and test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+          - name: macOS
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
       - name: Checkout

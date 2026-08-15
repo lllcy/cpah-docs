@@ -2,6 +2,20 @@
 
 本项目的重要变更会记录在这里，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.1] - 2026-08-15
+
+### 新增
+
+- 支持 macOS 运行，并提供同时兼容 Apple Silicon 与 Intel Mac 的通用 DMG。
+- CI 与标签发布流程同时验证并生成 Windows、macOS 两个平台的产物。
+- 增加本地 OpenAI 兼容服务模拟回归，覆盖 Agent Tool Calling 与 YAML 写入。
+
+### 修复
+
+- 移除前端依赖清单中写死的 Windows 原生绑定，使 macOS 可直接执行 `npm ci`。
+- 修复旧版 XLS 在开启图片提取时被错误当作 OOXML ZIP 读取的问题。
+- 将应用内凭据与路径提示改为 Windows/macOS 跨平台说明。
+
 ## [1.1.0] - 2026-08-14
 
 ### 新增
@@ -15,3 +29,4 @@
 - Windows 单文件 EXE 发布脚本与 SHA-256 校验文件。
 
 [1.1.0]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.0
+[1.1.1]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.1

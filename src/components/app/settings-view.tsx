@@ -107,7 +107,7 @@ export function SettingsView({ appVersion, theme, onThemeChange, mineruConfigure
                 <p className="mt-0.5 break-words text-[10px] leading-4 text-muted-foreground">读取输出目录中的 Markdown，从监控目录配置的候选类别中选择，并把结果写入 YAML 的 <code className="break-all text-foreground">cpah_categories</code>。</p>
                 <p className="mt-1 break-words text-[10px] leading-4 text-muted-foreground">只有目录已开启分类且“分类任务”正在运行时才会调用模型；不参与文档转换、目录同步、MinerU 解析或索引生成。</p>
               </div>
-              <p className="break-words text-[10px] leading-4 text-muted-foreground">支持 OpenAI 兼容的 Chat Completions Tool Calling。API Key 只保存到 Windows 凭据管理器。</p>
+              <p className="break-words text-[10px] leading-4 text-muted-foreground">支持 OpenAI 兼容的 Chat Completions Tool Calling。API Key 只保存到系统凭据库。</p>
               <div className="grid grid-cols-[minmax(0,1fr)_180px] gap-2 max-[720px]:grid-cols-1">
                 <label className="space-y-1"><span className="text-[10px] text-muted-foreground">Base URL</span><Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://api.openai.com/v1" /></label>
                 <label className="space-y-1"><span className="text-[10px] text-muted-foreground">模型名称</span><Input value={model} onChange={(event) => setModel(event.target.value)} placeholder="gpt-4.1-mini" /></label>
@@ -147,9 +147,9 @@ export function SettingsView({ appVersion, theme, onThemeChange, mineruConfigure
               <p className="mt-2 text-[10px] text-muted-foreground">CPAH Docs {appVersion}</p>
             </div>
             <div className="space-y-2 text-[10px] leading-5 text-muted-foreground">
-              <p>关闭主窗口后程序会留在系统托盘继续监控；请在托盘菜单中选择“退出”来完全关闭。</p>
+              <p>关闭主窗口后程序会留在 Windows 系统托盘或 macOS 菜单栏继续监控；请在图标菜单中选择“退出”来完全关闭。</p>
               <p>本地转换不会上传文件。使用 MinerU 时会把待解析文档发送到你配置的 MinerU 服务；开启 Agent 分类时会把 Markdown 内容发送到你配置的模型服务。</p>
-              <p>MinerU Token 与 Agent API Key 均保存在当前 Windows 用户的凭据管理器中，不写入设置文件。</p>
+              <p>MinerU Token 与 Agent API Key 均保存在系统凭据库（Windows 凭据管理器或 macOS 钥匙串）中，不写入设置文件。macOS 首次访问凭据时可能要求系统授权。</p>
             </div>
           </div>
         </div>

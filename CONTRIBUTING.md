@@ -4,16 +4,16 @@
 
 ## 本地开发
 
-需要 Windows 10/11、Node.js 24.15+、Rust 1.97+，以及 Visual Studio Installer 中的“使用 C++ 的桌面开发”、MSVC x64/x86 和 Windows SDK。
+需要 Node.js 24.15+ 和 Rust 1.97+。Windows 10/11 还需要 Visual Studio Installer 中的“使用 C++ 的桌面开发”、MSVC x64/x86 和 Windows SDK；macOS 需要 Xcode Command Line Tools 或完整 Xcode。
 
-```powershell
+```shell
 npm ci
 npm run tauri dev
 ```
 
 提交前请运行：
 
-```powershell
+```shell
 npm run build
 cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 cargo test --manifest-path src-tauri/Cargo.toml --all-targets
