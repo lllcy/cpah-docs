@@ -2,6 +2,13 @@
 
 本项目的重要变更会记录在这里，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.3] - 2026-08-16
+
+### 修复
+
+- 修复双平台 Release 工作流安装 `cargo-about` 时未启用 CLI，导致许可校验无法启动的问题。
+- 发布脚本改用内置 .NET SHA-256 实现，兼容 GitHub Windows Runner 的 PowerShell 环境。
+
 ## [1.1.2] - 2026-08-16
 
 ### 安全
@@ -45,3 +52,4 @@
 [1.1.0]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.0
 [1.1.1]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.1
 [1.1.2]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.2
+[1.1.3]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.3

@@ -37,7 +37,7 @@ jobs:
         run: npm ci
 
       - name: Install cargo-about
-        run: cargo install cargo-about --version 0.9.1 --locked
+        run: cargo install cargo-about --version 0.9.1 --locked --features cli
 
       - name: Build and verify release
         run: npm run release
@@ -80,7 +80,7 @@ jobs:
         run: npm ci
 
       - name: Install cargo-about
-        run: cargo install cargo-about --version 0.9.1 --locked
+        run: cargo install cargo-about --version 0.9.1 --locked --features cli
 
       - name: Build and verify release
         run: npm run release

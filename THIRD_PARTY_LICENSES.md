@@ -1,6 +1,6 @@
 # 第三方软件许可与声明
 
-本清单适用于 CPAH Docs v1.1.2。CPAH Docs 的原创代码以 MIT License 授权；下列第三方组件继续适用其各自的许可证。
+本清单适用于 CPAH Docs v1.1.3。CPAH Docs 的原创代码以 MIT License 授权；下列第三方组件继续适用其各自的许可证。
 
 本清单根据本版本锁定的依赖自动生成。组件名称后的 crates.io 精确版本页面提供对应源码包；其中 MPL-2.0 组件的源码继续以 MPL-2.0 提供。
 
@@ -9802,7 +9802,7 @@ SOFTWARE.</pre>
 ### MIT License
 
 用于：
-- [cpah-docs 1.1.2](https://crates.io/crates/cpah-docs/1.1.2)（[上游仓库](https://github.com/lllcy/cpah-docs)）
+- [cpah-docs 1.1.3](https://crates.io/crates/cpah-docs/1.1.3)（[上游仓库](https://github.com/lllcy/cpah-docs)）
 - [async-stream-impl 0.3.6](https://crates.io/crates/async-stream-impl/0.3.6)（[上游仓库](https://github.com/tokio-rs/async-stream)）
 - [async-stream 0.3.6](https://crates.io/crates/async-stream/0.3.6)（[上游仓库](https://github.com/tokio-rs/async-stream)）
 - [block2 0.6.2](https://crates.io/crates/block2/0.6.2)（[上游仓库](https://github.com/madsmtm/objc2)）

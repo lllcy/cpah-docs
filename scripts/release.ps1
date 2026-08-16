@@ -10,6 +10,23 @@ $cargoTomlPath = Join-Path $projectRoot "src-tauri\Cargo.toml"
 $tauriConfigPath = Join-Path $projectRoot "src-tauri\tauri.conf.json"
 $thirdPartyLicensesPath = Join-Path $projectRoot "THIRD_PARTY_LICENSES.md"
 
+function Get-Sha256Hex([string]$Path) {
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $hashBytes = $sha256.ComputeHash($stream)
+        }
+        finally {
+            $sha256.Dispose()
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+    return -join ($hashBytes | ForEach-Object { $_.ToString("x2") })
+}
+
 $packageVersion = (Get-Content -LiteralPath $packageJsonPath -Raw -Encoding utf8 | ConvertFrom-Json).version
 $tauriVersion = (Get-Content -LiteralPath $tauriConfigPath -Raw -Encoding utf8 | ConvertFrom-Json).version
 $cargoContent = Get-Content -LiteralPath $cargoTomlPath -Raw -Encoding utf8
@@ -26,12 +43,12 @@ if (($packageVersion -ne $cargoVersion) -or ($packageVersion -ne $tauriVersion))
 Push-Location $projectRoot
 try {
     $licenseHashBefore = if (Test-Path -LiteralPath $thirdPartyLicensesPath -PathType Leaf) {
-        (Get-FileHash -LiteralPath $thirdPartyLicensesPath -Algorithm SHA256).Hash
+        Get-Sha256Hex $thirdPartyLicensesPath
     } else {
         $null
     }
     & (Join-Path $PSScriptRoot "generate-third-party-licenses.ps1") -CargoAbout $CargoAbout
-    $licenseHashAfter = (Get-FileHash -LiteralPath $thirdPartyLicensesPath -Algorithm SHA256).Hash
+    $licenseHashAfter = Get-Sha256Hex $thirdPartyLicensesPath
     if (-not $licenseHashBefore -or $licenseHashBefore -ne $licenseHashAfter) {
         throw "THIRD_PARTY_LICENSES.md was refreshed. Review and commit it, then run the release again."
     }
@@ -64,20 +81,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $projectRoot "LICENSE") -Destination (Join-Path $artifactDirectory "LICENSE.txt") -Force
     Copy-Item -LiteralPath $thirdPartyLicensesPath -Destination (Join-Path $artifactDirectory "THIRD_PARTY_LICENSES.md") -Force
 
-    $stream = [System.IO.File]::OpenRead($artifactPath)
-    try {
-        $sha256 = [System.Security.Cryptography.SHA256]::Create()
-        try {
-            $hashBytes = $sha256.ComputeHash($stream)
-        }
-        finally {
-            $sha256.Dispose()
-        }
-    }
-    finally {
-        $stream.Dispose()
-    }
-    $hash = -join ($hashBytes | ForEach-Object { $_.ToString("x2") })
+    $hash = Get-Sha256Hex $artifactPath
     Set-Content -LiteralPath (Join-Path $artifactDirectory "SHA256SUMS.txt") -Value "$hash  $artifactName" -Encoding ascii
     Write-Host "Release artifact: $artifactPath"
     Write-Host "SHA-256: $hash"
