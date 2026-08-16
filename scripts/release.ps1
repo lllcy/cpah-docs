@@ -1,11 +1,14 @@
 [CmdletBinding()]
-param()
+param(
+    [string]$CargoAbout = "cargo-about"
+)
 
 $ErrorActionPreference = "Stop"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $packageJsonPath = Join-Path $projectRoot "package.json"
 $cargoTomlPath = Join-Path $projectRoot "src-tauri\Cargo.toml"
 $tauriConfigPath = Join-Path $projectRoot "src-tauri\tauri.conf.json"
+$thirdPartyLicensesPath = Join-Path $projectRoot "THIRD_PARTY_LICENSES.md"
 
 $packageVersion = (Get-Content -LiteralPath $packageJsonPath -Raw -Encoding utf8 | ConvertFrom-Json).version
 $tauriVersion = (Get-Content -LiteralPath $tauriConfigPath -Raw -Encoding utf8 | ConvertFrom-Json).version
@@ -22,6 +25,17 @@ if (($packageVersion -ne $cargoVersion) -or ($packageVersion -ne $tauriVersion))
 
 Push-Location $projectRoot
 try {
+    $licenseHashBefore = if (Test-Path -LiteralPath $thirdPartyLicensesPath -PathType Leaf) {
+        (Get-FileHash -LiteralPath $thirdPartyLicensesPath -Algorithm SHA256).Hash
+    } else {
+        $null
+    }
+    & (Join-Path $PSScriptRoot "generate-third-party-licenses.ps1") -CargoAbout $CargoAbout
+    $licenseHashAfter = (Get-FileHash -LiteralPath $thirdPartyLicensesPath -Algorithm SHA256).Hash
+    if (-not $licenseHashBefore -or $licenseHashBefore -ne $licenseHashAfter) {
+        throw "THIRD_PARTY_LICENSES.md was refreshed. Review and commit it, then run the release again."
+    }
+
     cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
     if ($LASTEXITCODE -ne 0) { throw "Rust formatting check failed" }
 
@@ -47,6 +61,8 @@ try {
     $artifactName = "CPAH-Docs-v$packageVersion-windows-x64.exe"
     $artifactPath = Join-Path $artifactDirectory $artifactName
     Copy-Item -LiteralPath $sourceExe -Destination $artifactPath -Force
+    Copy-Item -LiteralPath (Join-Path $projectRoot "LICENSE") -Destination (Join-Path $artifactDirectory "LICENSE.txt") -Force
+    Copy-Item -LiteralPath $thirdPartyLicensesPath -Destination (Join-Path $artifactDirectory "THIRD_PARTY_LICENSES.md") -Force
 
     $stream = [System.IO.File]::OpenRead($artifactPath)
     try {

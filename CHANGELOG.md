@@ -2,6 +2,20 @@
 
 本项目的重要变更会记录在这里，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.2] - 2026-08-16
+
+### 安全
+
+- 阻止输出路径通过父级跳转、符号链接或 Windows junction 逃逸到配置目录之外。
+- 远程 Agent 连接强制使用 HTTPS；仅本机回环地址允许 HTTP，并禁用 HTTP 重定向。
+- 为 Agent 连接、请求、完整分类运行和 Tool Calling 探测增加超时上限。
+
+### 修复
+
+- 源目录离线、无权限或配置被禁用时不再清理已生成结果；源文件删除同步也会避开正在转换的任务。
+- 将删除策略文案改为实际使用的输出目录 `.trash`，不再误称系统回收站。
+- 第三方许可清单覆盖 Windows 与 macOS 依赖，并随两个平台的发布产物一同分发。
+
 ## [1.1.1] - 2026-08-15
 
 ### 新增
@@ -30,3 +44,4 @@
 
 [1.1.0]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.0
 [1.1.1]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.1
+[1.1.2]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.2

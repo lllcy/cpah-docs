@@ -1,6 +1,6 @@
 [package]
 name = "cpah-docs"
-version = "1.1.1"
+version = "1.1.2"
 description = "Watch folders, convert documents to Markdown, and build local knowledge indexes"
 authors = ["lllcy"]
 edition = "2024"

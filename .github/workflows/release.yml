@@ -36,6 +36,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Install cargo-about
+        run: cargo install cargo-about --version 0.9.1 --locked
+
       - name: Build and verify release
         run: npm run release
 
@@ -76,6 +79,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Install cargo-about
+        run: cargo install cargo-about --version 0.9.1 --locked
+
       - name: Build and verify release
         run: npm run release
 
@@ -113,6 +119,10 @@ jobs:
           mkdir release
           cp artifacts/windows/CPAH-Docs-*.exe release/
           cp artifacts/macos/CPAH-Docs-*.dmg release/
+          cmp artifacts/windows/LICENSE.txt artifacts/macos/LICENSE.txt
+          cmp artifacts/windows/THIRD_PARTY_LICENSES.md artifacts/macos/THIRD_PARTY_LICENSES.md
+          cp artifacts/windows/LICENSE.txt release/
+          cp artifacts/windows/THIRD_PARTY_LICENSES.md release/
           cat artifacts/windows/SHA256SUMS.txt artifacts/macos/SHA256SUMS.txt > release/SHA256SUMS.txt
           cd release
           sha256sum --check SHA256SUMS.txt
@@ -124,6 +134,8 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             release/CPAH-Docs-*.exe \
             release/CPAH-Docs-*.dmg \
+            release/LICENSE.txt \
+            release/THIRD_PARTY_LICENSES.md \
             release/SHA256SUMS.txt \
             --repo "${{ github.repository }}" \
             --title "CPAH Docs ${{ github.ref_name }}" \

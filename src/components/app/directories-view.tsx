@@ -201,7 +201,7 @@ export function DirectoriesView({ profiles, persistedProfiles, selectedId, onSel
                 <div className="border-t pt-5">
                   <label className="mb-1.5 block text-[10px] font-medium text-muted-foreground" htmlFor={`policy-${selected.id}`}>源文件删除策略</label>
                   <select id={`policy-${selected.id}`} value={selected.deletePolicy} onChange={(event) => onPatch(selected.id, { deletePolicy: event.target.value as DeletePolicy })} className="h-8 w-full max-w-sm rounded-md border border-input bg-card px-2.5 text-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/20">
-                    <option value="trash">同步到系统回收站</option>
+                    <option value="trash">移动到输出目录的 .trash（可恢复）</option>
                     <option value="keep">保留转换结果</option>
                     <option value="delete">永久删除对应结果</option>
                   </select>

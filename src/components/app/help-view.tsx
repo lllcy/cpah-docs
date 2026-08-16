@@ -35,6 +35,7 @@ type HelpViewProps = {
   copyingDiagnostics: boolean;
   onRunHealthCheck: () => void;
   onCopyDiagnostics: () => void;
+  onLoadProjectLicense: () => Promise<string>;
   onLoadThirdPartyLicenses: () => Promise<string>;
 };
 
@@ -63,19 +64,47 @@ const assetPathExample = isMacOS
   ? "/Users/you/Documents/Markdown输出/项目A/报告.assets/"
   : "D:\\我的文档\\Markdown输出\\项目A\\报告.assets\\";
 
-export function HelpView({ hasProfiles, onStartSetup, onOpenFormats, onOpenSettings, onOpenConversionTasks, onOpenClassificationTasks, healthReport, appVersion, checkingHealth, copyingDiagnostics, onRunHealthCheck, onCopyDiagnostics, onLoadThirdPartyLicenses }: HelpViewProps) {
+function formatGeneratedLicenseDocument(source: string) {
+  const text = source
+    .replace(/<details>\s*/g, "")
+    .replace(/<\/details>\s*/g, "\n")
+    .replace(/<summary>(.*?)<\/summary>/g, "$1\n")
+    .replace(/<\/?pre>/g, "")
+    .replace(/\[([^\]]+)]\(([^)]+)\)/g, "$1 — $2")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^>\s?/gm, "");
+  const decoder = document.createElement("textarea");
+  decoder.innerHTML = text;
+  return decoder.value.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+export function HelpView({ hasProfiles, onStartSetup, onOpenFormats, onOpenSettings, onOpenConversionTasks, onOpenClassificationTasks, healthReport, appVersion, checkingHealth, copyingDiagnostics, onRunHealthCheck, onCopyDiagnostics, onLoadProjectLicense, onLoadThirdPartyLicenses }: HelpViewProps) {
+  const [projectLicense, setProjectLicense] = useState<string | null>(null);
   const [thirdPartyLicenses, setThirdPartyLicenses] = useState<string | null>(null);
-  const [loadingLicenses, setLoadingLicenses] = useState(false);
+  const [loadingProjectLicense, setLoadingProjectLicense] = useState(false);
+  const [loadingThirdPartyLicenses, setLoadingThirdPartyLicenses] = useState(false);
+
+  async function loadProjectLicense() {
+    if (projectLicense !== null || loadingProjectLicense) return;
+    setLoadingProjectLicense(true);
+    try {
+      setProjectLicense(await onLoadProjectLicense());
+    } catch (error) {
+      setProjectLicense(`无法读取 CPAH Docs 许可证：${String(error)}`);
+    } finally {
+      setLoadingProjectLicense(false);
+    }
+  }
 
   async function loadThirdPartyLicenses() {
-    if (thirdPartyLicenses !== null || loadingLicenses) return;
-    setLoadingLicenses(true);
+    if (thirdPartyLicenses !== null || loadingThirdPartyLicenses) return;
+    setLoadingThirdPartyLicenses(true);
     try {
-      setThirdPartyLicenses(await onLoadThirdPartyLicenses());
+      setThirdPartyLicenses(formatGeneratedLicenseDocument(await onLoadThirdPartyLicenses()));
     } catch (error) {
       setThirdPartyLicenses(`无法读取第三方许可证：${String(error)}`);
     } finally {
-      setLoadingLicenses(false);
+      setLoadingThirdPartyLicenses(false);
     }
   }
 
@@ -226,15 +255,24 @@ export function HelpView({ hasProfiles, onStartSetup, onOpenFormats, onOpenSetti
           <div className="mx-auto grid max-w-[840px] grid-cols-[150px_minmax(0,1fr)] gap-5 px-5 py-5 max-[760px]:grid-cols-1 max-[900px]:px-4">
             <div>
               <div className="flex items-center gap-2"><Scale className="size-3.5 text-muted-foreground" /><h2 className="text-xs font-medium">开源许可</h2></div>
-              <p className="mt-2 text-[10px] leading-4 text-muted-foreground">CPAH Docs 使用 MIT 许可证</p>
+              <p className="mt-2 text-[10px] leading-4 text-muted-foreground">原创代码以 MIT License 授权；第三方组件适用各自许可证</p>
             </div>
-            <details className="group border-y" onToggle={(event) => { if (event.currentTarget.open) void loadThirdPartyLicenses(); }}>
-              <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-3 py-2.5 text-[11px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                <span>查看第三方软件许可证</span>
-                <span className="ml-auto text-muted-foreground transition-transform group-open:rotate-45">＋</span>
-              </summary>
-              <pre className="mb-3 max-h-72 overflow-auto whitespace-pre-wrap break-words border bg-background p-3 text-[9px] leading-4 text-muted-foreground">{loadingLicenses ? "正在读取…" : thirdPartyLicenses}</pre>
-            </details>
+            <div className="divide-y border-y">
+              <details className="group" onToggle={(event) => { if (event.currentTarget.open) void loadProjectLicense(); }}>
+                <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-3 py-2.5 text-[11px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <span>查看 CPAH Docs MIT 许可证</span>
+                  <span className="ml-auto text-muted-foreground transition-transform group-open:rotate-45">＋</span>
+                </summary>
+                <pre className="mb-3 max-h-72 overflow-auto whitespace-pre-wrap break-words border bg-background p-3 text-[10px] leading-4 text-muted-foreground">{loadingProjectLicense ? "正在读取…" : projectLicense}</pre>
+              </details>
+              <details className="group" onToggle={(event) => { if (event.currentTarget.open) void loadThirdPartyLicenses(); }}>
+                <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-3 py-2.5 text-[11px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <span>查看第三方软件许可与声明</span>
+                  <span className="ml-auto text-muted-foreground transition-transform group-open:rotate-45">＋</span>
+                </summary>
+                <pre className="mb-3 max-h-72 overflow-auto whitespace-pre-wrap break-words border bg-background p-3 text-[10px] leading-4 text-muted-foreground">{loadingThirdPartyLicenses ? "正在读取…" : thirdPartyLicenses}</pre>
+              </details>
+            </div>
           </div>
         </div>
       </section>

@@ -273,6 +273,7 @@ pub fn write_artifact(
 
     let temporary_asset_dir =
         output_parent.join(format!(".{asset_dir_name}.tmp-{}", Uuid::new_v4().simple()));
+    ensure_output_is_safe(profile, &temporary_asset_dir)?;
     let mut markdown = artifact.markdown;
 
     if !artifact.assets.is_empty() {
@@ -369,6 +370,9 @@ pub fn remove_generated_output(
 ) -> Result<()> {
     ensure_output_is_safe(profile, output)?;
     let assets = asset_path_for_output(output);
+    if let Some(assets) = assets.as_deref() {
+        ensure_output_is_safe(profile, assets)?;
+    }
     if to_trash {
         let relative = output
             .strip_prefix(&profile.output_dir)
@@ -381,6 +385,7 @@ pub fn remove_generated_output(
                 Uuid::new_v4().simple()
             ));
         let trash_output = trash_root.join(relative);
+        ensure_output_is_safe(profile, &trash_output)?;
         if let Some(parent) = trash_output.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -494,9 +499,48 @@ fn percent_encode_path(value: &str) -> String {
 }
 
 fn ensure_output_is_safe(profile: &WatchProfile, path: &Path) -> Result<()> {
-    let root = Path::new(&profile.output_dir);
-    if !path.starts_with(root) || path == root {
+    let configured_root = Path::new(&profile.output_dir);
+    let relative = path
+        .strip_prefix(configured_root)
+        .with_context(|| format!("拒绝操作输出目录之外的路径：{}", path.display()))?;
+    if relative.as_os_str().is_empty()
+        || relative
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
         bail!("拒绝操作输出目录之外的路径：{}", path.display());
+    }
+
+    let canonical_root = dunce::canonicalize(configured_root)
+        .with_context(|| format!("无法确认输出目录：{}", configured_root.display()))?;
+    let mut existing_ancestor = path;
+    loop {
+        match fs::symlink_metadata(existing_ancestor) {
+            Ok(metadata) => {
+                if metadata.file_type().is_symlink() {
+                    bail!(
+                        "拒绝通过符号链接操作输出路径：{}",
+                        existing_ancestor.display()
+                    );
+                }
+                let resolved = dunce::canonicalize(existing_ancestor).with_context(|| {
+                    format!("无法确认输出路径：{}", existing_ancestor.display())
+                })?;
+                if !resolved.starts_with(&canonical_root) {
+                    bail!("拒绝操作输出目录之外的路径：{}", path.display());
+                }
+                break;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                existing_ancestor = existing_ancestor
+                    .parent()
+                    .context("输出路径缺少可验证的父目录")?;
+            }
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| format!("无法检查输出路径：{}", existing_ancestor.display()));
+            }
+        }
     }
     Ok(())
 }
@@ -629,6 +673,42 @@ mod tests {
         copy_markdown(&profile, &source, &output).unwrap();
 
         assert_eq!(fs::read(output).unwrap(), content);
+    }
+
+    #[test]
+    fn rejects_parent_components_in_output_paths() {
+        let temporary = tempfile::tempdir().unwrap();
+        let output_root = temporary.path().join("output");
+        fs::create_dir_all(&output_root).unwrap();
+        let profile = WatchProfile {
+            output_dir: output_root.to_string_lossy().to_string(),
+            ..profile()
+        };
+        let escaped = output_root.join("nested").join("..").join("escaped.md");
+
+        assert!(ensure_output_is_safe(&profile, &escaped).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlinked_output_directory_escape() {
+        use std::os::unix::fs::symlink;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let output_root = temporary.path().join("output");
+        let outside = temporary.path().join("outside");
+        fs::create_dir_all(&output_root).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        symlink(&outside, output_root.join("redirect")).unwrap();
+        let profile = WatchProfile {
+            output_dir: output_root.to_string_lossy().to_string(),
+            ..profile()
+        };
+
+        assert!(
+            ensure_output_is_safe(&profile, &output_root.join("redirect").join("escaped.md"))
+                .is_err()
+        );
     }
 
     #[test]

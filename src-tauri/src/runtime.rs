@@ -191,7 +191,7 @@ async fn run(
                     }
                     RuntimeMessage::Reconcile => {
                         if !state.is_monitoring_paused()
-                            && let Err(error) = reconcile_missing_sources(&state).await
+                            && let Err(error) = reconcile_missing_sources(&state, &active).await
                         {
                             tracing::error!(error = %format!("{error:#}"), "source reconciliation failed");
                         }
@@ -203,7 +203,7 @@ async fn run(
             }
             _ = interval.tick() => {
                 if !state.is_monitoring_paused()
-                    && let Err(error) = reconcile_missing_sources(&state).await
+                    && let Err(error) = reconcile_missing_sources(&state, &active).await
                 {
                     tracing::error!(error = %format!("{error:#}"), "source reconciliation failed");
                 }
@@ -919,11 +919,41 @@ async fn retry_waiting_mineru(
     Ok(())
 }
 
-async fn reconcile_missing_sources(state: &AppState) -> Result<()> {
+async fn reconcile_missing_sources(state: &AppState, active: &SharedActivePaths) -> Result<()> {
     let settings = state.settings.read().await.clone();
-    for profile in settings.profiles {
+    for profile in settings
+        .profiles
+        .into_iter()
+        .filter(|profile| profile.enabled)
+    {
+        let input_root = Path::new(&profile.input_dir);
+        let root_available = std::fs::read_dir(input_root)
+            .and_then(|mut entries| entries.next().transpose().map(|_| ()))
+            .is_ok();
+        if !root_available {
+            tracing::warn!(
+                profile_id = %profile.id,
+                input_root = %input_root.display(),
+                "source root is unavailable; skipping deletion reconciliation"
+            );
+            continue;
+        }
         for task in state.storage.list_profile_tasks(&profile.id)? {
-            if Path::new(&task.source_path).exists() {
+            let source = Path::new(&task.source_path);
+            match std::fs::symlink_metadata(source) {
+                Ok(_) => continue,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    tracing::warn!(
+                        task_id = %task.id,
+                        source = %source.display(),
+                        error = %error,
+                        "source status is unknown; skipping deletion reconciliation"
+                    );
+                    continue;
+                }
+            }
+            if active.lock().await.running.contains(source) {
                 continue;
             }
             if let Some(output) = task.output_path.as_deref().map(Path::new) {
@@ -935,9 +965,7 @@ async fn reconcile_missing_sources(state: &AppState) -> Result<()> {
             }
             state.storage.delete_task(&task.id)?;
         }
-        if profile.enabled {
-            tokio::task::spawn_blocking(move || prune_empty_output_directories(&profile)).await??;
-        }
+        tokio::task::spawn_blocking(move || prune_empty_output_directories(&profile)).await??;
     }
     Ok(())
 }
@@ -1055,6 +1083,36 @@ mod tests {
         }
     }
 
+    fn completed_task(
+        state: &AppState,
+        profile: &WatchProfile,
+        source: &Path,
+    ) -> (PathBuf, PathBuf, TaskRecord) {
+        let source = dunce::canonicalize(source).unwrap();
+        let metadata = std::fs::metadata(&source).unwrap();
+        let output = output_path(profile, &source).unwrap();
+        std::fs::write(&output, b"generated").unwrap();
+        let task = state
+            .storage
+            .queue_task(
+                profile,
+                &source,
+                source.strip_prefix(&profile.input_dir).unwrap(),
+                metadata.len(),
+                1,
+                ConversionEngine::Anytomd,
+                &output,
+                false,
+            )
+            .unwrap()
+            .unwrap();
+        state
+            .storage
+            .set_status(&task.id, JobStatus::Completed, None)
+            .unwrap();
+        (source, output, task)
+    }
+
     #[test]
     fn waiting_mineru_retry_is_deferred_while_scan_is_active() {
         let path = PathBuf::from("report.pdf");
@@ -1079,6 +1137,66 @@ mod tests {
         assert!(!active.try_start(&path, ScheduleRequest::Force));
         assert_eq!(active.finish(&path), Some(ScheduleRequest::Force));
         assert!(active.try_start(&path, ScheduleRequest::Normal));
+    }
+
+    #[tokio::test]
+    async fn reconciliation_keeps_outputs_when_source_root_is_unavailable() {
+        let temporary = tempfile::tempdir().unwrap();
+        let input = temporary.path().join("input");
+        let output_root = temporary.path().join("output");
+        std::fs::create_dir_all(&input).unwrap();
+        let source = input.join("notes.md");
+        std::fs::write(&source, b"# offline root").unwrap();
+        let profile = temporary_profile(&input, &output_root);
+        let state = AppState::new(temporary.path().join("data")).unwrap();
+        state.settings.write().await.profiles = vec![profile.clone()];
+        let (_, output, task) = completed_task(&state, &profile, &source);
+
+        std::fs::remove_file(source).unwrap();
+        std::fs::remove_dir(input).unwrap();
+        reconcile_missing_sources(&state, &Arc::new(Mutex::new(ActivePaths::default())))
+            .await
+            .unwrap();
+
+        assert!(output.is_file());
+        assert!(state.storage.get_task(&task.id).unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn reconciliation_skips_disabled_profiles_and_running_paths() {
+        let temporary = tempfile::tempdir().unwrap();
+        let input = temporary.path().join("input");
+        let output_root = temporary.path().join("output");
+        std::fs::create_dir_all(&input).unwrap();
+        let source = input.join("notes.md");
+        std::fs::write(&source, b"# active task").unwrap();
+        let profile = temporary_profile(&input, &output_root);
+        let state = AppState::new(temporary.path().join("data")).unwrap();
+        state.settings.write().await.profiles = vec![profile.clone()];
+        let (source, output, task) = completed_task(&state, &profile, &source);
+        std::fs::remove_file(&source).unwrap();
+
+        let active = Arc::new(Mutex::new(ActivePaths::default()));
+        assert!(
+            active
+                .lock()
+                .await
+                .try_start(&source, ScheduleRequest::Normal)
+        );
+        reconcile_missing_sources(&state, &active).await.unwrap();
+        assert!(output.is_file());
+        assert!(state.storage.get_task(&task.id).unwrap().is_some());
+
+        active.lock().await.finish(&source);
+        state.settings.write().await.profiles[0].enabled = false;
+        reconcile_missing_sources(&state, &active).await.unwrap();
+        assert!(output.is_file());
+        assert!(state.storage.get_task(&task.id).unwrap().is_some());
+
+        state.settings.write().await.profiles[0].enabled = true;
+        reconcile_missing_sources(&state, &active).await.unwrap();
+        assert!(!output.exists());
+        assert!(state.storage.get_task(&task.id).unwrap().is_none());
     }
 
     #[tokio::test]

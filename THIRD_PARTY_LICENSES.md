@@ -1,8 +1,8 @@
-# 第三方软件许可证
+# 第三方软件许可与声明
 
-CPAH Docs 自身采用 MIT 许可证。下列组件由各自作者提供，并继续受其许可证约束。
+本清单适用于 CPAH Docs v1.1.2。CPAH Docs 的原创代码以 MIT License 授权；下列第三方组件继续适用其各自的许可证。
 
-> 此文件由 `scripts/generate-third-party-licenses.ps1` 生成，请勿手工编辑。
+本清单根据本版本锁定的依赖自动生成。组件名称后的 crates.io 精确版本页面提供对应源码包；其中 MPL-2.0 组件的源码继续以 MPL-2.0 提供。
 
 ## Rust 依赖
 
@@ -11,7 +11,7 @@ CPAH Docs 自身采用 MIT 许可证。下列组件由各自作者提供，并�
 ### BSD Zero Clause License
 
 用于：
-- [adler2 2.0.1](https://github.com/oyvindln/adler2)
+- [adler2 2.0.1](https://crates.io/crates/adler2/2.0.1)（[上游仓库](https://github.com/oyvindln/adler2)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -34,7 +34,7 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### Apache License 2.0
 
 用于：
-- [powerfmt 0.2.0](https://github.com/jhpratt/powerfmt)
+- [powerfmt 0.2.0](https://crates.io/crates/powerfmt/0.2.0)（[上游仓库](https://github.com/jhpratt/powerfmt)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -247,7 +247,7 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### Apache License 2.0
 
 用于：
-- [deranged 0.5.8](https://github.com/jhpratt/deranged)
+- [deranged 0.5.8](https://crates.io/crates/deranged/0.5.8)（[上游仓库](https://github.com/jhpratt/deranged)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -460,12 +460,13 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### Apache License 2.0
 
 用于：
-- [as-any 0.3.2](https://codeberg.org/fogti/as-any)
-- [codepage 0.1.2](https://github.com/hsivonen/codepage)
-- [encoding_rs 0.8.35](https://github.com/hsivonen/encoding_rs)
-- [ureq-proto 0.6.1](https://github.com/algesten/ureq-proto)
-- [utf8_iter 1.0.4](https://github.com/hsivonen/utf8_iter)
-- [zeroize 1.9.0](https://github.com/RustCrypto/utils)
+- [as-any 0.3.2](https://crates.io/crates/as-any/0.3.2)（[上游仓库](https://codeberg.org/fogti/as-any)）
+- [codepage 0.1.2](https://crates.io/crates/codepage/0.1.2)（[上游仓库](https://github.com/hsivonen/codepage)）
+- [embed_plist 1.2.2](https://crates.io/crates/embed_plist/1.2.2)（[上游仓库](https://github.com/nvzqz/embed-plist-rs)）
+- [encoding_rs 0.8.35](https://crates.io/crates/encoding_rs/0.8.35)（[上游仓库](https://github.com/hsivonen/encoding_rs)）
+- [ureq-proto 0.6.1](https://crates.io/crates/ureq-proto/0.6.1)（[上游仓库](https://github.com/algesten/ureq-proto)）
+- [utf8_iter 1.0.4](https://crates.io/crates/utf8_iter/1.0.4)（[上游仓库](https://github.com/hsivonen/utf8_iter)）
+- [zeroize 1.9.0](https://crates.io/crates/zeroize/1.9.0)（[上游仓库](https://github.com/RustCrypto/utils)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -678,26 +679,29 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### Apache License 2.0
 
 用于：
-- [windows-collections 0.2.0](https://github.com/microsoft/windows-rs)
-- [windows-core 0.61.2](https://github.com/microsoft/windows-rs)
-- [windows-future 0.2.1](https://github.com/microsoft/windows-rs)
-- [windows-implement 0.60.2](https://github.com/microsoft/windows-rs)
-- [windows-interface 0.59.3](https://github.com/microsoft/windows-rs)
-- [windows-link 0.1.3](https://github.com/microsoft/windows-rs)
-- [windows-link 0.2.1](https://github.com/microsoft/windows-rs)
-- [windows-numerics 0.2.0](https://github.com/microsoft/windows-rs)
-- [windows-result 0.3.4](https://github.com/microsoft/windows-rs)
-- [windows-strings 0.4.2](https://github.com/microsoft/windows-rs)
-- [windows-sys 0.59.0](https://github.com/microsoft/windows-rs)
-- [windows-sys 0.60.2](https://github.com/microsoft/windows-rs)
-- [windows-sys 0.61.2](https://github.com/microsoft/windows-rs)
-- [windows-targets 0.52.6](https://github.com/microsoft/windows-rs)
-- [windows-targets 0.53.5](https://github.com/microsoft/windows-rs)
-- [windows-threading 0.1.0](https://github.com/microsoft/windows-rs)
-- [windows-version 0.1.7](https://github.com/microsoft/windows-rs)
-- [windows 0.61.3](https://github.com/microsoft/windows-rs)
-- [windows_x86_64_msvc 0.52.6](https://github.com/microsoft/windows-rs)
-- [windows_x86_64_msvc 0.53.1](https://github.com/microsoft/windows-rs)
+- [windows-collections 0.2.0](https://crates.io/crates/windows-collections/0.2.0)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-core 0.61.2](https://crates.io/crates/windows-core/0.61.2)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-core 0.62.2](https://crates.io/crates/windows-core/0.62.2)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-future 0.2.1](https://crates.io/crates/windows-future/0.2.1)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-implement 0.60.2](https://crates.io/crates/windows-implement/0.60.2)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-interface 0.59.3](https://crates.io/crates/windows-interface/0.59.3)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-link 0.1.3](https://crates.io/crates/windows-link/0.1.3)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-link 0.2.1](https://crates.io/crates/windows-link/0.2.1)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-numerics 0.2.0](https://crates.io/crates/windows-numerics/0.2.0)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-result 0.3.4](https://crates.io/crates/windows-result/0.3.4)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-result 0.4.1](https://crates.io/crates/windows-result/0.4.1)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-strings 0.4.2](https://crates.io/crates/windows-strings/0.4.2)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-strings 0.5.1](https://crates.io/crates/windows-strings/0.5.1)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-sys 0.59.0](https://crates.io/crates/windows-sys/0.59.0)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-sys 0.60.2](https://crates.io/crates/windows-sys/0.60.2)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-sys 0.61.2](https://crates.io/crates/windows-sys/0.61.2)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-targets 0.52.6](https://crates.io/crates/windows-targets/0.52.6)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-targets 0.53.5](https://crates.io/crates/windows-targets/0.53.5)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-threading 0.1.0](https://crates.io/crates/windows-threading/0.1.0)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows-version 0.1.7](https://crates.io/crates/windows-version/0.1.7)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows 0.61.3](https://crates.io/crates/windows/0.61.3)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows_x86_64_msvc 0.52.6](https://crates.io/crates/windows_x86_64_msvc/0.52.6)（[上游仓库](https://github.com/microsoft/windows-rs)）
+- [windows_x86_64_msvc 0.53.1](https://crates.io/crates/windows_x86_64_msvc/0.53.1)（[上游仓库](https://github.com/microsoft/windows-rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -909,7 +913,7 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### Apache License 2.0
 
 用于：
-- [zopfli 0.8.3](https://github.com/zopfli-rs/zopfli)
+- [zopfli 0.8.3](https://crates.io/crates/zopfli/0.8.3)（[上游仓库](https://github.com/zopfli-rs/zopfli)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -1121,11 +1125,11 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### Apache License 2.0
 
 用于：
-- [anytomd 1.3.1](https://github.com/developer0hye/anytomd-rs)
-- [rustls-platform-verifier 0.7.0](https://github.com/rustls/rustls-platform-verifier)
-- [serialize-to-javascript-impl 0.1.2](https://github.com/chippers/serialize-to-javascript)
-- [serialize-to-javascript 0.1.2](https://github.com/chippers/serialize-to-javascript)
-- [ureq 3.4.0](https://github.com/algesten/ureq)
+- [anytomd 1.3.1](https://crates.io/crates/anytomd/1.3.1)（[上游仓库](https://github.com/developer0hye/anytomd-rs)）
+- [rustls-platform-verifier 0.7.0](https://crates.io/crates/rustls-platform-verifier/0.7.0)（[上游仓库](https://github.com/rustls/rustls-platform-verifier)）
+- [serialize-to-javascript-impl 0.1.2](https://crates.io/crates/serialize-to-javascript-impl/0.1.2)（[上游仓库](https://github.com/chippers/serialize-to-javascript)）
+- [serialize-to-javascript 0.1.2](https://crates.io/crates/serialize-to-javascript/0.1.2)（[上游仓库](https://github.com/chippers/serialize-to-javascript)）
+- [ureq 3.4.0](https://crates.io/crates/ureq/3.4.0)（[上游仓库](https://github.com/algesten/ureq)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -1337,7 +1341,7 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### Apache License 2.0
 
 用于：
-- [ipnet 2.12.1](https://github.com/krisprice/ipnet)
+- [ipnet 2.12.1](https://crates.io/crates/ipnet/2.12.1)（[上游仓库](https://github.com/krisprice/ipnet)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -1549,7 +1553,219 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### Apache License 2.0
 
 用于：
-- [json-patch 3.0.1](https://github.com/idubrov/json-patch)
+- [swift-rs 1.0.7](https://crates.io/crates/swift-rs/1.0.7)（[上游仓库](https://github.com/Brendonovich/swift-rs)）
+
+<details>
+<summary>查看许可证正文</summary>
+
+<pre>                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      &quot;License&quot; shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      &quot;Licensor&quot; shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      &quot;Legal Entity&quot; shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      &quot;control&quot; means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      &quot;You&quot; (or &quot;Your&quot;) shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      &quot;Source&quot; form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      &quot;Object&quot; form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      &quot;Work&quot; shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      &quot;Derivative Works&quot; shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      &quot;Contribution&quot; shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, &quot;submitted&quot;
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as &quot;Not a Contribution.&quot;
+
+      &quot;Contributor&quot; shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a &quot;NOTICE&quot; text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an &quot;AS IS&quot; BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets &quot;{}&quot;
+      replaced with your own identifying information. (Don&#x27;t include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same &quot;printed page&quot; as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright 2023 The swift-rs developers
+
+   Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+</pre>
+</details>
+
+### Apache License 2.0
+
+用于：
+- [json-patch 3.0.1](https://crates.io/crates/json-patch/3.0.1)（[上游仓库](https://github.com/idubrov/json-patch)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -1761,27 +1977,30 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### Apache License 2.0
 
 用于：
-- [anstream 1.0.0](https://github.com/rust-cli/anstyle.git)
-- [anstyle-parse 1.0.0](https://github.com/rust-cli/anstyle.git)
-- [anstyle-query 1.1.5](https://github.com/rust-cli/anstyle.git)
-- [anstyle-wincon 3.0.11](https://github.com/rust-cli/anstyle.git)
-- [anstyle 1.0.14](https://github.com/rust-cli/anstyle.git)
-- [clap 4.6.6](https://github.com/clap-rs/clap)
-- [clap_builder 4.6.6](https://github.com/clap-rs/clap)
-- [clap_derive 4.6.4](https://github.com/clap-rs/clap)
-- [clap_lex 1.1.0](https://github.com/clap-rs/clap)
-- [colorchoice 1.0.5](https://github.com/rust-cli/anstyle.git)
-- [crc32fast 1.5.0](https://github.com/srijs/rust-crc32fast)
-- [fallible-iterator 0.3.0](https://github.com/sfackler/rust-fallible-iterator)
-- [fallible-streaming-iterator 0.1.9](https://github.com/sfackler/fallible-streaming-iterator)
-- [is_terminal_polyfill 1.70.2](https://github.com/polyfill-rs/is_terminal_polyfill)
-- [once_cell_polyfill 1.70.2](https://github.com/polyfill-rs/once_cell_polyfill)
-- [serde_spanned 1.1.1](https://github.com/toml-rs/toml)
-- [toml 1.1.4+spec-1.1.0](https://github.com/toml-rs/toml)
-- [toml_datetime 1.1.1+spec-1.1.0](https://github.com/toml-rs/toml)
-- [toml_edit 0.25.13+spec-1.1.0](https://github.com/toml-rs/toml)
-- [toml_parser 1.1.3+spec-1.1.0](https://github.com/toml-rs/toml)
-- [toml_writer 1.1.2+spec-1.1.0](https://github.com/toml-rs/toml)
+- [anstream 1.0.0](https://crates.io/crates/anstream/1.0.0)（[上游仓库](https://github.com/rust-cli/anstyle.git)）
+- [anstyle-parse 1.0.0](https://crates.io/crates/anstyle-parse/1.0.0)（[上游仓库](https://github.com/rust-cli/anstyle.git)）
+- [anstyle-query 1.1.5](https://crates.io/crates/anstyle-query/1.1.5)（[上游仓库](https://github.com/rust-cli/anstyle.git)）
+- [anstyle-wincon 3.0.11](https://crates.io/crates/anstyle-wincon/3.0.11)（[上游仓库](https://github.com/rust-cli/anstyle.git)）
+- [anstyle 1.0.14](https://crates.io/crates/anstyle/1.0.14)（[上游仓库](https://github.com/rust-cli/anstyle.git)）
+- [clap 4.6.6](https://crates.io/crates/clap/4.6.6)（[上游仓库](https://github.com/clap-rs/clap)）
+- [clap_builder 4.6.6](https://crates.io/crates/clap_builder/4.6.6)（[上游仓库](https://github.com/clap-rs/clap)）
+- [clap_derive 4.6.4](https://crates.io/crates/clap_derive/4.6.4)（[上游仓库](https://github.com/clap-rs/clap)）
+- [clap_lex 1.1.0](https://crates.io/crates/clap_lex/1.1.0)（[上游仓库](https://github.com/clap-rs/clap)）
+- [colorchoice 1.0.5](https://crates.io/crates/colorchoice/1.0.5)（[上游仓库](https://github.com/rust-cli/anstyle.git)）
+- [crc32fast 1.5.0](https://crates.io/crates/crc32fast/1.5.0)（[上游仓库](https://github.com/srijs/rust-crc32fast)）
+- [fallible-iterator 0.3.0](https://crates.io/crates/fallible-iterator/0.3.0)（[上游仓库](https://github.com/sfackler/rust-fallible-iterator)）
+- [fallible-streaming-iterator 0.1.9](https://crates.io/crates/fallible-streaming-iterator/0.1.9)（[上游仓库](https://github.com/sfackler/fallible-streaming-iterator)）
+- [foreign-types-macros 0.2.4](https://crates.io/crates/foreign-types-macros/0.2.4)（[上游仓库](https://github.com/sfackler/foreign-types)）
+- [foreign-types-shared 0.3.1](https://crates.io/crates/foreign-types-shared/0.3.1)（[上游仓库](https://github.com/sfackler/foreign-types)）
+- [foreign-types 0.5.0](https://crates.io/crates/foreign-types/0.5.0)（[上游仓库](https://github.com/sfackler/foreign-types)）
+- [is_terminal_polyfill 1.70.2](https://crates.io/crates/is_terminal_polyfill/1.70.2)（[上游仓库](https://github.com/polyfill-rs/is_terminal_polyfill)）
+- [once_cell_polyfill 1.70.2](https://crates.io/crates/once_cell_polyfill/1.70.2)（[上游仓库](https://github.com/polyfill-rs/once_cell_polyfill)）
+- [serde_spanned 1.1.1](https://crates.io/crates/serde_spanned/1.1.1)（[上游仓库](https://github.com/toml-rs/toml)）
+- [toml 1.1.4+spec-1.1.0](https://crates.io/crates/toml/1.1.4+spec-1.1.0)（[上游仓库](https://github.com/toml-rs/toml)）
+- [toml_datetime 1.1.1+spec-1.1.0](https://crates.io/crates/toml_datetime/1.1.1+spec-1.1.0)（[上游仓库](https://github.com/toml-rs/toml)）
+- [toml_edit 0.25.13+spec-1.1.0](https://crates.io/crates/toml_edit/0.25.13+spec-1.1.0)（[上游仓库](https://github.com/toml-rs/toml)）
+- [toml_parser 1.1.3+spec-1.1.0](https://crates.io/crates/toml_parser/1.1.3+spec-1.1.0)（[上游仓库](https://github.com/toml-rs/toml)）
+- [toml_writer 1.1.2+spec-1.1.0](https://crates.io/crates/toml_writer/1.1.2+spec-1.1.0)（[上游仓库](https://github.com/toml-rs/toml)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -1994,7 +2213,7 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### Apache License 2.0
 
 用于：
-- [jsonptr 0.6.3](https://github.com/chanced/jsonptr)
+- [jsonptr 0.6.3](https://crates.io/crates/jsonptr/0.6.3)（[上游仓库](https://github.com/chanced/jsonptr)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -2206,15 +2425,15 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [futures-channel 0.3.33](https://github.com/rust-lang/futures-rs)
-- [futures-core 0.3.33](https://github.com/rust-lang/futures-rs)
-- [futures-executor 0.3.33](https://github.com/rust-lang/futures-rs)
-- [futures-io 0.3.33](https://github.com/rust-lang/futures-rs)
-- [futures-macro 0.3.33](https://github.com/rust-lang/futures-rs)
-- [futures-sink 0.3.33](https://github.com/rust-lang/futures-rs)
-- [futures-task 0.3.33](https://github.com/rust-lang/futures-rs)
-- [futures-util 0.3.33](https://github.com/rust-lang/futures-rs)
-- [futures 0.3.33](https://github.com/rust-lang/futures-rs)
+- [futures-channel 0.3.33](https://crates.io/crates/futures-channel/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-core 0.3.33](https://crates.io/crates/futures-core/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-executor 0.3.33](https://crates.io/crates/futures-executor/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-io 0.3.33](https://crates.io/crates/futures-io/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-macro 0.3.33](https://crates.io/crates/futures-macro/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-sink 0.3.33](https://crates.io/crates/futures-sink/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-task 0.3.33](https://crates.io/crates/futures-task/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-util 0.3.33](https://crates.io/crates/futures-util/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures 0.3.33](https://crates.io/crates/futures/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -2427,7 +2646,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [typenum 1.20.1](https://github.com/paholg/typenum)
+- [typenum 1.20.1](https://crates.io/crates/typenum/1.20.1)（[上游仓库](https://github.com/paholg/typenum)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -2638,7 +2857,7 @@ limitations under the License.</pre>
 ### Apache License 2.0
 
 用于：
-- [reqwest 0.13.4](https://github.com/seanmonstar/reqwest)
+- [reqwest 0.13.4](https://crates.io/crates/reqwest/0.13.4)（[上游仓库](https://github.com/seanmonstar/reqwest)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -2850,7 +3069,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [cookie 0.18.2](https://github.com/SergioBenitez/cookie-rs)
+- [cookie 0.18.2](https://crates.io/crates/cookie/0.18.2)（[上游仓库](https://github.com/SergioBenitez/cookie-rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -3063,7 +3282,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [http 1.5.0](https://github.com/hyperium/http)
+- [http 1.5.0](https://crates.io/crates/http/1.5.0)（[上游仓库](https://github.com/hyperium/http)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -3275,7 +3494,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [tokio-rustls 0.26.4](https://github.com/rustls/tokio-rustls)
+- [tokio-rustls 0.26.4](https://crates.io/crates/tokio-rustls/0.26.4)（[上游仓库](https://github.com/rustls/tokio-rustls)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -3487,7 +3706,219 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [fast-float2 0.2.3](https://github.com/Alexhuszagh/fast-float-rust)
+- [iana-time-zone 0.1.65](https://crates.io/crates/iana-time-zone/0.1.65)（[上游仓库](https://github.com/strawlab/iana-time-zone)）
+
+<details>
+<summary>查看许可证正文</summary>
+
+<pre>                              Apache License
+                        Version 2.0, January 2004
+                     http://www.apache.org/licenses/
+
+TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+1. Definitions.
+
+   &quot;License&quot; shall mean the terms and conditions for use, reproduction,
+   and distribution as defined by Sections 1 through 9 of this document.
+
+   &quot;Licensor&quot; shall mean the copyright owner or entity authorized by
+   the copyright owner that is granting the License.
+
+   &quot;Legal Entity&quot; shall mean the union of the acting entity and all
+   other entities that control, are controlled by, or are under common
+   control with that entity. For the purposes of this definition,
+   &quot;control&quot; means (i) the power, direct or indirect, to cause the
+   direction or management of such entity, whether by contract or
+   otherwise, or (ii) ownership of fifty percent (50%) or more of the
+   outstanding shares, or (iii) beneficial ownership of such entity.
+
+   &quot;You&quot; (or &quot;Your&quot;) shall mean an individual or Legal Entity
+   exercising permissions granted by this License.
+
+   &quot;Source&quot; form shall mean the preferred form for making modifications,
+   including but not limited to software source code, documentation
+   source, and configuration files.
+
+   &quot;Object&quot; form shall mean any form resulting from mechanical
+   transformation or translation of a Source form, including but
+   not limited to compiled object code, generated documentation,
+   and conversions to other media types.
+
+   &quot;Work&quot; shall mean the work of authorship, whether in Source or
+   Object form, made available under the License, as indicated by a
+   copyright notice that is included in or attached to the work
+   (an example is provided in the Appendix below).
+
+   &quot;Derivative Works&quot; shall mean any work, whether in Source or Object
+   form, that is based on (or derived from) the Work and for which the
+   editorial revisions, annotations, elaborations, or other modifications
+   represent, as a whole, an original work of authorship. For the purposes
+   of this License, Derivative Works shall not include works that remain
+   separable from, or merely link (or bind by name) to the interfaces of,
+   the Work and Derivative Works thereof.
+
+   &quot;Contribution&quot; shall mean any work of authorship, including
+   the original version of the Work and any modifications or additions
+   to that Work or Derivative Works thereof, that is intentionally
+   submitted to Licensor for inclusion in the Work by the copyright owner
+   or by an individual or Legal Entity authorized to submit on behalf of
+   the copyright owner. For the purposes of this definition, &quot;submitted&quot;
+   means any form of electronic, verbal, or written communication sent
+   to the Licensor or its representatives, including but not limited to
+   communication on electronic mailing lists, source code control systems,
+   and issue tracking systems that are managed by, or on behalf of, the
+   Licensor for the purpose of discussing and improving the Work, but
+   excluding communication that is conspicuously marked or otherwise
+   designated in writing by the copyright owner as &quot;Not a Contribution.&quot;
+
+   &quot;Contributor&quot; shall mean Licensor and any individual or Legal Entity
+   on behalf of whom a Contribution has been received by Licensor and
+   subsequently incorporated within the Work.
+
+2. Grant of Copyright License. Subject to the terms and conditions of
+   this License, each Contributor hereby grants to You a perpetual,
+   worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+   copyright license to reproduce, prepare Derivative Works of,
+   publicly display, publicly perform, sublicense, and distribute the
+   Work and such Derivative Works in Source or Object form.
+
+3. Grant of Patent License. Subject to the terms and conditions of
+   this License, each Contributor hereby grants to You a perpetual,
+   worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+   (except as stated in this section) patent license to make, have made,
+   use, offer to sell, sell, import, and otherwise transfer the Work,
+   where such license applies only to those patent claims licensable
+   by such Contributor that are necessarily infringed by their
+   Contribution(s) alone or by combination of their Contribution(s)
+   with the Work to which such Contribution(s) was submitted. If You
+   institute patent litigation against any entity (including a
+   cross-claim or counterclaim in a lawsuit) alleging that the Work
+   or a Contribution incorporated within the Work constitutes direct
+   or contributory patent infringement, then any patent licenses
+   granted to You under this License for that Work shall terminate
+   as of the date such litigation is filed.
+
+4. Redistribution. You may reproduce and distribute copies of the
+   Work or Derivative Works thereof in any medium, with or without
+   modifications, and in Source or Object form, provided that You
+   meet the following conditions:
+
+   (a) You must give any other recipients of the Work or
+       Derivative Works a copy of this License; and
+
+   (b) You must cause any modified files to carry prominent notices
+       stating that You changed the files; and
+
+   (c) You must retain, in the Source form of any Derivative Works
+       that You distribute, all copyright, patent, trademark, and
+       attribution notices from the Source form of the Work,
+       excluding those notices that do not pertain to any part of
+       the Derivative Works; and
+
+   (d) If the Work includes a &quot;NOTICE&quot; text file as part of its
+       distribution, then any Derivative Works that You distribute must
+       include a readable copy of the attribution notices contained
+       within such NOTICE file, excluding those notices that do not
+       pertain to any part of the Derivative Works, in at least one
+       of the following places: within a NOTICE text file distributed
+       as part of the Derivative Works; within the Source form or
+       documentation, if provided along with the Derivative Works; or,
+       within a display generated by the Derivative Works, if and
+       wherever such third-party notices normally appear. The contents
+       of the NOTICE file are for informational purposes only and
+       do not modify the License. You may add Your own attribution
+       notices within Derivative Works that You distribute, alongside
+       or as an addendum to the NOTICE text from the Work, provided
+       that such additional attribution notices cannot be construed
+       as modifying the License.
+
+   You may add Your own copyright statement to Your modifications and
+   may provide additional or different license terms and conditions
+   for use, reproduction, or distribution of Your modifications, or
+   for any such Derivative Works as a whole, provided Your use,
+   reproduction, and distribution of the Work otherwise complies with
+   the conditions stated in this License.
+
+5. Submission of Contributions. Unless You explicitly state otherwise,
+   any Contribution intentionally submitted for inclusion in the Work
+   by You to the Licensor shall be under the terms and conditions of
+   this License, without any additional terms or conditions.
+   Notwithstanding the above, nothing herein shall supersede or modify
+   the terms of any separate license agreement you may have executed
+   with Licensor regarding such Contributions.
+
+6. Trademarks. This License does not grant permission to use the trade
+   names, trademarks, service marks, or product names of the Licensor,
+   except as required for reasonable and customary use in describing the
+   origin of the Work and reproducing the content of the NOTICE file.
+
+7. Disclaimer of Warranty. Unless required by applicable law or
+   agreed to in writing, Licensor provides the Work (and each
+   Contributor provides its Contributions) on an &quot;AS IS&quot; BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+   implied, including, without limitation, any warranties or conditions
+   of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+   PARTICULAR PURPOSE. You are solely responsible for determining the
+   appropriateness of using or redistributing the Work and assume any
+   risks associated with Your exercise of permissions under this License.
+
+8. Limitation of Liability. In no event and under no legal theory,
+   whether in tort (including negligence), contract, or otherwise,
+   unless required by applicable law (such as deliberate and grossly
+   negligent acts) or agreed to in writing, shall any Contributor be
+   liable to You for damages, including any direct, indirect, special,
+   incidental, or consequential damages of any character arising as a
+   result of this License or out of the use or inability to use the
+   Work (including but not limited to damages for loss of goodwill,
+   work stoppage, computer failure or malfunction, or any and all
+   other commercial damages or losses), even if such Contributor
+   has been advised of the possibility of such damages.
+
+9. Accepting Warranty or Additional Liability. While redistributing
+   the Work or Derivative Works thereof, You may choose to offer,
+   and charge a fee for, acceptance of support, warranty, indemnity,
+   or other liability obligations and/or rights consistent with this
+   License. However, in accepting such obligations, You may act only
+   on Your own behalf and on Your sole responsibility, not on behalf
+   of any other Contributor, and only if You agree to indemnify,
+   defend, and hold each Contributor harmless for any liability
+   incurred by, or claims asserted against, such Contributor by reason
+   of your accepting any such warranty or additional liability.
+
+END OF TERMS AND CONDITIONS
+
+APPENDIX: How to apply the Apache License to your work.
+
+   To apply the Apache License to your work, attach the following
+   boilerplate notice, with the fields enclosed by brackets &quot;[]&quot;
+   replaced with your own identifying information. (Don&#x27;t include
+   the brackets!)  The text should be enclosed in the appropriate
+   comment syntax for the file format. We also recommend that a
+   file or class name and description of purpose be included on the
+   same &quot;printed page&quot; as the copyright notice for easier
+   identification within third-party archives.
+
+Copyright 2020 Andrew Straw
+
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+</pre>
+</details>
+
+### Apache License 2.0
+
+用于：
+- [fast-float2 0.2.3](https://crates.io/crates/fast-float2/0.2.3)（[上游仓库](https://github.com/Alexhuszagh/fast-float-rust)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -3699,7 +4130,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [atoi_simd 0.18.1](https://github.com/RoDmitry/atoi_simd)
+- [atoi_simd 0.18.1](https://crates.io/crates/atoi_simd/0.18.1)（[上游仓库](https://github.com/RoDmitry/atoi_simd)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -3911,7 +4342,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [rustls-pki-types 1.15.1](https://github.com/rustls/pki-types)
+- [rustls-pki-types 1.15.1](https://crates.io/crates/rustls-pki-types/1.15.1)（[上游仓库](https://github.com/rustls/pki-types)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -4123,7 +4554,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [notify-types 2.1.0](https://github.com/notify-rs/notify.git)
+- [notify-types 2.1.0](https://crates.io/crates/notify-types/2.1.0)（[上游仓库](https://github.com/notify-rs/notify.git)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -4335,7 +4766,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [debug_unsafe 0.1.4](https://github.com/RoDmitry/debug_unsafe)
+- [debug_unsafe 0.1.4](https://crates.io/crates/debug_unsafe/0.1.4)（[上游仓库](https://github.com/RoDmitry/debug_unsafe)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -4547,8 +4978,9 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [keyring-core 1.0.0](https://github.com/open-source-cooperative/keyring-core.git)
-- [keyring 4.1.6](https://github.com/open-source-cooperative/keyring-rs)
+- [apple-native-keyring-store 1.0.2](https://crates.io/crates/apple-native-keyring-store/1.0.2)（[上游仓库](https://github.com/open-source-cooperative/apple-native-keyring-store.git)）
+- [keyring-core 1.0.0](https://crates.io/crates/keyring-core/1.0.0)（[上游仓库](https://github.com/open-source-cooperative/keyring-core.git)）
+- [keyring 4.1.6](https://crates.io/crates/keyring/4.1.6)（[上游仓库](https://github.com/open-source-cooperative/keyring-rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -4760,7 +5192,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [keyboard-types 0.7.0](https://github.com/pyfisch/keyboard-types)
+- [keyboard-types 0.7.0](https://crates.io/crates/keyboard-types/0.7.0)（[上游仓库](https://github.com/pyfisch/keyboard-types)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -4971,79 +5403,87 @@ limitations under the License.</pre>
 ### Apache License 2.0
 
 用于：
-- [atomic-waker 1.1.2](https://github.com/smol-rs/atomic-waker)
-- [base64 0.22.1](https://github.com/marshallpierce/rust-base64)
-- [base64 0.23.1](https://github.com/marshallpierce/rust-base64)
-- [bitflags 1.3.2](https://github.com/bitflags/bitflags)
-- [bitflags 2.13.1](https://github.com/bitflags/bitflags)
-- [bumpalo 3.20.3](https://github.com/fitzgen/bumpalo)
-- [camino 1.2.5](https://github.com/camino-rs/camino)
-- [cfg-if 1.0.4](https://github.com/rust-lang/cfg-if)
-- [countme 3.0.1](https://github.com/matklad/countme)
-- [crossbeam-channel 0.5.16](https://github.com/crossbeam-rs/crossbeam)
-- [crossbeam-utils 0.8.22](https://github.com/crossbeam-rs/crossbeam)
-- [displaydoc 0.2.7](https://github.com/yaahc/displaydoc)
-- [equivalent 1.0.2](https://github.com/indexmap-rs/equivalent)
-- [fastrand 2.5.0](https://github.com/smol-rs/fastrand)
-- [flate2 1.1.9](https://github.com/rust-lang/flate2-rs)
-- [fnv 1.0.7](https://github.com/servo/rust-fnv)
-- [form_urlencoded 1.2.2](https://github.com/servo/rust-url)
-- [futf 0.1.5](https://github.com/servo/futf)
-- [futures-timer 3.0.4](https://github.com/async-rs/futures-timer)
-- [getopts 0.2.24](https://github.com/rust-lang/getopts)
-- [glob 0.3.4](https://github.com/rust-lang/glob)
-- [hashbrown 0.14.5](https://github.com/rust-lang/hashbrown)
-- [hashbrown 0.15.5](https://github.com/rust-lang/hashbrown)
-- [hashbrown 0.17.1](https://github.com/rust-lang/hashbrown)
-- [heck 0.5.0](https://github.com/withoutboats/heck)
-- [html5ever 0.29.1](https://github.com/servo/html5ever)
-- [html5ever 0.38.0](https://github.com/servo/html5ever)
-- [httparse 1.10.1](https://github.com/seanmonstar/httparse)
-- [hyper-rustls 0.27.9](https://github.com/rustls/hyper-rustls)
-- [idna 1.1.0](https://github.com/servo/rust-url/)
-- [idna_adapter 1.2.2](https://github.com/hsivonen/idna_adapter)
-- [indexmap 2.14.0](https://github.com/indexmap-rs/indexmap)
-- [lazy_static 1.5.0](https://github.com/rust-lang-nursery/lazy-static.rs)
-- [lock_api 0.4.14](https://github.com/Amanieu/parking_lot)
-- [log 0.4.33](https://github.com/rust-lang/log)
-- [markup5ever 0.14.1](https://github.com/servo/html5ever)
-- [markup5ever 0.38.0](https://github.com/servo/html5ever)
-- [mime 0.3.17](https://github.com/hyperium/mime)
-- [muda 0.19.3](https://github.com/tauri-apps/muda)
-- [num-traits 0.2.19](https://github.com/rust-num/num-traits)
-- [once_cell 1.21.4](https://github.com/matklad/once_cell)
-- [parking_lot 0.12.5](https://github.com/Amanieu/parking_lot)
-- [parking_lot_core 0.9.12](https://github.com/Amanieu/parking_lot)
-- [percent-encoding 2.3.2](https://github.com/servo/rust-url/)
-- [png 0.17.16](https://github.com/image-rs/image-png)
-- [regex-automata 0.4.18](https://github.com/rust-lang/regex)
-- [regex-syntax 0.8.11](https://github.com/rust-lang/regex)
-- [regex 1.13.1](https://github.com/rust-lang/regex)
-- [ring 0.17.14](https://github.com/briansmith/ring)
-- [rowan 0.16.1](https://github.com/rust-analyzer/rowan)
-- [rustc-hash 1.1.0](https://github.com/rust-lang-nursery/rustc-hash)
-- [rustls 0.23.43](https://github.com/rustls/rustls)
-- [scopeguard 1.2.0](https://github.com/bluss/scopeguard)
-- [serde_with 3.22.0](https://github.com/jonasbb/serde_with/)
-- [serde_with_macros 3.22.0](https://github.com/jonasbb/serde_with/)
-- [servo_arc 0.4.3](https://github.com/servo/stylo)
-- [smallvec 1.15.2](https://github.com/servo/rust-smallvec)
-- [socket2 0.6.5](https://github.com/rust-lang/socket2)
-- [stable_deref_trait 1.2.1](https://github.com/storyyeller/stable_deref_trait)
-- [string_cache 0.8.9](https://github.com/servo/string-cache)
-- [string_cache 0.9.0](https://github.com/servo/string-cache)
-- [tendril 0.4.3](https://github.com/servo/tendril)
-- [tendril 0.5.1](https://github.com/servo/html5ever)
-- [thread_local 1.1.10](https://github.com/Amanieu/thread_local-rs)
-- [tray-icon 0.24.2](https://github.com/tauri-apps/tray-icon)
-- [unicase 2.9.0](https://github.com/seanmonstar/unicase)
-- [unicode-segmentation 1.13.3](https://github.com/unicode-rs/unicode-segmentation)
-- [unicode-width 0.2.2](https://github.com/unicode-rs/unicode-width)
-- [url 2.5.8](https://github.com/servo/rust-url)
-- [uuid 1.24.0](https://github.com/uuid-rs/uuid)
-- [web_atoms 0.2.6](https://github.com/servo/html5ever)
-- [window-vibrancy 0.6.0](https://github.com/tauri-apps/tauri-plugin-vibrancy)
-- [wry 0.55.1](https://github.com/tauri-apps/wry)
+- [atomic-waker 1.1.2](https://crates.io/crates/atomic-waker/1.1.2)（[上游仓库](https://github.com/smol-rs/atomic-waker)）
+- [base64 0.21.7](https://crates.io/crates/base64/0.21.7)（[上游仓库](https://github.com/marshallpierce/rust-base64)）
+- [base64 0.22.1](https://crates.io/crates/base64/0.22.1)（[上游仓库](https://github.com/marshallpierce/rust-base64)）
+- [base64 0.23.1](https://crates.io/crates/base64/0.23.1)（[上游仓库](https://github.com/marshallpierce/rust-base64)）
+- [bitflags 1.3.2](https://crates.io/crates/bitflags/1.3.2)（[上游仓库](https://github.com/bitflags/bitflags)）
+- [bitflags 2.13.1](https://crates.io/crates/bitflags/2.13.1)（[上游仓库](https://github.com/bitflags/bitflags)）
+- [bumpalo 3.20.3](https://crates.io/crates/bumpalo/3.20.3)（[上游仓库](https://github.com/fitzgen/bumpalo)）
+- [camino 1.2.5](https://crates.io/crates/camino/1.2.5)（[上游仓库](https://github.com/camino-rs/camino)）
+- [cfg-if 1.0.4](https://crates.io/crates/cfg-if/1.0.4)（[上游仓库](https://github.com/rust-lang/cfg-if)）
+- [core-foundation-sys 0.8.7](https://crates.io/crates/core-foundation-sys/0.8.7)（[上游仓库](https://github.com/servo/core-foundation-rs)）
+- [core-foundation 0.10.1](https://crates.io/crates/core-foundation/0.10.1)（[上游仓库](https://github.com/servo/core-foundation-rs)）
+- [core-graphics-types 0.2.0](https://crates.io/crates/core-graphics-types/0.2.0)（[上游仓库](https://github.com/servo/core-foundation-rs)）
+- [core-graphics 0.25.0](https://crates.io/crates/core-graphics/0.25.0)（[上游仓库](https://github.com/servo/core-foundation-rs)）
+- [countme 3.0.1](https://crates.io/crates/countme/3.0.1)（[上游仓库](https://github.com/matklad/countme)）
+- [crossbeam-channel 0.5.16](https://crates.io/crates/crossbeam-channel/0.5.16)（[上游仓库](https://github.com/crossbeam-rs/crossbeam)）
+- [crossbeam-utils 0.8.22](https://crates.io/crates/crossbeam-utils/0.8.22)（[上游仓库](https://github.com/crossbeam-rs/crossbeam)）
+- [displaydoc 0.2.7](https://crates.io/crates/displaydoc/0.2.7)（[上游仓库](https://github.com/yaahc/displaydoc)）
+- [equivalent 1.0.2](https://crates.io/crates/equivalent/1.0.2)（[上游仓库](https://github.com/indexmap-rs/equivalent)）
+- [fastrand 2.5.0](https://crates.io/crates/fastrand/2.5.0)（[上游仓库](https://github.com/smol-rs/fastrand)）
+- [flate2 1.1.9](https://crates.io/crates/flate2/1.1.9)（[上游仓库](https://github.com/rust-lang/flate2-rs)）
+- [fnv 1.0.7](https://crates.io/crates/fnv/1.0.7)（[上游仓库](https://github.com/servo/rust-fnv)）
+- [form_urlencoded 1.2.2](https://crates.io/crates/form_urlencoded/1.2.2)（[上游仓库](https://github.com/servo/rust-url)）
+- [futf 0.1.5](https://crates.io/crates/futf/0.1.5)（[上游仓库](https://github.com/servo/futf)）
+- [futures-timer 3.0.4](https://crates.io/crates/futures-timer/3.0.4)（[上游仓库](https://github.com/async-rs/futures-timer)）
+- [getopts 0.2.24](https://crates.io/crates/getopts/0.2.24)（[上游仓库](https://github.com/rust-lang/getopts)）
+- [glob 0.3.4](https://crates.io/crates/glob/0.3.4)（[上游仓库](https://github.com/rust-lang/glob)）
+- [hashbrown 0.14.5](https://crates.io/crates/hashbrown/0.14.5)（[上游仓库](https://github.com/rust-lang/hashbrown)）
+- [hashbrown 0.15.5](https://crates.io/crates/hashbrown/0.15.5)（[上游仓库](https://github.com/rust-lang/hashbrown)）
+- [hashbrown 0.17.1](https://crates.io/crates/hashbrown/0.17.1)（[上游仓库](https://github.com/rust-lang/hashbrown)）
+- [heck 0.5.0](https://crates.io/crates/heck/0.5.0)（[上游仓库](https://github.com/withoutboats/heck)）
+- [html5ever 0.29.1](https://crates.io/crates/html5ever/0.29.1)（[上游仓库](https://github.com/servo/html5ever)）
+- [html5ever 0.38.0](https://crates.io/crates/html5ever/0.38.0)（[上游仓库](https://github.com/servo/html5ever)）
+- [httparse 1.10.1](https://crates.io/crates/httparse/1.10.1)（[上游仓库](https://github.com/seanmonstar/httparse)）
+- [hyper-rustls 0.27.9](https://crates.io/crates/hyper-rustls/0.27.9)（[上游仓库](https://github.com/rustls/hyper-rustls)）
+- [idna 1.1.0](https://crates.io/crates/idna/1.1.0)（[上游仓库](https://github.com/servo/rust-url/)）
+- [idna_adapter 1.2.2](https://crates.io/crates/idna_adapter/1.2.2)（[上游仓库](https://github.com/hsivonen/idna_adapter)）
+- [indexmap 2.14.0](https://crates.io/crates/indexmap/2.14.0)（[上游仓库](https://github.com/indexmap-rs/indexmap)）
+- [lazy_static 1.5.0](https://crates.io/crates/lazy_static/1.5.0)（[上游仓库](https://github.com/rust-lang-nursery/lazy-static.rs)）
+- [lock_api 0.4.14](https://crates.io/crates/lock_api/0.4.14)（[上游仓库](https://github.com/Amanieu/parking_lot)）
+- [log 0.4.33](https://crates.io/crates/log/0.4.33)（[上游仓库](https://github.com/rust-lang/log)）
+- [markup5ever 0.14.1](https://crates.io/crates/markup5ever/0.14.1)（[上游仓库](https://github.com/servo/html5ever)）
+- [markup5ever 0.38.0](https://crates.io/crates/markup5ever/0.38.0)（[上游仓库](https://github.com/servo/html5ever)）
+- [mime 0.3.17](https://crates.io/crates/mime/0.3.17)（[上游仓库](https://github.com/hyperium/mime)）
+- [muda 0.19.3](https://crates.io/crates/muda/0.19.3)（[上游仓库](https://github.com/tauri-apps/muda)）
+- [num-traits 0.2.19](https://crates.io/crates/num-traits/0.2.19)（[上游仓库](https://github.com/rust-num/num-traits)）
+- [once_cell 1.21.4](https://crates.io/crates/once_cell/1.21.4)（[上游仓库](https://github.com/matklad/once_cell)）
+- [parking_lot 0.12.5](https://crates.io/crates/parking_lot/0.12.5)（[上游仓库](https://github.com/Amanieu/parking_lot)）
+- [parking_lot_core 0.9.12](https://crates.io/crates/parking_lot_core/0.9.12)（[上游仓库](https://github.com/Amanieu/parking_lot)）
+- [percent-encoding 2.3.2](https://crates.io/crates/percent-encoding/2.3.2)（[上游仓库](https://github.com/servo/rust-url/)）
+- [png 0.17.16](https://crates.io/crates/png/0.17.16)（[上游仓库](https://github.com/image-rs/image-png)）
+- [png 0.18.1](https://crates.io/crates/png/0.18.1)（[上游仓库](https://github.com/image-rs/image-png)）
+- [regex-automata 0.4.18](https://crates.io/crates/regex-automata/0.4.18)（[上游仓库](https://github.com/rust-lang/regex)）
+- [regex-syntax 0.8.11](https://crates.io/crates/regex-syntax/0.8.11)（[上游仓库](https://github.com/rust-lang/regex)）
+- [regex 1.13.1](https://crates.io/crates/regex/1.13.1)（[上游仓库](https://github.com/rust-lang/regex)）
+- [ring 0.17.14](https://crates.io/crates/ring/0.17.14)（[上游仓库](https://github.com/briansmith/ring)）
+- [rowan 0.16.1](https://crates.io/crates/rowan/0.16.1)（[上游仓库](https://github.com/rust-analyzer/rowan)）
+- [rustc-hash 1.1.0](https://crates.io/crates/rustc-hash/1.1.0)（[上游仓库](https://github.com/rust-lang-nursery/rustc-hash)）
+- [rustls 0.23.43](https://crates.io/crates/rustls/0.23.43)（[上游仓库](https://github.com/rustls/rustls)）
+- [scopeguard 1.2.0](https://crates.io/crates/scopeguard/1.2.0)（[上游仓库](https://github.com/bluss/scopeguard)）
+- [security-framework-sys 2.17.0](https://crates.io/crates/security-framework-sys/2.17.0)（[上游仓库](https://github.com/kornelski/rust-security-framework)）
+- [security-framework 3.7.0](https://crates.io/crates/security-framework/3.7.0)（[上游仓库](https://github.com/kornelski/rust-security-framework)）
+- [serde_with 3.22.0](https://crates.io/crates/serde_with/3.22.0)（[上游仓库](https://github.com/jonasbb/serde_with/)）
+- [serde_with_macros 3.22.0](https://crates.io/crates/serde_with_macros/3.22.0)（[上游仓库](https://github.com/jonasbb/serde_with/)）
+- [servo_arc 0.4.3](https://crates.io/crates/servo_arc/0.4.3)（[上游仓库](https://github.com/servo/stylo)）
+- [smallvec 1.15.2](https://crates.io/crates/smallvec/1.15.2)（[上游仓库](https://github.com/servo/rust-smallvec)）
+- [socket2 0.6.5](https://crates.io/crates/socket2/0.6.5)（[上游仓库](https://github.com/rust-lang/socket2)）
+- [stable_deref_trait 1.2.1](https://crates.io/crates/stable_deref_trait/1.2.1)（[上游仓库](https://github.com/storyyeller/stable_deref_trait)）
+- [string_cache 0.8.9](https://crates.io/crates/string_cache/0.8.9)（[上游仓库](https://github.com/servo/string-cache)）
+- [string_cache 0.9.0](https://crates.io/crates/string_cache/0.9.0)（[上游仓库](https://github.com/servo/string-cache)）
+- [tendril 0.4.3](https://crates.io/crates/tendril/0.4.3)（[上游仓库](https://github.com/servo/tendril)）
+- [tendril 0.5.1](https://crates.io/crates/tendril/0.5.1)（[上游仓库](https://github.com/servo/html5ever)）
+- [thread_local 1.1.10](https://crates.io/crates/thread_local/1.1.10)（[上游仓库](https://github.com/Amanieu/thread_local-rs)）
+- [tray-icon 0.24.2](https://crates.io/crates/tray-icon/0.24.2)（[上游仓库](https://github.com/tauri-apps/tray-icon)）
+- [unicase 2.9.0](https://crates.io/crates/unicase/2.9.0)（[上游仓库](https://github.com/seanmonstar/unicase)）
+- [unicode-segmentation 1.13.3](https://crates.io/crates/unicode-segmentation/1.13.3)（[上游仓库](https://github.com/unicode-rs/unicode-segmentation)）
+- [unicode-width 0.2.2](https://crates.io/crates/unicode-width/0.2.2)（[上游仓库](https://github.com/unicode-rs/unicode-width)）
+- [url 2.5.8](https://crates.io/crates/url/2.5.8)（[上游仓库](https://github.com/servo/rust-url)）
+- [uuid 1.24.0](https://crates.io/crates/uuid/1.24.0)（[上游仓库](https://github.com/uuid-rs/uuid)）
+- [web_atoms 0.2.6](https://crates.io/crates/web_atoms/0.2.6)（[上游仓库](https://github.com/servo/html5ever)）
+- [window-vibrancy 0.6.0](https://crates.io/crates/window-vibrancy/0.6.0)（[上游仓库](https://github.com/tauri-apps/tauri-plugin-vibrancy)）
+- [wry 0.55.1](https://crates.io/crates/wry/0.55.1)（[上游仓库](https://github.com/tauri-apps/wry)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -5255,7 +5695,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [hashlink 0.10.0](https://github.com/kyren/hashlink)
+- [hashlink 0.10.0](https://crates.io/crates/hashlink/0.10.0)（[上游仓库](https://github.com/kyren/hashlink)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -5466,9 +5906,9 @@ limitations under the License.</pre>
 ### Apache License 2.0
 
 用于：
-- [bit-set 0.8.0](https://github.com/contain-rs/bit-set)
-- [bit-vec 0.8.0](https://github.com/contain-rs/bit-vec)
-- [minimal-lexical 0.2.1](https://github.com/Alexhuszagh/minimal-lexical)
+- [bit-set 0.8.0](https://crates.io/crates/bit-set/0.8.0)（[上游仓库](https://github.com/contain-rs/bit-set)）
+- [bit-vec 0.8.0](https://crates.io/crates/bit-vec/0.8.0)（[上游仓库](https://github.com/contain-rs/bit-vec)）
+- [minimal-lexical 0.2.1](https://crates.io/crates/minimal-lexical/0.2.1)（[上游仓库](https://github.com/Alexhuszagh/minimal-lexical)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -5680,11 +6120,11 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [block-buffer 0.10.4](https://github.com/RustCrypto/utils)
-- [cpufeatures 0.2.17](https://github.com/RustCrypto/utils)
-- [crypto-common 0.1.7](https://github.com/RustCrypto/traits)
-- [digest 0.10.7](https://github.com/RustCrypto/traits)
-- [sha2 0.10.9](https://github.com/RustCrypto/hashes)
+- [block-buffer 0.10.4](https://crates.io/crates/block-buffer/0.10.4)（[上游仓库](https://github.com/RustCrypto/utils)）
+- [cpufeatures 0.2.17](https://crates.io/crates/cpufeatures/0.2.17)（[上游仓库](https://github.com/RustCrypto/utils)）
+- [crypto-common 0.1.7](https://crates.io/crates/crypto-common/0.1.7)（[上游仓库](https://github.com/RustCrypto/traits)）
+- [digest 0.10.7](https://crates.io/crates/digest/0.10.7)（[上游仓库](https://github.com/RustCrypto/traits)）
+- [sha2 0.10.9](https://crates.io/crates/sha2/0.10.9)（[上游仓库](https://github.com/RustCrypto/hashes)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -5896,7 +6336,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [rand_core 0.6.4](https://github.com/rust-random/rand)
+- [rand_core 0.6.4](https://crates.io/crates/rand_core/0.6.4)（[上游仓库](https://github.com/rust-random/rand)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -6094,9 +6534,9 @@ APPENDIX: How to apply the Apache License to your work.
 ### Apache License 2.0
 
 用于：
-- [getrandom 0.2.17](https://github.com/rust-random/getrandom)
-- [getrandom 0.3.4](https://github.com/rust-random/getrandom)
-- [getrandom 0.4.3](https://github.com/rust-random/getrandom)
+- [getrandom 0.2.17](https://crates.io/crates/getrandom/0.2.17)（[上游仓库](https://github.com/rust-random/getrandom)）
+- [getrandom 0.3.4](https://crates.io/crates/getrandom/0.3.4)（[上游仓库](https://github.com/rust-random/getrandom)）
+- [getrandom 0.4.3](https://crates.io/crates/getrandom/0.4.3)（[上游仓库](https://github.com/rust-random/getrandom)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -6308,8 +6748,8 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [cargo-platform 0.1.9](https://github.com/rust-lang/cargo)
-- [proc-macro-crate 3.5.0](https://github.com/bkchr/proc-macro-crate)
+- [cargo-platform 0.1.9](https://crates.io/crates/cargo-platform/0.1.9)（[上游仓库](https://github.com/rust-lang/cargo)）
+- [proc-macro-crate 3.5.0](https://crates.io/crates/proc-macro-crate/3.5.0)（[上游仓库](https://github.com/bkchr/proc-macro-crate)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -6521,7 +6961,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [windows-native-keyring-store 1.1.0](https://github.com/open-source-cooperative/windows-native-keyring-store.git)
+- [windows-native-keyring-store 1.1.0](https://crates.io/crates/windows-native-keyring-store/1.1.0)（[上游仓库](https://github.com/open-source-cooperative/windows-native-keyring-store.git)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -6733,7 +7173,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [text-size 1.1.1](https://github.com/rust-analyzer/text-size)
+- [text-size 1.1.1](https://crates.io/crates/text-size/1.1.1)（[上游仓库](https://github.com/rust-analyzer/text-size)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -6945,7 +7385,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [softbuffer 0.4.8](https://github.com/rust-windowing/softbuffer)
+- [softbuffer 0.4.8](https://crates.io/crates/softbuffer/0.4.8)（[上游仓库](https://github.com/rust-windowing/softbuffer)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -7157,8 +7597,8 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [dpi 0.1.2](https://github.com/rust-windowing/winit)
-- [tao 0.35.3](https://github.com/tauri-apps/tao)
+- [dpi 0.1.2](https://crates.io/crates/dpi/0.1.2)（[上游仓库](https://github.com/rust-windowing/winit)）
+- [tao 0.35.3](https://crates.io/crates/tao/0.35.3)（[上游仓库](https://github.com/tauri-apps/tao)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -7369,8 +7809,8 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [ctor-proc-macro 0.0.7](https://github.com/mmastrac/rust-ctor)
-- [ctor 0.8.0](https://github.com/mmastrac/rust-ctor)
+- [ctor-proc-macro 0.0.7](https://crates.io/crates/ctor-proc-macro/0.0.7)（[上游仓库](https://github.com/mmastrac/rust-ctor)）
+- [ctor 0.8.0](https://crates.io/crates/ctor/0.8.0)（[上游仓库](https://github.com/mmastrac/rust-ctor)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -7582,77 +8022,84 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [anyhow 1.0.104](https://github.com/dtolnay/anyhow)
-- [aws-lc-sys 0.44.0](https://github.com/aws/aws-lc-rs)
-- [dirs-sys 0.5.0](https://github.com/dirs-dev/dirs-sys-rs)
-- [dirs 6.0.0](https://github.com/soc/dirs-rs)
-- [dtoa 1.0.11](https://github.com/dtolnay/dtoa)
-- [dunce 1.0.5](https://gitlab.com/kornelski/dunce)
-- [dyn-clone 1.0.20](https://github.com/dtolnay/dyn-clone)
-- [erased-serde 0.4.10](https://github.com/dtolnay/erased-serde)
-- [eventsource-stream 0.2.3](https://github.com/jpopesculian/eventsource-stream)
-- [fdeflate 0.3.7](https://github.com/image-rs/fdeflate)
-- [fxhash 0.2.1](https://github.com/cbreeden/fxhash)
-- [ident_case 1.0.1](https://github.com/TedDriggs/ident_case)
-- [itoa 1.0.18](https://github.com/dtolnay/itoa)
-- [libc 0.2.189](https://github.com/rust-lang/libc)
-- [mac 0.1.1](https://github.com/reem/rust-mac.git)
-- [match_token 0.1.0](https://github.com/servo/html5ever)
-- [miniz_oxide 0.8.9](https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide)
-- [num-conv 0.2.2](https://github.com/jhpratt/num-conv)
-- [pin-project-internal 1.1.13](https://github.com/taiki-e/pin-project)
-- [pin-project-lite 0.2.17](https://github.com/taiki-e/pin-project-lite)
-- [pin-project 1.1.13](https://github.com/taiki-e/pin-project)
-- [proc-macro2 1.0.107](https://github.com/dtolnay/proc-macro2)
-- [quote 1.0.47](https://github.com/dtolnay/quote)
-- [rand 0.8.7](https://github.com/rust-random/rand)
-- [raw-window-handle 0.6.2](https://github.com/rust-windowing/raw-window-handle)
-- [ref-cast-impl 1.0.26](https://github.com/dtolnay/ref-cast)
-- [ref-cast 1.0.26](https://github.com/dtolnay/ref-cast)
-- [rustc-hash 2.1.3](https://github.com/rust-lang/rustc-hash)
-- [rustversion 1.0.23](https://github.com/dtolnay/rustversion)
-- [ryu 1.0.23](https://github.com/dtolnay/ryu)
-- [semver 1.0.28](https://github.com/dtolnay/semver)
-- [serde-untagged 0.1.9](https://github.com/dtolnay/serde-untagged)
-- [serde 1.0.229](https://github.com/serde-rs/serde)
-- [serde_core 1.0.229](https://github.com/serde-rs/serde)
-- [serde_derive 1.0.229](https://github.com/serde-rs/serde)
-- [serde_derive_internals 0.29.1](https://github.com/serde-rs/serde)
-- [serde_derive_internals 0.30.0](https://github.com/serde-rs/serde)
-- [serde_json 1.0.151](https://github.com/serde-rs/json)
-- [serde_repr 0.1.21](https://github.com/dtolnay/serde-repr)
-- [siphasher 1.0.3](https://github.com/jedisct1/rust-siphash)
-- [syn 2.0.119](https://github.com/dtolnay/syn)
-- [syn 3.0.3](https://github.com/dtolnay/syn)
-- [sync_wrapper 1.0.2](https://github.com/Actyx/sync_wrapper)
-- [tauri-codegen 2.6.3](https://github.com/tauri-apps/tauri)
-- [tauri-macros 2.6.3](https://github.com/tauri-apps/tauri)
-- [tauri-plugin-dialog 2.7.2](https://github.com/tauri-apps/plugins-workspace)
-- [tauri-plugin-fs 2.5.1](https://github.com/tauri-apps/plugins-workspace)
-- [tauri-plugin-opener 2.5.4](https://github.com/tauri-apps/plugins-workspace)
-- [tauri-runtime-wry 2.11.4](https://github.com/tauri-apps/tauri)
-- [tauri-runtime 2.11.3](https://github.com/tauri-apps/tauri)
-- [tauri-utils 2.9.3](https://github.com/tauri-apps/tauri)
-- [tauri 2.11.5](https://github.com/tauri-apps/tauri)
-- [thiserror-impl 1.0.69](https://github.com/dtolnay/thiserror)
-- [thiserror-impl 2.0.20](https://github.com/dtolnay/thiserror)
-- [thiserror 1.0.69](https://github.com/dtolnay/thiserror)
-- [thiserror 2.0.20](https://github.com/dtolnay/thiserror)
-- [time-core 0.1.9](https://github.com/time-rs/time)
-- [time-macros 0.2.32](https://github.com/time-rs/time)
-- [time 0.3.55](https://github.com/time-rs/time)
-- [typed-path 0.12.3](https://github.com/chipsenkbeil/typed-path)
-- [typeid 1.0.3](https://github.com/dtolnay/typeid)
-- [unic-char-property 0.9.0](https://github.com/open-i18n/rust-unic/)
-- [unic-char-range 0.9.0](https://github.com/open-i18n/rust-unic/)
-- [unic-common 0.9.0](https://github.com/open-i18n/rust-unic/)
-- [unic-ucd-ident 0.9.0](https://github.com/open-i18n/rust-unic/)
-- [unic-ucd-version 0.9.0](https://github.com/open-i18n/rust-unic/)
-- [unicode-ident 1.0.24](https://github.com/dtolnay/unicode-ident)
-- [utf-8 0.7.6](https://github.com/SimonSapin/rust-utf8)
-- [utf8-zero 0.8.1](https://github.com/algesten/utf8-zero)
-- [utf8parse 0.2.2](https://github.com/alacritty/vte)
-- [yaml-edit 0.2.3](https://github.com/jelmer/yaml-edit)
+- [anyhow 1.0.104](https://crates.io/crates/anyhow/1.0.104)（[上游仓库](https://github.com/dtolnay/anyhow)）
+- [aws-lc-sys 0.44.0](https://crates.io/crates/aws-lc-sys/0.44.0)（[上游仓库](https://github.com/aws/aws-lc-rs)）
+- [dirs-sys 0.5.0](https://crates.io/crates/dirs-sys/0.5.0)（[上游仓库](https://github.com/dirs-dev/dirs-sys-rs)）
+- [dirs 6.0.0](https://crates.io/crates/dirs/6.0.0)（[上游仓库](https://github.com/soc/dirs-rs)）
+- [dispatch2 0.3.1](https://crates.io/crates/dispatch2/0.3.1)（[上游仓库](https://github.com/madsmtm/objc2)）
+- [dtoa 1.0.11](https://crates.io/crates/dtoa/1.0.11)（[上游仓库](https://github.com/dtolnay/dtoa)）
+- [dunce 1.0.5](https://crates.io/crates/dunce/1.0.5)（[上游仓库](https://gitlab.com/kornelski/dunce)）
+- [dyn-clone 1.0.20](https://crates.io/crates/dyn-clone/1.0.20)（[上游仓库](https://github.com/dtolnay/dyn-clone)）
+- [erased-serde 0.4.10](https://crates.io/crates/erased-serde/0.4.10)（[上游仓库](https://github.com/dtolnay/erased-serde)）
+- [eventsource-stream 0.2.3](https://crates.io/crates/eventsource-stream/0.2.3)（[上游仓库](https://github.com/jpopesculian/eventsource-stream)）
+- [fdeflate 0.3.7](https://crates.io/crates/fdeflate/0.3.7)（[上游仓库](https://github.com/image-rs/fdeflate)）
+- [fxhash 0.2.1](https://crates.io/crates/fxhash/0.2.1)（[上游仓库](https://github.com/cbreeden/fxhash)）
+- [ident_case 1.0.1](https://crates.io/crates/ident_case/1.0.1)（[上游仓库](https://github.com/TedDriggs/ident_case)）
+- [itoa 1.0.18](https://crates.io/crates/itoa/1.0.18)（[上游仓库](https://github.com/dtolnay/itoa)）
+- [libc 0.2.189](https://crates.io/crates/libc/0.2.189)（[上游仓库](https://github.com/rust-lang/libc)）
+- [mac 0.1.1](https://crates.io/crates/mac/0.1.1)（[上游仓库](https://github.com/reem/rust-mac.git)）
+- [match_token 0.1.0](https://crates.io/crates/match_token/0.1.0)（[上游仓库](https://github.com/servo/html5ever)）
+- [miniz_oxide 0.8.9](https://crates.io/crates/miniz_oxide/0.8.9)（[上游仓库](https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide)）
+- [num-conv 0.2.2](https://crates.io/crates/num-conv/0.2.2)（[上游仓库](https://github.com/jhpratt/num-conv)）
+- [objc2-app-kit 0.3.2](https://crates.io/crates/objc2-app-kit/0.3.2)（[上游仓库](https://github.com/madsmtm/objc2)）
+- [objc2-core-foundation 0.3.2](https://crates.io/crates/objc2-core-foundation/0.3.2)（[上游仓库](https://github.com/madsmtm/objc2)）
+- [objc2-core-graphics 0.3.2](https://crates.io/crates/objc2-core-graphics/0.3.2)（[上游仓库](https://github.com/madsmtm/objc2)）
+- [objc2-exception-helper 0.1.1](https://crates.io/crates/objc2-exception-helper/0.1.1)（[上游仓库](https://github.com/madsmtm/objc2)）
+- [objc2-quartz-core 0.3.2](https://crates.io/crates/objc2-quartz-core/0.3.2)（[上游仓库](https://github.com/madsmtm/objc2)）
+- [objc2-web-kit 0.3.2](https://crates.io/crates/objc2-web-kit/0.3.2)（[上游仓库](https://github.com/madsmtm/objc2)）
+- [pin-project-internal 1.1.13](https://crates.io/crates/pin-project-internal/1.1.13)（[上游仓库](https://github.com/taiki-e/pin-project)）
+- [pin-project-lite 0.2.17](https://crates.io/crates/pin-project-lite/0.2.17)（[上游仓库](https://github.com/taiki-e/pin-project-lite)）
+- [pin-project 1.1.13](https://crates.io/crates/pin-project/1.1.13)（[上游仓库](https://github.com/taiki-e/pin-project)）
+- [proc-macro2 1.0.107](https://crates.io/crates/proc-macro2/1.0.107)（[上游仓库](https://github.com/dtolnay/proc-macro2)）
+- [quote 1.0.47](https://crates.io/crates/quote/1.0.47)（[上游仓库](https://github.com/dtolnay/quote)）
+- [rand 0.8.7](https://crates.io/crates/rand/0.8.7)（[上游仓库](https://github.com/rust-random/rand)）
+- [raw-window-handle 0.6.2](https://crates.io/crates/raw-window-handle/0.6.2)（[上游仓库](https://github.com/rust-windowing/raw-window-handle)）
+- [ref-cast-impl 1.0.26](https://crates.io/crates/ref-cast-impl/1.0.26)（[上游仓库](https://github.com/dtolnay/ref-cast)）
+- [ref-cast 1.0.26](https://crates.io/crates/ref-cast/1.0.26)（[上游仓库](https://github.com/dtolnay/ref-cast)）
+- [rustc-hash 2.1.3](https://crates.io/crates/rustc-hash/2.1.3)（[上游仓库](https://github.com/rust-lang/rustc-hash)）
+- [rustversion 1.0.23](https://crates.io/crates/rustversion/1.0.23)（[上游仓库](https://github.com/dtolnay/rustversion)）
+- [ryu 1.0.23](https://crates.io/crates/ryu/1.0.23)（[上游仓库](https://github.com/dtolnay/ryu)）
+- [semver 1.0.28](https://crates.io/crates/semver/1.0.28)（[上游仓库](https://github.com/dtolnay/semver)）
+- [serde-untagged 0.1.9](https://crates.io/crates/serde-untagged/0.1.9)（[上游仓库](https://github.com/dtolnay/serde-untagged)）
+- [serde 1.0.229](https://crates.io/crates/serde/1.0.229)（[上游仓库](https://github.com/serde-rs/serde)）
+- [serde_core 1.0.229](https://crates.io/crates/serde_core/1.0.229)（[上游仓库](https://github.com/serde-rs/serde)）
+- [serde_derive 1.0.229](https://crates.io/crates/serde_derive/1.0.229)（[上游仓库](https://github.com/serde-rs/serde)）
+- [serde_derive_internals 0.29.1](https://crates.io/crates/serde_derive_internals/0.29.1)（[上游仓库](https://github.com/serde-rs/serde)）
+- [serde_derive_internals 0.30.0](https://crates.io/crates/serde_derive_internals/0.30.0)（[上游仓库](https://github.com/serde-rs/serde)）
+- [serde_json 1.0.151](https://crates.io/crates/serde_json/1.0.151)（[上游仓库](https://github.com/serde-rs/json)）
+- [serde_repr 0.1.21](https://crates.io/crates/serde_repr/0.1.21)（[上游仓库](https://github.com/dtolnay/serde-repr)）
+- [siphasher 1.0.3](https://crates.io/crates/siphasher/1.0.3)（[上游仓库](https://github.com/jedisct1/rust-siphash)）
+- [syn 2.0.119](https://crates.io/crates/syn/2.0.119)（[上游仓库](https://github.com/dtolnay/syn)）
+- [syn 3.0.3](https://crates.io/crates/syn/3.0.3)（[上游仓库](https://github.com/dtolnay/syn)）
+- [sync_wrapper 1.0.2](https://crates.io/crates/sync_wrapper/1.0.2)（[上游仓库](https://github.com/Actyx/sync_wrapper)）
+- [tauri-codegen 2.6.3](https://crates.io/crates/tauri-codegen/2.6.3)（[上游仓库](https://github.com/tauri-apps/tauri)）
+- [tauri-macros 2.6.3](https://crates.io/crates/tauri-macros/2.6.3)（[上游仓库](https://github.com/tauri-apps/tauri)）
+- [tauri-plugin-dialog 2.7.2](https://crates.io/crates/tauri-plugin-dialog/2.7.2)（[上游仓库](https://github.com/tauri-apps/plugins-workspace)）
+- [tauri-plugin-fs 2.5.1](https://crates.io/crates/tauri-plugin-fs/2.5.1)（[上游仓库](https://github.com/tauri-apps/plugins-workspace)）
+- [tauri-plugin-opener 2.5.4](https://crates.io/crates/tauri-plugin-opener/2.5.4)（[上游仓库](https://github.com/tauri-apps/plugins-workspace)）
+- [tauri-runtime-wry 2.11.4](https://crates.io/crates/tauri-runtime-wry/2.11.4)（[上游仓库](https://github.com/tauri-apps/tauri)）
+- [tauri-runtime 2.11.3](https://crates.io/crates/tauri-runtime/2.11.3)（[上游仓库](https://github.com/tauri-apps/tauri)）
+- [tauri-utils 2.9.3](https://crates.io/crates/tauri-utils/2.9.3)（[上游仓库](https://github.com/tauri-apps/tauri)）
+- [tauri 2.11.5](https://crates.io/crates/tauri/2.11.5)（[上游仓库](https://github.com/tauri-apps/tauri)）
+- [thiserror-impl 1.0.69](https://crates.io/crates/thiserror-impl/1.0.69)（[上游仓库](https://github.com/dtolnay/thiserror)）
+- [thiserror-impl 2.0.20](https://crates.io/crates/thiserror-impl/2.0.20)（[上游仓库](https://github.com/dtolnay/thiserror)）
+- [thiserror 1.0.69](https://crates.io/crates/thiserror/1.0.69)（[上游仓库](https://github.com/dtolnay/thiserror)）
+- [thiserror 2.0.20](https://crates.io/crates/thiserror/2.0.20)（[上游仓库](https://github.com/dtolnay/thiserror)）
+- [time-core 0.1.9](https://crates.io/crates/time-core/0.1.9)（[上游仓库](https://github.com/time-rs/time)）
+- [time-macros 0.2.32](https://crates.io/crates/time-macros/0.2.32)（[上游仓库](https://github.com/time-rs/time)）
+- [time 0.3.55](https://crates.io/crates/time/0.3.55)（[上游仓库](https://github.com/time-rs/time)）
+- [typed-path 0.12.3](https://crates.io/crates/typed-path/0.12.3)（[上游仓库](https://github.com/chipsenkbeil/typed-path)）
+- [typeid 1.0.3](https://crates.io/crates/typeid/1.0.3)（[上游仓库](https://github.com/dtolnay/typeid)）
+- [unic-char-property 0.9.0](https://crates.io/crates/unic-char-property/0.9.0)（[上游仓库](https://github.com/open-i18n/rust-unic/)）
+- [unic-char-range 0.9.0](https://crates.io/crates/unic-char-range/0.9.0)（[上游仓库](https://github.com/open-i18n/rust-unic/)）
+- [unic-common 0.9.0](https://crates.io/crates/unic-common/0.9.0)（[上游仓库](https://github.com/open-i18n/rust-unic/)）
+- [unic-ucd-ident 0.9.0](https://crates.io/crates/unic-ucd-ident/0.9.0)（[上游仓库](https://github.com/open-i18n/rust-unic/)）
+- [unic-ucd-version 0.9.0](https://crates.io/crates/unic-ucd-version/0.9.0)（[上游仓库](https://github.com/open-i18n/rust-unic/)）
+- [unicode-ident 1.0.24](https://crates.io/crates/unicode-ident/1.0.24)（[上游仓库](https://github.com/dtolnay/unicode-ident)）
+- [utf-8 0.7.6](https://crates.io/crates/utf-8/0.7.6)（[上游仓库](https://github.com/SimonSapin/rust-utf8)）
+- [utf8-zero 0.8.1](https://crates.io/crates/utf8-zero/0.8.1)（[上游仓库](https://github.com/algesten/utf8-zero)）
+- [utf8parse 0.2.2](https://crates.io/crates/utf8parse/0.2.2)（[上游仓库](https://github.com/alacritty/vte)）
+- [yaml-edit 0.2.3](https://crates.io/crates/yaml-edit/0.2.3)（[上游仓库](https://github.com/jelmer/yaml-edit)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -7736,7 +8183,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [chrono 0.4.45](https://github.com/chronotope/chrono)
+- [chrono 0.4.45](https://crates.io/crates/chrono/0.4.45)（[上游仓库](https://github.com/chronotope/chrono)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -7987,9 +8434,9 @@ limitations under the License.
 ### BSD 3-Clause &quot;New&quot; or &quot;Revised&quot; License
 
 用于：
-- [alloc-no-stdlib 2.0.4](https://github.com/dropbox/rust-alloc-no-stdlib)
-- [brotli-decompressor 5.0.3](https://github.com/dropbox/rust-brotli-decompressor)
-- [brotli 8.0.4](https://github.com/dropbox/rust-brotli)
+- [alloc-no-stdlib 2.0.4](https://crates.io/crates/alloc-no-stdlib/2.0.4)（[上游仓库](https://github.com/dropbox/rust-alloc-no-stdlib)）
+- [brotli-decompressor 5.0.3](https://crates.io/crates/brotli-decompressor/5.0.3)（[上游仓库](https://github.com/dropbox/rust-brotli-decompressor)）
+- [brotli 8.0.4](https://crates.io/crates/brotli/8.0.4)（[上游仓库](https://github.com/dropbox/rust-brotli)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8012,7 +8459,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&
 ### BSD 3-Clause &quot;New&quot; or &quot;Revised&quot; License
 
 用于：
-- [subtle 2.6.1](https://github.com/dalek-cryptography/subtle)
+- [subtle 2.6.1](https://crates.io/crates/subtle/2.6.1)（[上游仓库](https://github.com/dalek-cryptography/subtle)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8052,8 +8499,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ### BSD 3-Clause &quot;New&quot; or &quot;Revised&quot; License
 
 用于：
-- [alloc-stdlib 0.2.4](https://github.com/dropbox/rust-alloc-no-stdlib)
-- [aws-lc-sys 0.44.0](https://github.com/aws/aws-lc-rs)
+- [alloc-stdlib 0.2.4](https://crates.io/crates/alloc-stdlib/0.2.4)（[上游仓库](https://github.com/dropbox/rust-alloc-no-stdlib)）
+- [aws-lc-sys 0.44.0](https://crates.io/crates/aws-lc-sys/0.44.0)（[上游仓库](https://github.com/aws/aws-lc-rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8075,7 +8522,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&
 ### BSD 3-Clause &quot;New&quot; or &quot;Revised&quot; License
 
 用于：
-- [encoding_rs 0.8.35](https://github.com/hsivonen/encoding_rs)
+- [encoding_rs 0.8.35](https://crates.io/crates/encoding_rs/0.8.35)（[上游仓库](https://github.com/hsivonen/encoding_rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8112,7 +8559,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ### Creative Commons Zero v1.0 Universal
 
 用于：
-- [notify 8.2.0](https://github.com/notify-rs/notify.git)
+- [notify 8.2.0](https://crates.io/crates/notify/8.2.0)（[上游仓库](https://github.com/notify-rs/notify.git)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8163,7 +8610,7 @@ For these and/or other purposes and motivations, and without any expectation of 
 ### Community Data License Agreement Permissive 2.0
 
 用于：
-- [webpki-roots 1.0.9](https://github.com/rustls/webpki-roots)
+- [webpki-roots 1.0.9](https://crates.io/crates/webpki-roots/1.0.9)（[上游仓库](https://github.com/rustls/webpki-roots)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8235,7 +8682,7 @@ insights.
 ### ISC License
 
 用于：
-- [untrusted 0.9.0](https://github.com/briansmith/untrusted)
+- [untrusted 0.9.0](https://crates.io/crates/untrusted/0.9.0)（[上游仓库](https://github.com/briansmith/untrusted)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8259,7 +8706,7 @@ insights.
 ### ISC License
 
 用于：
-- [ring 0.17.14](https://github.com/briansmith/ring)
+- [ring 0.17.14](https://crates.io/crates/ring/0.17.14)（[上游仓库](https://github.com/briansmith/ring)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8283,7 +8730,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### ISC License
 
 用于：
-- [ego-tree 0.10.0](https://github.com/rust-scraper/ego-tree)
+- [ego-tree 0.10.0](https://crates.io/crates/ego-tree/0.10.0)（[上游仓库](https://github.com/rust-scraper/ego-tree)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8307,7 +8754,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### ISC License
 
 用于：
-- [rustls-webpki 0.103.13](https://github.com/rustls/webpki)
+- [rustls-webpki 0.103.13](https://crates.io/crates/rustls-webpki/0.103.13)（[上游仓库](https://github.com/rustls/webpki)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8337,9 +8784,9 @@ third-party/chromium/LICENSE.
 ### ISC License
 
 用于：
-- [aws-lc-rs 1.18.0](https://github.com/aws/aws-lc-rs)
-- [aws-lc-sys 0.44.0](https://github.com/aws/aws-lc-rs)
-- [scraper 0.22.0](https://github.com/causal-agent/scraper)
+- [aws-lc-rs 1.18.0](https://crates.io/crates/aws-lc-rs/1.18.0)（[上游仓库](https://github.com/aws/aws-lc-rs)）
+- [aws-lc-sys 0.44.0](https://crates.io/crates/aws-lc-sys/0.44.0)（[上游仓库](https://github.com/aws/aws-lc-rs)）
+- [scraper 0.22.0](https://crates.io/crates/scraper/0.22.0)（[上游仓库](https://github.com/causal-agent/scraper)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8358,7 +8805,7 @@ THE SOFTWARE IS PROVIDED &quot;AS IS&quot; AND ISC DISCLAIMS ALL WARRANTIES WITH
 ### MIT License
 
 用于：
-- [serde_yaml_ng 0.10.0](https://github.com/acatton/serde-yaml-ng)
+- [serde_yaml_ng 0.10.0](https://crates.io/crates/serde_yaml_ng/0.10.0)（[上游仓库](https://github.com/acatton/serde-yaml-ng)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8391,7 +8838,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [brotli 8.0.4](https://github.com/dropbox/rust-brotli)
+- [brotli 8.0.4](https://crates.io/crates/brotli/8.0.4)（[上游仓库](https://github.com/dropbox/rust-brotli)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8421,7 +8868,7 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [mio 1.2.2](https://github.com/tokio-rs/mio)
+- [mio 1.2.2](https://crates.io/crates/mio/1.2.2)（[上游仓库](https://github.com/tokio-rs/mio)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8451,8 +8898,8 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [libsqlite3-sys 0.35.0](https://github.com/rusqlite/rusqlite)
-- [rusqlite 0.37.0](https://github.com/rusqlite/rusqlite)
+- [libsqlite3-sys 0.35.0](https://crates.io/crates/libsqlite3-sys/0.35.0)（[上游仓库](https://github.com/rusqlite/rusqlite)）
+- [rusqlite 0.37.0](https://crates.io/crates/rusqlite/0.37.0)（[上游仓库](https://github.com/rusqlite/rusqlite)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8482,7 +8929,7 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [nom 7.1.3](https://github.com/Geal/nom)
+- [nom 7.1.3](https://crates.io/crates/nom/7.1.3)（[上游仓库](https://github.com/Geal/nom)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8513,7 +8960,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [hyper 1.11.0](https://github.com/hyperium/hyper)
+- [hyper 1.11.0](https://crates.io/crates/hyper/1.11.0)（[上游仓库](https://github.com/hyperium/hyper)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8543,7 +8990,7 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [plist 1.10.0](https://github.com/ebarnard/rust-plist/)
+- [plist 1.10.0](https://crates.io/crates/plist/1.10.0)（[上游仓库](https://github.com/ebarnard/rust-plist/)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8572,8 +9019,8 @@ SOFTWARE.</pre>
 ### MIT License
 
 用于：
-- [new_debug_unreachable 1.0.6](https://github.com/mbrubeck/rust-debug-unreachable)
-- [ordered-float 5.3.0](https://github.com/reem/rust-ordered-float)
+- [new_debug_unreachable 1.0.6](https://crates.io/crates/new_debug_unreachable/1.0.6)（[上游仓库](https://github.com/mbrubeck/rust-debug-unreachable)）
+- [ordered-float 5.3.0](https://crates.io/crates/ordered-float/5.3.0)（[上游仓库](https://github.com/reem/rust-ordered-float)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8609,7 +9056,7 @@ DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [bytes 1.12.1](https://github.com/tokio-rs/bytes)
+- [bytes 1.12.1](https://crates.io/crates/bytes/1.12.1)（[上游仓库](https://github.com/tokio-rs/bytes)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8645,7 +9092,7 @@ DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [want 0.3.1](https://github.com/seanmonstar/want)
+- [want 0.3.1](https://crates.io/crates/want/0.3.1)（[上游仓库](https://github.com/seanmonstar/want)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8676,7 +9123,7 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [try-lock 0.2.5](https://github.com/seanmonstar/try-lock)
+- [try-lock 0.2.5](https://crates.io/crates/try-lock/0.2.5)（[上游仓库](https://github.com/seanmonstar/try-lock)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8708,7 +9155,7 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [slab 0.4.12](https://github.com/tokio-rs/slab)
+- [slab 0.4.12](https://crates.io/crates/slab/0.4.12)（[上游仓库](https://github.com/tokio-rs/slab)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8744,7 +9191,7 @@ DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [sharded-slab 0.1.7](https://github.com/hawkw/sharded-slab)
+- [sharded-slab 0.1.7](https://crates.io/crates/sharded-slab/0.1.7)（[上游仓库](https://github.com/hawkw/sharded-slab)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8774,12 +9221,12 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [tracing-attributes 0.1.31](https://github.com/tokio-rs/tracing)
-- [tracing-core 0.1.36](https://github.com/tokio-rs/tracing)
-- [tracing-futures 0.2.5](https://github.com/tokio-rs/tracing)
-- [tracing-log 0.2.0](https://github.com/tokio-rs/tracing)
-- [tracing-subscriber 0.3.23](https://github.com/tokio-rs/tracing)
-- [tracing 0.1.44](https://github.com/tokio-rs/tracing)
+- [tracing-attributes 0.1.31](https://crates.io/crates/tracing-attributes/0.1.31)（[上游仓库](https://github.com/tokio-rs/tracing)）
+- [tracing-core 0.1.36](https://crates.io/crates/tracing-core/0.1.36)（[上游仓库](https://github.com/tokio-rs/tracing)）
+- [tracing-futures 0.2.5](https://crates.io/crates/tracing-futures/0.2.5)（[上游仓库](https://github.com/tokio-rs/tracing)）
+- [tracing-log 0.2.0](https://crates.io/crates/tracing-log/0.2.0)（[上游仓库](https://github.com/tokio-rs/tracing)）
+- [tracing-subscriber 0.3.23](https://crates.io/crates/tracing-subscriber/0.3.23)（[上游仓库](https://github.com/tokio-rs/tracing)）
+- [tracing 0.1.44](https://crates.io/crates/tracing/0.1.44)（[上游仓库](https://github.com/tokio-rs/tracing)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8815,9 +9262,9 @@ DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [tower-layer 0.3.3](https://github.com/tower-rs/tower)
-- [tower-service 0.3.3](https://github.com/tower-rs/tower)
-- [tower 0.5.3](https://github.com/tower-rs/tower)
+- [tower-layer 0.3.3](https://crates.io/crates/tower-layer/0.3.3)（[上游仓库](https://github.com/tower-rs/tower)）
+- [tower-service 0.3.3](https://crates.io/crates/tower-service/0.3.3)（[上游仓库](https://github.com/tower-rs/tower)）
+- [tower 0.5.3](https://crates.io/crates/tower/0.5.3)（[上游仓库](https://github.com/tower-rs/tower)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8853,7 +9300,7 @@ DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [tower-http 0.6.11](https://github.com/tower-rs/tower-http)
+- [tower-http 0.6.11](https://crates.io/crates/tower-http/0.6.11)（[上游仓库](https://github.com/tower-rs/tower-http)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8889,8 +9336,8 @@ DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [http-body-util 0.1.4](https://github.com/hyperium/http-body)
-- [http-body 1.1.0](https://github.com/hyperium/http-body)
+- [http-body-util 0.1.4](https://crates.io/crates/http-body-util/0.1.4)（[上游仓库](https://github.com/hyperium/http-body)）
+- [http-body 1.1.0](https://crates.io/crates/http-body/1.1.0)（[上游仓库](https://github.com/hyperium/http-body)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8926,7 +9373,7 @@ DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [hyper-util 0.1.20](https://github.com/hyperium/hyper-util)
+- [hyper-util 0.1.20](https://crates.io/crates/hyper-util/0.1.20)（[上游仓库](https://github.com/hyperium/hyper-util)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8956,8 +9403,8 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [rig-core 0.41.0](https://github.com/0xPlaygrounds/rig)
-- [rig 0.41.0](https://github.com/0xPlaygrounds/rig)
+- [rig-core 0.41.0](https://crates.io/crates/rig-core/0.41.0)（[上游仓库](https://github.com/0xPlaygrounds/rig)）
+- [rig 0.41.0](https://crates.io/crates/rig/0.41.0)（[上游仓库](https://github.com/0xPlaygrounds/rig)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8975,7 +9422,7 @@ THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRES
 ### MIT License
 
 用于：
-- [synstructure 0.13.2](https://github.com/mystor/synstructure)
+- [synstructure 0.13.2](https://crates.io/crates/synstructure/0.13.2)（[上游仓库](https://github.com/mystor/synstructure)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8993,7 +9440,7 @@ THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRES
 ### MIT License
 
 用于：
-- [precomputed-hash 0.1.1](https://github.com/emilio/precomputed-hash)
+- [precomputed-hash 0.1.1](https://crates.io/crates/precomputed-hash/0.1.1)（[上游仓库](https://github.com/emilio/precomputed-hash)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9025,7 +9472,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [cfb 0.7.3](https://github.com/mdsteele/rust-cfb)
+- [cfb 0.7.3](https://crates.io/crates/cfb/0.7.3)（[上游仓库](https://github.com/mdsteele/rust-cfb)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9057,9 +9504,9 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [darling 0.23.0](https://github.com/TedDriggs/darling)
-- [darling_core 0.23.0](https://github.com/TedDriggs/darling)
-- [darling_macro 0.23.0](https://github.com/TedDriggs/darling)
+- [darling 0.23.0](https://crates.io/crates/darling/0.23.0)（[上游仓库](https://github.com/TedDriggs/darling)）
+- [darling_core 0.23.0](https://crates.io/crates/darling_core/0.23.0)（[上游仓库](https://github.com/TedDriggs/darling)）
+- [darling_macro 0.23.0](https://crates.io/crates/darling_macro/0.23.0)（[上游仓库](https://github.com/TedDriggs/darling)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9091,7 +9538,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [ico 0.5.0](https://github.com/mdsteele/rust-ico)
+- [ico 0.5.0](https://crates.io/crates/ico/0.5.0)（[上游仓库](https://github.com/mdsteele/rust-ico)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9123,7 +9570,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [infer 0.19.0](https://github.com/bojand/infer)
+- [infer 0.19.0](https://crates.io/crates/infer/0.19.0)（[上游仓库](https://github.com/bojand/infer)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9155,10 +9602,10 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [schemars 0.8.22](https://github.com/GREsau/schemars)
-- [schemars 1.2.2](https://github.com/GREsau/schemars)
-- [schemars_derive 0.8.22](https://github.com/GREsau/schemars)
-- [schemars_derive 1.2.2](https://github.com/GREsau/schemars)
+- [schemars 0.8.22](https://crates.io/crates/schemars/0.8.22)（[上游仓库](https://github.com/GREsau/schemars)）
+- [schemars 1.2.2](https://crates.io/crates/schemars/1.2.2)（[上游仓库](https://github.com/GREsau/schemars)）
+- [schemars_derive 0.8.22](https://crates.io/crates/schemars_derive/0.8.22)（[上游仓库](https://github.com/GREsau/schemars)）
+- [schemars_derive 1.2.2](https://crates.io/crates/schemars_derive/1.2.2)（[上游仓库](https://github.com/GREsau/schemars)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9190,7 +9637,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [tokio-macros 2.7.2](https://github.com/tokio-rs/tokio)
+- [tokio-macros 2.7.2](https://crates.io/crates/tokio-macros/2.7.2)（[上游仓库](https://github.com/tokio-rs/tokio)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9223,7 +9670,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [urlpattern 0.3.0](https://github.com/denoland/rust-urlpattern)
+- [urlpattern 0.3.0](https://crates.io/crates/urlpattern/0.3.0)（[上游仓库](https://github.com/denoland/rust-urlpattern)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9255,7 +9702,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [rfd 0.16.0](https://github.com/PolyMeilex/rfd)
+- [rfd 0.16.0](https://crates.io/crates/rfd/0.16.0)（[上游仓库](https://github.com/PolyMeilex/rfd)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9287,7 +9734,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [dom_query 0.27.0](https://github.com/niklak/dom_query)
+- [dom_query 0.27.0](https://crates.io/crates/dom_query/0.27.0)（[上游仓库](https://github.com/niklak/dom_query)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9324,7 +9771,7 @@ developed by Chen Jiaju, licensed under the MIT License and the Apache License 2
 ### MIT License
 
 用于：
-- [convert_case 0.11.0](https://github.com/rutrum/convert-case)
+- [convert_case 0.11.0](https://crates.io/crates/convert_case/0.11.0)（[上游仓库](https://github.com/rutrum/convert-case)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9355,15 +9802,19 @@ SOFTWARE.</pre>
 ### MIT License
 
 用于：
-- [cpah-docs 1.1.0](https://github.com/lllcy/cpah-docs)
-- [async-stream-impl 0.3.6](https://github.com/tokio-rs/async-stream)
-- [async-stream 0.3.6](https://github.com/tokio-rs/async-stream)
-- [dpi 0.1.2](https://github.com/rust-windowing/winit)
-- [rig-agent 0.41.0](https://github.com/0xPlaygrounds/rig)
-- [rig-derive 0.41.0](https://github.com/0xPlaygrounds/rig)
-- [webview2-com-macros 0.8.1](https://github.com/wravery/webview2-rs)
-- [webview2-com-sys 0.38.2](https://github.com/wravery/webview2-rs)
-- [webview2-com 0.38.2](https://github.com/wravery/webview2-rs)
+- [cpah-docs 1.1.2](https://crates.io/crates/cpah-docs/1.1.2)（[上游仓库](https://github.com/lllcy/cpah-docs)）
+- [async-stream-impl 0.3.6](https://crates.io/crates/async-stream-impl/0.3.6)（[上游仓库](https://github.com/tokio-rs/async-stream)）
+- [async-stream 0.3.6](https://crates.io/crates/async-stream/0.3.6)（[上游仓库](https://github.com/tokio-rs/async-stream)）
+- [block2 0.6.2](https://crates.io/crates/block2/0.6.2)（[上游仓库](https://github.com/madsmtm/objc2)）
+- [dpi 0.1.2](https://crates.io/crates/dpi/0.1.2)（[上游仓库](https://github.com/rust-windowing/winit)）
+- [objc2-encode 4.1.0](https://crates.io/crates/objc2-encode/4.1.0)（[上游仓库](https://github.com/madsmtm/objc2)）
+- [objc2-foundation 0.3.2](https://crates.io/crates/objc2-foundation/0.3.2)（[上游仓库](https://github.com/madsmtm/objc2)）
+- [objc2 0.6.4](https://crates.io/crates/objc2/0.6.4)（[上游仓库](https://github.com/madsmtm/objc2)）
+- [rig-agent 0.41.0](https://crates.io/crates/rig-agent/0.41.0)（[上游仓库](https://github.com/0xPlaygrounds/rig)）
+- [rig-derive 0.41.0](https://crates.io/crates/rig-derive/0.41.0)（[上游仓库](https://github.com/0xPlaygrounds/rig)）
+- [webview2-com-macros 0.8.1](https://crates.io/crates/webview2-com-macros/0.8.1)（[上游仓库](https://github.com/wravery/webview2-rs)）
+- [webview2-com-sys 0.38.2](https://crates.io/crates/webview2-com-sys/0.38.2)（[上游仓库](https://github.com/wravery/webview2-rs)）
+- [webview2-com 0.38.2](https://crates.io/crates/webview2-com/0.38.2)（[上游仓库](https://github.com/wravery/webview2-rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9392,8 +9843,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [tokio-util 0.7.19](https://github.com/tokio-rs/tokio)
-- [tokio 1.53.1](https://github.com/tokio-rs/tokio)
+- [tokio-util 0.7.19](https://crates.io/crates/tokio-util/0.7.19)（[上游仓库](https://github.com/tokio-rs/tokio)）
+- [tokio 1.53.1](https://crates.io/crates/tokio/1.53.1)（[上游仓库](https://github.com/tokio-rs/tokio)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9425,7 +9876,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [simd-adler32 0.3.10](https://github.com/mcountryman/simd-adler32)
+- [simd-adler32 0.3.10](https://crates.io/crates/simd-adler32/0.3.10)（[上游仓库](https://github.com/mcountryman/simd-adler32)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9457,9 +9908,9 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [cargo_metadata 0.19.2](https://github.com/oli-obk/cargo_metadata)
-- [unsafe-libyaml 0.2.11](https://github.com/dtolnay/unsafe-libyaml)
-- [zmij 1.0.23](https://github.com/dtolnay/zmij)
+- [cargo_metadata 0.19.2](https://crates.io/crates/cargo_metadata/0.19.2)（[上游仓库](https://github.com/oli-obk/cargo_metadata)）
+- [unsafe-libyaml 0.2.11](https://crates.io/crates/unsafe-libyaml/0.2.11)（[上游仓库](https://github.com/dtolnay/unsafe-libyaml)）
+- [zmij 1.0.23](https://crates.io/crates/zmij/1.0.23)（[上游仓库](https://github.com/dtolnay/zmij)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9493,7 +9944,7 @@ DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [winnow 1.0.4](https://github.com/winnow-rs/winnow)
+- [winnow 1.0.4](https://crates.io/crates/winnow/1.0.4)（[上游仓库](https://github.com/winnow-rs/winnow)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9522,7 +9973,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [zip 8.6.0](https://github.com/zip-rs/zip2)
+- [zip 8.6.0](https://crates.io/crates/zip/8.6.0)（[上游仓库](https://github.com/zip-rs/zip2)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9554,14 +10005,14 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [phf 0.11.3](https://github.com/rust-phf/rust-phf)
-- [phf 0.13.1](https://github.com/rust-phf/rust-phf)
-- [phf_generator 0.11.3](https://github.com/rust-phf/rust-phf)
-- [phf_generator 0.13.1](https://github.com/rust-phf/rust-phf)
-- [phf_macros 0.11.3](https://github.com/rust-phf/rust-phf)
-- [phf_macros 0.13.1](https://github.com/rust-phf/rust-phf)
-- [phf_shared 0.11.3](https://github.com/rust-phf/rust-phf)
-- [phf_shared 0.13.1](https://github.com/rust-phf/rust-phf)
+- [phf 0.11.3](https://crates.io/crates/phf/0.11.3)（[上游仓库](https://github.com/rust-phf/rust-phf)）
+- [phf 0.13.1](https://crates.io/crates/phf/0.13.1)（[上游仓库](https://github.com/rust-phf/rust-phf)）
+- [phf_generator 0.11.3](https://crates.io/crates/phf_generator/0.11.3)（[上游仓库](https://github.com/rust-phf/rust-phf)）
+- [phf_generator 0.13.1](https://crates.io/crates/phf_generator/0.13.1)（[上游仓库](https://github.com/rust-phf/rust-phf)）
+- [phf_macros 0.11.3](https://crates.io/crates/phf_macros/0.11.3)（[上游仓库](https://github.com/rust-phf/rust-phf)）
+- [phf_macros 0.13.1](https://crates.io/crates/phf_macros/0.13.1)（[上游仓库](https://github.com/rust-phf/rust-phf)）
+- [phf_shared 0.11.3](https://crates.io/crates/phf_shared/0.11.3)（[上游仓库](https://github.com/rust-phf/rust-phf)）
+- [phf_shared 0.13.1](https://crates.io/crates/phf_shared/0.13.1)（[上游仓库](https://github.com/rust-phf/rust-phf)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9592,12 +10043,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [aho-corasick 1.1.5](https://github.com/BurntSushi/aho-corasick)
-- [byteorder 1.5.0](https://github.com/BurntSushi/byteorder)
-- [csv-core 0.1.13](https://github.com/BurntSushi/rust-csv)
-- [csv 1.4.0](https://github.com/BurntSushi/rust-csv)
-- [memchr 2.8.3](https://github.com/BurntSushi/memchr)
-- [walkdir 2.5.0](https://github.com/BurntSushi/walkdir)
+- [aho-corasick 1.1.5](https://crates.io/crates/aho-corasick/1.1.5)（[上游仓库](https://github.com/BurntSushi/aho-corasick)）
+- [byteorder 1.5.0](https://crates.io/crates/byteorder/1.5.0)（[上游仓库](https://github.com/BurntSushi/byteorder)）
+- [csv-core 0.1.13](https://crates.io/crates/csv-core/0.1.13)（[上游仓库](https://github.com/BurntSushi/rust-csv)）
+- [csv 1.4.0](https://crates.io/crates/csv/1.4.0)（[上游仓库](https://github.com/BurntSushi/rust-csv)）
+- [memchr 2.8.3](https://crates.io/crates/memchr/2.8.3)（[上游仓库](https://github.com/BurntSushi/memchr)）
+- [walkdir 2.5.0](https://crates.io/crates/walkdir/2.5.0)（[上游仓库](https://github.com/BurntSushi/walkdir)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9629,7 +10080,7 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [strsim 0.11.1](https://github.com/rapidfuzz/strsim-rs)
+- [strsim 0.11.1](https://crates.io/crates/strsim/0.11.1)（[上游仓库](https://github.com/rapidfuzz/strsim-rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9663,7 +10114,40 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [aws-lc-sys 0.44.0](https://github.com/aws/aws-lc-rs)
+- [fsevent-sys 4.1.0](https://crates.io/crates/fsevent-sys/4.1.0)（[上游仓库](https://github.com/octplane/fsevent-rust/tree/master/fsevent-sys)）
+
+<details>
+<summary>查看许可证正文</summary>
+
+<pre>The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Baillet
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+</pre>
+</details>
+
+### MIT License
+
+用于：
+- [aws-lc-sys 0.44.0](https://crates.io/crates/aws-lc-sys/0.44.0)（[上游仓库](https://github.com/aws/aws-lc-rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9696,9 +10180,9 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [derive_more-impl 2.1.1](https://github.com/JelteF/derive_more)
-- [derive_more 0.99.20](https://github.com/JelteF/derive_more)
-- [derive_more 2.1.1](https://github.com/JelteF/derive_more)
+- [derive_more-impl 2.1.1](https://crates.io/crates/derive_more-impl/2.1.1)（[上游仓库](https://github.com/JelteF/derive_more)）
+- [derive_more 0.99.20](https://crates.io/crates/derive_more/0.99.20)（[上游仓库](https://github.com/JelteF/derive_more)）
+- [derive_more 2.1.1](https://crates.io/crates/derive_more/2.1.1)（[上游仓库](https://github.com/JelteF/derive_more)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9730,7 +10214,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [calamine 0.36.1](https://github.com/tafia/calamine)
+- [calamine 0.36.1](https://crates.io/crates/calamine/0.36.1)（[上游仓库](https://github.com/tafia/calamine)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9764,8 +10248,8 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [same-file 1.0.6](https://github.com/BurntSushi/same-file)
-- [winapi-util 0.1.11](https://github.com/BurntSushi/winapi-util)
+- [same-file 1.0.6](https://crates.io/crates/same-file/1.0.6)（[上游仓库](https://github.com/BurntSushi/same-file)）
+- [winapi-util 0.1.11](https://crates.io/crates/winapi-util/0.1.11)（[上游仓库](https://github.com/BurntSushi/winapi-util)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9797,7 +10281,7 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [open 5.4.1](https://github.com/Byron/open-rs)
+- [open 5.4.1](https://crates.io/crates/open/5.4.1)（[上游仓库](https://github.com/Byron/open-rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9833,7 +10317,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [nu-ansi-term 0.50.3](https://github.com/nushell/nu-ansi-term)
+- [nu-ansi-term 0.50.3](https://crates.io/crates/nu-ansi-term/0.50.3)（[上游仓库](https://github.com/nushell/nu-ansi-term)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9866,7 +10350,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [mime_guess 2.0.5](https://github.com/abonander/mime_guess)
+- [mime_guess 2.0.5](https://crates.io/crates/mime_guess/2.0.5)（[上游仓库](https://github.com/abonander/mime_guess)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9899,7 +10383,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [generic-array 0.14.7](https://github.com/fizyk20/generic-array.git)
+- [generic-array 0.14.7](https://crates.io/crates/generic-array/0.14.7)（[上游仓库](https://github.com/fizyk20/generic-array.git)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9930,7 +10414,7 @@ SOFTWARE.</pre>
 ### MIT License
 
 用于：
-- [quick-xml 0.41.0](https://github.com/tafia/quick-xml)
+- [quick-xml 0.41.0](https://crates.io/crates/quick-xml/0.41.0)（[上游仓库](https://github.com/tafia/quick-xml)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9964,7 +10448,7 @@ THE SOFTWARE.
 ### Mozilla Public License 2.0
 
 用于：
-- [dtoa-short 0.3.5](https://github.com/upsuper/dtoa-short)
+- [dtoa-short 0.3.5](https://crates.io/crates/dtoa-short/0.3.5)（[上游仓库](https://github.com/upsuper/dtoa-short)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -10348,9 +10832,9 @@ Exhibit B - &quot;Incompatible With Secondary Licenses&quot; Notice
 ### Mozilla Public License 2.0
 
 用于：
-- [cssparser-macros 0.6.1](https://github.com/servo/rust-cssparser)
-- [cssparser 0.34.0](https://github.com/servo/rust-cssparser)
-- [cssparser 0.36.0](https://github.com/servo/rust-cssparser)
+- [cssparser-macros 0.6.1](https://crates.io/crates/cssparser-macros/0.6.1)（[上游仓库](https://github.com/servo/rust-cssparser)）
+- [cssparser 0.34.0](https://crates.io/crates/cssparser/0.34.0)（[上游仓库](https://github.com/servo/rust-cssparser)）
+- [cssparser 0.36.0](https://crates.io/crates/cssparser/0.36.0)（[上游仓库](https://github.com/servo/rust-cssparser)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -10734,9 +11218,9 @@ Exhibit B - &quot;Incompatible With Secondary Licenses&quot; Notice
 ### Mozilla Public License 2.0
 
 用于：
-- [option-ext 0.2.0](https://github.com/soc/option-ext.git)
-- [selectors 0.26.0](https://github.com/servo/stylo)
-- [selectors 0.36.1](https://github.com/servo/stylo)
+- [option-ext 0.2.0](https://crates.io/crates/option-ext/0.2.0)（[上游仓库](https://github.com/soc/option-ext.git)）
+- [selectors 0.26.0](https://crates.io/crates/selectors/0.26.0)（[上游仓库](https://github.com/servo/stylo)）
+- [selectors 0.36.1](https://crates.io/crates/selectors/0.36.1)（[上游仓库](https://github.com/servo/stylo)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -11120,7 +11604,7 @@ Exhibit B - &quot;Incompatible With Secondary Licenses&quot; Notice
 ### Unicode License v3
 
 用于：
-- [unicode-ident 1.0.24](https://github.com/dtolnay/unicode-ident)
+- [unicode-ident 1.0.24](https://crates.io/crates/unicode-ident/1.0.24)（[上游仓库](https://github.com/dtolnay/unicode-ident)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -11170,24 +11654,24 @@ authorization of the copyright holder.
 ### Unicode License v3
 
 用于：
-- [icu_collections 2.2.0](https://github.com/unicode-org/icu4x)
-- [icu_locale_core 2.2.0](https://github.com/unicode-org/icu4x)
-- [icu_normalizer 2.2.0](https://github.com/unicode-org/icu4x)
-- [icu_normalizer_data 2.2.0](https://github.com/unicode-org/icu4x)
-- [icu_properties 2.2.0](https://github.com/unicode-org/icu4x)
-- [icu_properties_data 2.2.0](https://github.com/unicode-org/icu4x)
-- [icu_provider 2.2.0](https://github.com/unicode-org/icu4x)
-- [litemap 0.8.2](https://github.com/unicode-org/icu4x)
-- [potential_utf 0.1.5](https://github.com/unicode-org/icu4x)
-- [tinystr 0.8.3](https://github.com/unicode-org/icu4x)
-- [writeable 0.6.3](https://github.com/unicode-org/icu4x)
-- [yoke-derive 0.8.2](https://github.com/unicode-org/icu4x)
-- [yoke 0.8.3](https://github.com/unicode-org/icu4x)
-- [zerofrom-derive 0.1.7](https://github.com/unicode-org/icu4x)
-- [zerofrom 0.1.8](https://github.com/unicode-org/icu4x)
-- [zerotrie 0.2.4](https://github.com/unicode-org/icu4x)
-- [zerovec-derive 0.11.3](https://github.com/unicode-org/icu4x)
-- [zerovec 0.11.6](https://github.com/unicode-org/icu4x)
+- [icu_collections 2.2.0](https://crates.io/crates/icu_collections/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [icu_locale_core 2.2.0](https://crates.io/crates/icu_locale_core/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [icu_normalizer 2.2.0](https://crates.io/crates/icu_normalizer/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [icu_normalizer_data 2.2.0](https://crates.io/crates/icu_normalizer_data/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [icu_properties 2.2.0](https://crates.io/crates/icu_properties/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [icu_properties_data 2.2.0](https://crates.io/crates/icu_properties_data/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [icu_provider 2.2.0](https://crates.io/crates/icu_provider/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [litemap 0.8.2](https://crates.io/crates/litemap/0.8.2)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [potential_utf 0.1.5](https://crates.io/crates/potential_utf/0.1.5)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [tinystr 0.8.3](https://crates.io/crates/tinystr/0.8.3)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [writeable 0.6.3](https://crates.io/crates/writeable/0.6.3)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [yoke-derive 0.8.2](https://crates.io/crates/yoke-derive/0.8.2)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [yoke 0.8.3](https://crates.io/crates/yoke/0.8.3)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [zerofrom-derive 0.1.7](https://crates.io/crates/zerofrom-derive/0.1.7)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [zerofrom 0.1.8](https://crates.io/crates/zerofrom/0.1.8)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [zerotrie 0.2.4](https://crates.io/crates/zerotrie/0.2.4)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [zerovec-derive 0.11.3](https://crates.io/crates/zerovec-derive/0.11.3)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [zerovec 0.11.6](https://crates.io/crates/zerovec/0.11.6)（[上游仓库](https://github.com/unicode-org/icu4x)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -11244,7 +11728,7 @@ ICU 1.8.1 to ICU 57.1 © 1995-2016 International Business Machines Corporation a
 ### zlib License
 
 用于：
-- [zlib-rs 0.6.7](https://github.com/trifectatechfoundation/zlib-rs)
+- [zlib-rs 0.6.7](https://crates.io/crates/zlib-rs/0.6.7)（[上游仓库](https://github.com/trifectatechfoundation/zlib-rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -11274,8 +11758,8 @@ freely, subject to the following restrictions:
 ### zlib License
 
 用于：
-- [foldhash 0.1.5](https://github.com/orlp/foldhash)
-- [foldhash 0.2.0](https://github.com/orlp/foldhash)
+- [foldhash 0.1.5](https://crates.io/crates/foldhash/0.1.5)（[上游仓库](https://github.com/orlp/foldhash)）
+- [foldhash 0.2.0](https://crates.io/crates/foldhash/0.2.0)（[上游仓库](https://github.com/orlp/foldhash)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -11300,7 +11784,6 @@ the following restrictions:
 
 3. This notice may not be removed or altered from any source distribution.</pre>
 </details>
-
 
 ## npm 运行时依赖
 
@@ -11376,6 +11859,213 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</pre>
 <pre>MIT License
 
 Copyright (c) 2022 WorkOS
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</pre>
+</details>
+
+<details>
+<summary>@tauri-apps/api@2.11.1</summary>
+
+<pre>Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      &quot;License&quot; shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      &quot;Licensor&quot; shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      &quot;Legal Entity&quot; shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      &quot;control&quot; means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      &quot;You&quot; (or &quot;Your&quot;) shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      &quot;Source&quot; form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      &quot;Object&quot; form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      &quot;Work&quot; shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      &quot;Derivative Works&quot; shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      &quot;Contribution&quot; shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, &quot;submitted&quot;
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as &quot;Not a Contribution.&quot;
+
+      &quot;Contributor&quot; shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a &quot;NOTICE&quot; text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an &quot;AS IS&quot; BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS</pre>
+</details>
+
+<details>
+<summary>@tauri-apps/api@2.11.1</summary>
+
+<pre>MIT License
+
+Copyright (c) 2017 - Present Tauri Apps Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the &quot;Software&quot;), to deal

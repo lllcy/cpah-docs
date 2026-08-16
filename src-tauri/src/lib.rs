@@ -14,7 +14,7 @@ mod tag_runtime;
 mod tagging;
 
 use commands::{
-    apply_tagging_config, get_dashboard, get_diagnostic_report, get_tag_jobs,
+    apply_tagging_config, get_dashboard, get_diagnostic_report, get_project_license, get_tag_jobs,
     get_third_party_licenses, open_managed_path, open_mineru_token_page, preview_tagging_change,
     rescan_all_profiles, retry_failed_tasks, retry_tag_job, retry_tag_jobs, retry_task,
     run_health_check, save_agent_settings, save_settings, set_classification_paused,
@@ -73,6 +73,7 @@ pub fn run() {
             get_dashboard,
             run_health_check,
             get_diagnostic_report,
+            get_project_license,
             get_third_party_licenses,
             rescan_all_profiles,
             retry_failed_tasks,

@@ -106,17 +106,17 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 npm run tauri build
 ```
 
-执行完整发布检查并生成当前平台的发布产物与 SHA-256：
+执行完整发布检查、校验第三方许可清单，并生成当前平台的发布产物与 SHA-256：
 
 ```shell
 npm run release
 ```
 
-Windows 生成 `release/CPAH-Docs-v<版本>-windows-x64.exe`；macOS 生成 `release/CPAH-Docs-v<版本>-macos-universal.dmg`。两者都会生成 `release/SHA256SUMS.txt`，`src-tauri/target` 只是本机构建缓存。推送与版本一致的 `v*` 标签后，GitHub Actions 会并行构建 Windows x64 和 macOS 通用版，并在两个构建都成功后发布同一个 GitHub Release。
+Windows 生成 `release/CPAH-Docs-v<版本>-windows-x64.exe`；macOS 生成 `release/CPAH-Docs-v<版本>-macos-universal.dmg`。发布目录同时包含 `LICENSE.txt`、`THIRD_PARTY_LICENSES.md` 和 `SHA256SUMS.txt`，`src-tauri/target` 只是本机构建缓存。推送与版本一致的 `v*` 标签后，GitHub Actions 会并行构建 Windows x64 和 macOS 通用版，并在两个构建都成功后发布同一个 GitHub Release。
 
 真实 MinerU 回归测试需要设置 `CPAHDOCS_MINERU_E2E` 和 `CPAHDOCS_MINERU_TOKEN`（也可使用应用已保存的 Token）。真实 Agent Tool Calling 回归测试需要设置 `CPAHDOCS_AGENT_BASE_URL`、`CPAHDOCS_AGENT_MODEL` 和 `CPAHDOCS_AGENT_API_KEY`，再运行被忽略的 E2E 用例。所有真实 E2E 资料只能放在 Git 忽略的本机目录中。
 
-第三方许可清单可通过 `scripts/generate-third-party-licenses.ps1` 重新生成，生成时需要 [cargo-about 0.9.1](https://github.com/EmbarkStudios/cargo-about/releases/tag/0.9.1)。
+第三方许可清单可通过 `node scripts/generate-third-party-licenses.mjs` 重新生成；Windows 也可使用 PowerShell 包装脚本 `scripts/generate-third-party-licenses.ps1`。生成时需要 [cargo-about 0.9.1](https://github.com/EmbarkStudios/cargo-about/releases/tag/0.9.1)。
 
 ## 数据位置
 
@@ -124,7 +124,7 @@ Windows 生成 `release/CPAH-Docs-v<版本>-windows-x64.exe`；macOS 生成 `rel
 
 ## 开源与安全
 
-- 项目代码采用 [MIT License](LICENSE)，第三方组件许可证见 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)。
+- 项目原创代码采用 [MIT License](LICENSE)，第三方组件许可与声明见 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)。
 - 参与开发请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
 - 安全漏洞请按照 [SECURITY.md](SECURITY.md) 私下报告，不要发布包含凭据或真实文档的公开 Issue。
 - CI 会在 Windows 和 macOS 上自动构建前端，并执行 Rust 格式、测试和 Clippy 检查；依赖安全检查每周运行。

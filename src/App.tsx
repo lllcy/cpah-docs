@@ -696,6 +696,7 @@ export default function App() {
       copyingDiagnostics={copyingDiagnostics}
       onRunHealthCheck={() => void runHealthCheck()}
       onCopyDiagnostics={() => void copyDiagnostics()}
+      onLoadProjectLicense={() => previewMode ? Promise.resolve("预览模式不载入许可证正文。") : invoke<string>("get_project_license")}
       onLoadThirdPartyLicenses={() => previewMode ? Promise.resolve("预览模式不载入第三方许可证正文。") : invoke<string>("get_third_party_licenses")}
     />
   ) : (

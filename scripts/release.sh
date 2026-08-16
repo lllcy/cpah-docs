@@ -7,9 +7,21 @@ cd "$project_root"
 package_version="$(node -e 'const fs = require("node:fs"); process.stdout.write(JSON.parse(fs.readFileSync("package.json", "utf8")).version)')"
 tauri_version="$(node -e 'const fs = require("node:fs"); process.stdout.write(JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8")).version)')"
 cargo_version="$(sed -nE '/^\[package\]/,/^\[/{s/^version[[:space:]]*=[[:space:]]*"([^"]+)"/\1/p;}' src-tauri/Cargo.toml | head -n 1)"
+third_party_licenses_path="THIRD_PARTY_LICENSES.md"
 
 if [[ "$package_version" != "$cargo_version" || "$package_version" != "$tauri_version" ]]; then
   echo "Version mismatch: package.json=$package_version, Cargo.toml=$cargo_version, tauri.conf.json=$tauri_version" >&2
+  exit 1
+fi
+
+license_hash_before=""
+if [[ -f "$third_party_licenses_path" ]]; then
+  license_hash_before="$(shasum -a 256 "$third_party_licenses_path" | cut -d ' ' -f 1)"
+fi
+node scripts/generate-third-party-licenses.mjs
+license_hash_after="$(shasum -a 256 "$third_party_licenses_path" | cut -d ' ' -f 1)"
+if [[ -z "$license_hash_before" || "$license_hash_before" != "$license_hash_after" ]]; then
+  echo "THIRD_PARTY_LICENSES.md was refreshed. Review and commit it, then run the release again." >&2
   exit 1
 fi
 
@@ -44,6 +56,8 @@ artifact_directory="release"
 artifact_name="CPAH-Docs-v${package_version}-macos-universal.dmg"
 mkdir -p "$artifact_directory"
 cp "${dmg_files[0]}" "$artifact_directory/$artifact_name"
+cp LICENSE "$artifact_directory/LICENSE.txt"
+cp "$third_party_licenses_path" "$artifact_directory/THIRD_PARTY_LICENSES.md"
 shasum -a 256 "$artifact_directory/$artifact_name" | sed "s#${artifact_directory}/##" > "$artifact_directory/SHA256SUMS.txt"
 
 echo "Release artifact: $project_root/$artifact_directory/$artifact_name"

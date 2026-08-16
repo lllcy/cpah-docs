@@ -8,7 +8,9 @@ use crate::models::{
 use crate::runtime::RuntimeMessage;
 use crate::state::AppState;
 use crate::tag_runtime::{self, TagRuntimeMessage};
-use crate::tagging::{schema_hash, test_tool_calling, validate_tagging_config};
+use crate::tagging::{
+    schema_hash, test_tool_calling, validate_agent_base_url, validate_tagging_config,
+};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -69,6 +71,11 @@ pub async fn get_diagnostic_report(state: State<'_, AppState>) -> CommandResult<
     diagnostics::diagnostic_report(&state)
         .await
         .map_err(display_error)
+}
+
+#[tauri::command]
+pub fn get_project_license() -> String {
+    include_str!("../../LICENSE").to_string()
 }
 
 #[tauri::command]
@@ -559,24 +566,6 @@ fn validate_settings(settings: &mut AppSettings) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn validate_agent_base_url(value: &str) -> anyhow::Result<String> {
-    let value = value.trim();
-    let parsed = reqwest::Url::parse(value).map_err(|_| anyhow::anyhow!("Base URL 格式无效"))?;
-    if !matches!(parsed.scheme(), "http" | "https") {
-        anyhow::bail!("Base URL 必须以 http:// 或 https:// 开头");
-    }
-    if parsed.host_str().is_none() {
-        anyhow::bail!("Base URL 必须包含有效主机名");
-    }
-    if !parsed.username().is_empty() || parsed.password().is_some() {
-        anyhow::bail!("Base URL 不允许包含用户名或密码");
-    }
-    if parsed.query().is_some() || parsed.fragment().is_some() {
-        anyhow::bail!("Base URL 不允许包含查询参数或片段");
-    }
-    Ok(value.trim_end_matches('/').to_string())
-}
-
 fn normalized_path_key(path: &str) -> String {
     if cfg!(windows) {
         path.replace('/', "\\").to_lowercase()
@@ -608,7 +597,7 @@ fn display_error(error: impl std::fmt::Display) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::validate_agent_base_url;
+    use crate::tagging::validate_agent_base_url;
 
     #[test]
     fn validates_agent_base_urls_strictly() {
@@ -616,6 +605,16 @@ mod tests {
             validate_agent_base_url(" https://example.com/v1/ ").unwrap(),
             "https://example.com/v1"
         );
+        assert_eq!(
+            validate_agent_base_url("http://127.0.0.1:11434/v1/").unwrap(),
+            "http://127.0.0.1:11434/v1"
+        );
+        assert_eq!(
+            validate_agent_base_url("http://[::1]:11434/v1").unwrap(),
+            "http://[::1]:11434/v1"
+        );
+        assert!(validate_agent_base_url("http://example.com/v1").is_err());
+        assert!(validate_agent_base_url("http://192.168.1.2:11434/v1").is_err());
         assert!(validate_agent_base_url("file:///tmp/api").is_err());
         assert!(validate_agent_base_url("https://user:secret@example.com/v1").is_err());
         assert!(validate_agent_base_url("https://example.com/v1?key=secret").is_err());
