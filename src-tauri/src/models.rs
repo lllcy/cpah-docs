@@ -92,6 +92,16 @@ pub struct AppSettings {
     #[serde(default = "default_enabled_extensions")]
     pub enabled_extensions: Vec<String>,
     #[serde(default)]
+    pub split_enabled: bool,
+    #[serde(default = "default_split_max_pages")]
+    pub split_max_pages: u32,
+    #[serde(default = "default_split_overlap_pages")]
+    pub split_overlap_pages: u32,
+    #[serde(default)]
+    pub split_temp_dir: Option<String>,
+    #[serde(default)]
+    pub split_keep_temp: bool,
+    #[serde(default)]
     pub agent: AgentSettings,
 }
 
@@ -107,6 +117,11 @@ impl Default for AppSettings {
             mineru_base_url: default_mineru_base_url(),
             mineru_configured: false,
             enabled_extensions: default_enabled_extensions(),
+            split_enabled: true,
+            split_max_pages: default_split_max_pages(),
+            split_overlap_pages: default_split_overlap_pages(),
+            split_temp_dir: None,
+            split_keep_temp: false,
             agent: AgentSettings::default(),
         }
     }
@@ -124,6 +139,14 @@ pub fn default_enabled_extensions() -> Vec<String> {
 
 fn default_mineru_base_url() -> String {
     "https://mineru.net/api/v4".to_string()
+}
+
+fn default_split_max_pages() -> u32 {
+    200
+}
+
+fn default_split_overlap_pages() -> u32 {
+    5
 }
 
 fn default_agent_base_url() -> String {

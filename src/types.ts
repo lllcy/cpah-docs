@@ -38,6 +38,11 @@ export interface AppSettings {
   mineruBaseUrl: string;
   mineruConfigured: boolean;
   enabledExtensions: string[];
+  splitEnabled: boolean;
+  splitMaxPages: number;
+  splitOverlapPages: number;
+  splitTempDir: string | null;
+  splitKeepTemp: boolean;
   agent: AgentSettings;
 }
 

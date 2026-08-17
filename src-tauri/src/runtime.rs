@@ -1,9 +1,13 @@
 use crate::converter::{
     convert_locally, copy_markdown, default_engine, is_enabled, is_markdown, is_supported,
-    output_path, remove_generated_output, write_artifact,
+    merge_artifacts, output_path, remove_generated_output, write_artifact, write_page_map,
+    ConversionArtifact,
 };
 use crate::mineru::MinerUClient;
-use crate::models::{ConversionEngine, DeletePolicy, JobStatus, TaskRecord, WatchProfile};
+use crate::models::{
+    AppSettings, ConversionEngine, DeletePolicy, JobStatus, TaskRecord, WatchProfile,
+};
+use crate::pdf_split::{count_pages, split_pdf, PageRange};
 use crate::state::AppState;
 use crate::tag_runtime::TagRuntimeMessage;
 use anyhow::{Context, Result};
@@ -628,18 +632,21 @@ async fn process_path(
     Ok(())
 }
 
-async fn run_mineru(
+/// 将一个文件交由 MinerU 远程解析，返回解析产物（不落盘）。
+///
+/// 单文件流程与超页数 PDF 逐块解析流程共用此函数。状态更新（上传 / 解析 / 下载）
+/// 复用传入的 `task_id`，因此在拆分流程中多块会依次刷新同一任务的进度。
+async fn convert_mineru_file(
     state: &AppState,
     mineru: &MinerUClient,
-    profile: &WatchProfile,
-    task: &TaskRecord,
-) -> Result<()> {
+    source: &Path,
+    task_id: &str,
+) -> Result<ConversionArtifact> {
     let token = AppState::read_mineru_token()?;
     let base_url = state.settings.read().await.mineru_base_url.clone();
-    let source = Path::new(&task.source_path);
     let submission = mineru.submit(source, &base_url, &token).await?;
     state.storage.set_mineru_submission(
-        &task.id,
+        task_id,
         &submission.batch_id,
         &submission.data_id,
         JobStatus::Uploading,
@@ -647,9 +654,9 @@ async fn run_mineru(
     mineru.upload(source, &submission.upload_url).await?;
     state
         .storage
-        .set_status(&task.id, JobStatus::Processing, None)?;
+        .set_status(task_id, JobStatus::Processing, None)?;
     let progress_storage = state.storage.clone();
-    let progress_task_id = task.id.clone();
+    let progress_task_id = task_id.to_string();
     let result = mineru
         .poll(
             &submission.batch_id,
@@ -670,11 +677,133 @@ async fn run_mineru(
         .await?;
     state
         .storage
-        .set_status(&task.id, JobStatus::Downloading, None)?;
-    let artifact = mineru.download(&result).await?;
+        .set_status(task_id, JobStatus::Downloading, None)?;
+    mineru.download(&result).await
+}
+
+async fn run_mineru(
+    state: &AppState,
+    mineru: &MinerUClient,
+    profile: &WatchProfile,
+    task: &TaskRecord,
+) -> Result<()> {
+    let source = Path::new(&task.source_path).to_path_buf();
+    let is_pdf = source
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case("pdf"));
+
+    // 仅在启用拆分、且为 PDF、且页数超过阈值时进入逐块解析流程；其余情况按单文件处理。
+    // 非 PDF（doc / ppt / 图片等）MinerU 同样支持，但只能在本地对 PDF 做物理拆分，故不做拆分。
+    let (split_enabled, max_pages, overlap, temp_dir_opt, keep_temp) = {
+        let settings = state.settings.read().await;
+        (
+            settings.split_enabled,
+            settings.split_max_pages,
+            settings.split_overlap_pages,
+            settings.split_temp_dir.clone(),
+            settings.split_keep_temp,
+        )
+    };
+    let total_pages = if split_enabled && is_pdf {
+        count_pages(&source).ok()
+    } else {
+        None
+    };
+    if total_pages.map(|pages| pages <= max_pages).unwrap_or(true) {
+        let artifact = convert_mineru_file(state, mineru, &source, &task.id).await?;
+        let profile = profile.clone();
+        let task = task.clone();
+        tokio::task::spawn_blocking(move || write_artifact(&profile, &task, artifact)).await??;
+        return Ok(());
+    }
+
+    let total_pages = total_pages.expect("进入拆分分支时必然已知总页数");
+    let temp_dir = match temp_dir_opt {
+        Some(custom) => PathBuf::from(custom),
+        None => {
+            let output = task
+                .output_path
+                .as_ref()
+                .map(PathBuf::from)
+                .context("任务缺少输出路径，无法解析拆分临时目录")?;
+            output
+                .parent()
+                .context("输出文件缺少父目录，无法解析拆分临时目录")?
+                .join(".cpah-split")
+                .join(&task.id)
+        }
+    };
+
+    tracing::info!(
+        task_id = %task.id,
+        file = %source.file_name().and_then(|name| name.to_str()).unwrap_or("<unknown>"),
+        pages = total_pages,
+        max_pages = max_pages,
+        overlap = overlap,
+        temp_dir = %temp_dir.display(),
+        "PDF 超过逐块解析阈值，开始拆分"
+    );
+
+    let chunks = split_pdf(&source, &temp_dir, max_pages, overlap)
+        .with_context(|| format!("拆分 PDF 失败：{}", source.display()))?;
+    tracing::info!(
+        task_id = %task.id,
+        chunk_count = chunks.len(),
+        "PDF 已拆分为子文件，开始逐块解析"
+    );
+
+    let mut parts: Vec<(ConversionArtifact, PageRange)> = Vec::with_capacity(chunks.len());
+    for (index, (chunk_path, range)) in chunks.iter().enumerate() {
+        tracing::info!(
+            task_id = %task.id,
+            chunk = index + 1,
+            total_chunks = chunks.len(),
+            pages = format!("{}-{}", range.start, range.end),
+            "提交子文件至 MinerU 解析"
+        );
+        let artifact = convert_mineru_file(state, mineru, chunk_path, &task.id).await?;
+        parts.push((artifact, *range));
+    }
+
+    let output = task
+        .output_path
+        .as_ref()
+        .map(PathBuf::from)
+        .context("任务缺少输出路径，无法写入合并结果")?;
+    let merged = merge_artifacts(&output, &parts).context("合并子文件解析结果失败")?;
     let profile = profile.clone();
     let task = task.clone();
-    tokio::task::spawn_blocking(move || write_artifact(&profile, &task, artifact)).await??;
+    tokio::task::spawn_blocking(move || write_artifact(&profile, &task, merged)).await??;
+    tracing::info!(
+        task_id = %task.id,
+        chunk_count = chunks.len(),
+        output = %output.display(),
+        "子文件解析结果已合并写入"
+    );
+
+    if let Err(error) = write_page_map(&output, &source, total_pages, &chunks) {
+        tracing::warn!(task_id = %task.id, error = %format!("{error:#}"), "写入页码映射失败");
+    }
+
+    if keep_temp {
+        tracing::info!(
+            task_id = %task.id,
+            dir = %temp_dir.display(),
+            "保留拆分临时目录（split_keep_temp=true）"
+        );
+    } else if let Err(error) = std::fs::remove_dir_all(&temp_dir) {
+        if error.kind() != std::io::ErrorKind::NotFound {
+            tracing::warn!(task_id = %task.id, error = %error, "清理拆分临时目录失败");
+        }
+    } else {
+        tracing::info!(
+            task_id = %task.id,
+            dir = %temp_dir.display(),
+            "已清理拆分临时目录"
+        );
+    }
+
     Ok(())
 }
 

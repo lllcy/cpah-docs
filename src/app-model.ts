@@ -17,6 +17,11 @@ export const emptySettings: AppSettings = {
   mineruBaseUrl: "https://mineru.net/api/v4",
   mineruConfigured: false,
   enabledExtensions: ["md", "docx", "xlsx", "xls", "pptx", "html", "htm", "csv", "txt", "pdf", "doc", "ppt", "png", "jpg", "jpeg", "webp", "bmp"],
+  splitEnabled: true,
+  splitMaxPages: 200,
+  splitOverlapPages: 5,
+  splitTempDir: null,
+  splitKeepTemp: false,
   agent: { baseUrl: "https://api.openai.com/v1", model: "", configured: false, concurrency: 1 },
 };
 
@@ -61,6 +66,11 @@ export const previewDashboard: Dashboard = {
     mineruBaseUrl: "https://mineru.net/api/v4",
     mineruConfigured: true,
     enabledExtensions: ["md", "docx", "xlsx", "xls", "pptx", "html", "htm", "csv", "txt", "pdf", "doc", "ppt", "png", "jpg", "jpeg", "webp", "bmp"],
+    splitEnabled: true,
+    splitMaxPages: 200,
+    splitOverlapPages: 5,
+    splitTempDir: null,
+    splitKeepTemp: false,
     agent: { baseUrl: "https://api.openai.com/v1", model: "gpt-4.1-mini", configured: true, concurrency: 1 },
     profiles: [
       {

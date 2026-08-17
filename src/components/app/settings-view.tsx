@@ -1,11 +1,20 @@
 import { useEffect, useState } from "react";
-import { Bot, ExternalLink, KeyRound, Laptop, LoaderCircle, Moon, PlugZap, ShieldCheck, Sun } from "lucide-react";
+import { Bot, ExternalLink, KeyRound, Laptop, LoaderCircle, Moon, PlugZap, Scissors, ShieldCheck, Sun } from "lucide-react";
 
 import type { ThemeMode } from "@/app-model";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import type { AgentSettings } from "@/types";
+
+type SplitSettings = {
+  splitEnabled: boolean;
+  splitMaxPages: number;
+  splitOverlapPages: number;
+  splitTempDir: string | null;
+  splitKeepTemp: boolean;
+};
 
 type SettingsViewProps = {
   appVersion: string;
@@ -21,9 +30,11 @@ type SettingsViewProps = {
   agent: AgentSettings;
   onSaveAgent: (value: { baseUrl: string; model: string; apiKey: string; concurrency: number }) => Promise<void>;
   onTestAgent: (value: { baseUrl: string; model: string; apiKey: string }) => Promise<void>;
+  splitSettings: SplitSettings;
+  onSaveSplit: (next: SplitSettings) => void;
 };
 
-export function SettingsView({ appVersion, theme, onThemeChange, mineruConfigured, mineruBaseUrl, token, onTokenChange, savingToken, onSaveToken, onOpenMineruTokenPage, agent, onSaveAgent, onTestAgent }: SettingsViewProps) {
+export function SettingsView({ appVersion, theme, onThemeChange, mineruConfigured, mineruBaseUrl, token, onTokenChange, savingToken, onSaveToken, onOpenMineruTokenPage, agent, onSaveAgent, onTestAgent, splitSettings, onSaveSplit }: SettingsViewProps) {
   const [baseUrl, setBaseUrl] = useState(agent.baseUrl);
   const [model, setModel] = useState(agent.model);
   const [apiKey, setApiKey] = useState("");
@@ -52,6 +63,32 @@ export function SettingsView({ appVersion, theme, onThemeChange, mineruConfigure
       await onTestAgent({ baseUrl, model, apiKey });
     } finally {
       setTestingAgent(false);
+    }
+  }
+
+  const [splitEnabled, setSplitEnabled] = useState(splitSettings.splitEnabled);
+  const [splitMaxPages, setSplitMaxPages] = useState(splitSettings.splitMaxPages);
+  const [splitOverlapPages, setSplitOverlapPages] = useState(splitSettings.splitOverlapPages);
+  const [splitTempDir, setSplitTempDir] = useState(splitSettings.splitTempDir ?? "");
+  const [splitKeepTemp, setSplitKeepTemp] = useState(splitSettings.splitKeepTemp);
+  const [savingSplit, setSavingSplit] = useState(false);
+  useEffect(() => {
+    setSplitEnabled(splitSettings.splitEnabled);
+    setSplitMaxPages(splitSettings.splitMaxPages);
+    setSplitOverlapPages(splitSettings.splitOverlapPages);
+    setSplitTempDir(splitSettings.splitTempDir ?? "");
+    setSplitKeepTemp(splitSettings.splitKeepTemp);
+  }, [splitSettings.splitEnabled, splitSettings.splitMaxPages, splitSettings.splitOverlapPages, splitSettings.splitTempDir, splitSettings.splitKeepTemp]);
+
+  async function saveSplit() {
+    setSavingSplit(true);
+    try {
+      const maxPages = Math.max(1, Math.floor(splitMaxPages) || 200);
+      const overlap = Math.max(0, Math.min(Math.floor(splitOverlapPages) || 0, maxPages - 1));
+      const tempDir = splitTempDir.trim() === "" ? null : splitTempDir.trim();
+      onSaveSplit({ splitEnabled, splitMaxPages: maxPages, splitOverlapPages: overlap, splitTempDir: tempDir, splitKeepTemp });
+    } finally {
+      setSavingSplit(false);
     }
   }
   const themes = [
@@ -91,6 +128,43 @@ export function SettingsView({ appVersion, theme, onThemeChange, mineruConfigure
                 <Button disabled={!token.trim() || savingToken} onClick={onSaveToken}>{savingToken ? <LoaderCircle className="animate-spin" /> : <ShieldCheck />}{mineruConfigured ? "更新" : "保存"}</Button>
               </div>
               <p className="mt-2 truncate text-[10px] text-muted-foreground">API 地址：{mineruBaseUrl}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-b">
+          <div className="mx-auto grid max-w-[840px] grid-cols-[150px_minmax(0,1fr)] gap-5 px-5 py-4 max-[760px]:grid-cols-1 max-[900px]:px-4">
+            <div>
+              <div className="flex items-center gap-2"><Scissors className="size-3.5 text-muted-foreground" /><h2 className="text-xs font-medium">PDF 自动拆分</h2></div>
+              <p className="mt-2 text-[10px] text-muted-foreground">仅对 PDF 生效</p>
+            </div>
+            <div className="min-w-0 space-y-3">
+              <div className="flex items-center justify-between gap-3 rounded-md border bg-card px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium leading-5">超过页数时自动拆分</p>
+                  <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">MinerU 单次解析限制约 200 页；超限时按批次拆分后逐块解析并合并结果。</p>
+                </div>
+                <Switch checked={splitEnabled} onCheckedChange={setSplitEnabled} aria-label="启用 PDF 自动拆分" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="space-y-1"><span className="text-[10px] text-muted-foreground">每批最大页数</span><Input type="number" min={1} value={splitMaxPages} onChange={(event) => setSplitMaxPages(Number(event.target.value))} /></label>
+                <label className="space-y-1"><span className="text-[10px] text-muted-foreground">批次重叠页数</span><Input type="number" min={0} value={splitOverlapPages} onChange={(event) => setSplitOverlapPages(Number(event.target.value))} /></label>
+              </div>
+              <label className="block space-y-1">
+                <span className="text-[10px] text-muted-foreground">拆分临时目录（留空则使用输出目录下的 .cpah-split）</span>
+                <Input value={splitTempDir} onChange={(event) => setSplitTempDir(event.target.value)} placeholder="留空使用默认临时目录" />
+              </label>
+              <div className="flex items-center justify-between gap-3 rounded-md border bg-card px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium leading-5">保留拆分临时文件</p>
+                  <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">默认在合并完成后清理临时 PDF；开启后保留以便排查。</p>
+                </div>
+                <Switch checked={splitKeepTemp} onCheckedChange={setSplitKeepTemp} aria-label="保留拆分临时文件" />
+              </div>
+              <p className="text-[10px] leading-4 text-muted-foreground">拆分与合并过程会写入日志；输出 Markdown 中以 <code className="break-all text-foreground">&lt;!-- cpah_split --&gt;</code> 标记各块对应的原始页码区间，并生成 <code className="break-all text-foreground">.md.pagemap.json</code> 页码映射文件。</p>
+              <div className="flex justify-end">
+                <Button disabled={savingSplit} onClick={() => void saveSplit()}>{savingSplit ? <LoaderCircle className="animate-spin" /> : <ShieldCheck />}保存拆分设置</Button>
+              </div>
             </div>
           </div>
         </div>

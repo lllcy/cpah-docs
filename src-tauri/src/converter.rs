@@ -1,4 +1,6 @@
 use crate::models::{ConversionEngine, TaskRecord, WatchProfile};
+use crate::pdf_split::PageRange;
+use serde_json;
 use anyhow::{Context, Result, bail};
 use anytomd::{ConversionOptions, convert_bytes, convert_file};
 use chrono::Utc;
@@ -319,6 +321,103 @@ pub fn write_artifact(
     }
 
     Ok(output)
+}
+
+/// 合并多个子文件（按原始页码区间排序）的解析结果为一个统一的 [`ConversionArtifact`]。
+///
+/// - 每个子块的 Markdown 前插入 `<!-- cpah_split chunk=K pages=START-END -->` 边界标记。
+/// - 各子块的附件按 `chunk{K}/<原相对路径>` 前缀重新归置，避免跨块重名冲突，
+///   并复用 [`rewrite_asset_reference`] 改写 Markdown 中的资源引用。
+pub fn merge_artifacts(
+    output_path: &Path,
+    parts: &[(ConversionArtifact, PageRange)],
+) -> Result<ConversionArtifact> {
+    let asset_dir_name = asset_path_for_output(output_path)
+        .context("无法确定附件目录")?
+        .file_name()
+        .context("附件目录缺少名称")?
+        .to_string_lossy()
+        .to_string();
+
+    let mut combined_markdown = String::new();
+    let mut combined_assets: Vec<ConversionAsset> = Vec::new();
+    let mut warnings: Vec<String> = Vec::new();
+
+    for (index, (artifact, range)) in parts.iter().enumerate() {
+        let chunk = index + 1;
+        combined_markdown.push_str(&format!(
+            "<!-- cpah_split chunk={chunk} pages={}-{} -->\n",
+            range.start, range.end
+        ));
+        let mut markdown = artifact.markdown.clone();
+        for asset in &artifact.assets {
+            let new_relative = PathBuf::from(format!("chunk{chunk}")).join(&asset.relative_path);
+            // 把该资源在子块 Markdown 中的原始引用改写为带 chunk 前缀的统一路径。
+            markdown = rewrite_asset_reference(
+                &markdown,
+                &asset.relative_path,
+                &new_relative,
+                &asset_dir_name,
+            );
+            combined_assets.push(ConversionAsset {
+                relative_path: new_relative,
+                bytes: asset.bytes.clone(),
+            });
+        }
+        combined_markdown.push_str(markdown.trim_start());
+        combined_markdown.push('\n');
+        warnings.extend(artifact.warnings.iter().cloned());
+    }
+
+    Ok(ConversionArtifact {
+        markdown: combined_markdown,
+        assets: combined_assets,
+        warnings,
+    })
+}
+
+/// 写出页码映射 sidecar（`<输出>.md.pagemap.json`），记录各子文件对应的原始页码区间，
+/// 便于回溯合并结果与原始文档的对应关系。
+pub fn write_page_map(
+    output_md: &Path,
+    source: &Path,
+    total_pages: u32,
+    chunks: &[(PathBuf, PageRange)],
+) -> Result<()> {
+    #[derive(serde::Serialize)]
+    struct PageMapChunk {
+        index: usize,
+        temp_pdf: String,
+        original_start: u32,
+        original_end: u32,
+    }
+    #[derive(serde::Serialize)]
+    struct PageMap {
+        source: String,
+        total_pages: u32,
+        chunks: Vec<PageMapChunk>,
+    }
+
+    let map = PageMap {
+        source: source.to_string_lossy().to_string(),
+        total_pages,
+        chunks: chunks
+            .iter()
+            .enumerate()
+            .map(|(index, (path, range))| PageMapChunk {
+                index: index + 1,
+                temp_pdf: path.to_string_lossy().to_string(),
+                original_start: range.start,
+                original_end: range.end,
+            })
+            .collect(),
+    };
+
+    let json = serde_json::to_string_pretty(&map).context("序列化页码映射失败")?;
+    let map_path = output_md.with_extension("md.pagemap.json");
+    fs::write(&map_path, json)
+        .with_context(|| format!("无法写入页码映射：{}", map_path.display()))?;
+    Ok(())
 }
 
 fn install_staged_assets(staged: &Path, destination: &Path) -> Result<Option<PathBuf>> {

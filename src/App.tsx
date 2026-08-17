@@ -356,6 +356,20 @@ export default function App() {
     }
   }
 
+  function saveSplitSettings(next: {
+    splitEnabled: boolean;
+    splitMaxPages: number;
+    splitOverlapPages: number;
+    splitTempDir: string | null;
+    splitKeepTemp: boolean;
+  }) {
+    failedAutoSaveSignatureRef.current = null;
+    setAutoSaveError("");
+    const nextSettings: AppSettings = { ...settings, ...next };
+    setSettings(nextSettings);
+    void saveSettings(false, nextSettings);
+  }
+
   async function previewTagging(profileId: string, tagging: TaggingConfig): Promise<TaggingImpact> {
     try {
       if (previewMode) return { discovered: 12, newFiles: 3, affected: 9 };
@@ -649,6 +663,14 @@ export default function App() {
       agent={settings.agent}
       onSaveAgent={saveAgent}
       onTestAgent={testAgent}
+      splitSettings={{
+        splitEnabled: settings.splitEnabled,
+        splitMaxPages: settings.splitMaxPages,
+        splitOverlapPages: settings.splitOverlapPages,
+        splitTempDir: settings.splitTempDir,
+        splitKeepTemp: settings.splitKeepTemp,
+      }}
+      onSaveSplit={saveSplitSettings}
     />
   ) : activeView === "tagging" ? (
     <TagTasksView

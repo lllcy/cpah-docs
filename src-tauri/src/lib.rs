@@ -7,6 +7,7 @@ mod knowledge_index;
 mod logging;
 mod mineru;
 mod models;
+mod pdf_split;
 mod runtime;
 mod state;
 mod storage;
