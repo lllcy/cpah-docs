@@ -680,7 +680,7 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### Apache License 2.0
 
 用于：
-- [rangemap 1.7.1](https://crates.io/crates/rangemap/1.7.1)（[上游仓库](https://github.com/jeffparsons/rangemap)）
+- [rangemap 1.8.0](https://crates.io/crates/rangemap/1.8.0)（[上游仓库](https://github.com/jeffparsons/rangemap)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -1969,7 +1969,7 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### Apache License 2.0
 
 用于：
-- [swift-rs 1.0.7](https://crates.io/crates/swift-rs/1.0.7)（[上游仓库](https://github.com/Brendonovich/swift-rs)）
+- [swift-rs 1.0.8](https://crates.io/crates/swift-rs/1.0.8)（[上游仓库](https://github.com/Brendonovich/swift-rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -2403,7 +2403,7 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 - [clap_derive 4.6.4](https://crates.io/crates/clap_derive/4.6.4)（[上游仓库](https://github.com/clap-rs/clap)）
 - [clap_lex 1.1.0](https://crates.io/crates/clap_lex/1.1.0)（[上游仓库](https://github.com/clap-rs/clap)）
 - [colorchoice 1.0.5](https://crates.io/crates/colorchoice/1.0.5)（[上游仓库](https://github.com/rust-cli/anstyle.git)）
-- [crc32fast 1.5.0](https://crates.io/crates/crc32fast/1.5.0)（[上游仓库](https://github.com/srijs/rust-crc32fast)）
+- [crc32fast 1.5.1](https://crates.io/crates/crc32fast/1.5.1)（[上游仓库](https://github.com/srijs/rust-crc32fast)）
 - [fallible-iterator 0.3.0](https://crates.io/crates/fallible-iterator/0.3.0)（[上游仓库](https://github.com/sfackler/rust-fallible-iterator)）
 - [fallible-streaming-iterator 0.1.9](https://crates.io/crates/fallible-streaming-iterator/0.1.9)（[上游仓库](https://github.com/sfackler/fallible-streaming-iterator)）
 - [foreign-types-macros 0.2.4](https://crates.io/crates/foreign-types-macros/0.2.4)（[上游仓库](https://github.com/sfackler/foreign-types)）
@@ -2842,15 +2842,15 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [futures-channel 0.3.33](https://crates.io/crates/futures-channel/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
-- [futures-core 0.3.33](https://crates.io/crates/futures-core/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
-- [futures-executor 0.3.33](https://crates.io/crates/futures-executor/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
-- [futures-io 0.3.33](https://crates.io/crates/futures-io/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
-- [futures-macro 0.3.33](https://crates.io/crates/futures-macro/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
-- [futures-sink 0.3.33](https://crates.io/crates/futures-sink/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
-- [futures-task 0.3.33](https://crates.io/crates/futures-task/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
-- [futures-util 0.3.33](https://crates.io/crates/futures-util/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
-- [futures 0.3.33](https://crates.io/crates/futures/0.3.33)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-channel 0.3.34](https://crates.io/crates/futures-channel/0.3.34)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-core 0.3.34](https://crates.io/crates/futures-core/0.3.34)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-executor 0.3.34](https://crates.io/crates/futures-executor/0.3.34)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-io 0.3.34](https://crates.io/crates/futures-io/0.3.34)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-macro 0.3.34](https://crates.io/crates/futures-macro/0.3.34)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-sink 0.3.34](https://crates.io/crates/futures-sink/0.3.34)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-task 0.3.34](https://crates.io/crates/futures-task/0.3.34)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures-util 0.3.34](https://crates.io/crates/futures-util/0.3.34)（[上游仓库](https://github.com/rust-lang/futures-rs)）
+- [futures 0.3.34](https://crates.io/crates/futures/0.3.34)（[上游仓库](https://github.com/rust-lang/futures-rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -4335,7 +4335,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [fast-float2 0.2.3](https://crates.io/crates/fast-float2/0.2.3)（[上游仓库](https://github.com/Alexhuszagh/fast-float-rust)）
+- [fast-float2 0.2.4](https://crates.io/crates/fast-float2/0.2.4)（[上游仓库](https://github.com/Alexhuszagh/fast-float-rust)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -5840,7 +5840,7 @@ limitations under the License.</pre>
 - [crossbeam-epoch 0.9.20](https://crates.io/crates/crossbeam-epoch/0.9.20)（[上游仓库](https://github.com/crossbeam-rs/crossbeam)）
 - [crossbeam-utils 0.8.22](https://crates.io/crates/crossbeam-utils/0.8.22)（[上游仓库](https://github.com/crossbeam-rs/crossbeam)）
 - [displaydoc 0.2.7](https://crates.io/crates/displaydoc/0.2.7)（[上游仓库](https://github.com/yaahc/displaydoc)）
-- [either 1.17.0](https://crates.io/crates/either/1.17.0)（[上游仓库](https://github.com/rayon-rs/either)）
+- [either 1.18.0](https://crates.io/crates/either/1.18.0)（[上游仓库](https://github.com/rayon-rs/either)）
 - [equivalent 1.0.2](https://crates.io/crates/equivalent/1.0.2)（[上游仓库](https://github.com/indexmap-rs/equivalent)）
 - [fastrand 2.5.0](https://crates.io/crates/fastrand/2.5.0)（[上游仓库](https://github.com/smol-rs/fastrand)）
 - [flate2 1.1.9](https://crates.io/crates/flate2/1.1.9)（[上游仓库](https://github.com/rust-lang/flate2-rs)）
@@ -5851,7 +5851,6 @@ limitations under the License.</pre>
 - [getopts 0.2.24](https://crates.io/crates/getopts/0.2.24)（[上游仓库](https://github.com/rust-lang/getopts)）
 - [glob 0.3.4](https://crates.io/crates/glob/0.3.4)（[上游仓库](https://github.com/rust-lang/glob)）
 - [hashbrown 0.14.5](https://crates.io/crates/hashbrown/0.14.5)（[上游仓库](https://github.com/rust-lang/hashbrown)）
-- [hashbrown 0.15.5](https://crates.io/crates/hashbrown/0.15.5)（[上游仓库](https://github.com/rust-lang/hashbrown)）
 - [hashbrown 0.17.1](https://crates.io/crates/hashbrown/0.17.1)（[上游仓库](https://github.com/rust-lang/hashbrown)）
 - [heck 0.5.0](https://crates.io/crates/heck/0.5.0)（[上游仓库](https://github.com/withoutboats/heck)）
 - [html5ever 0.29.1](https://crates.io/crates/html5ever/0.29.1)（[上游仓库](https://github.com/servo/html5ever)）
@@ -5863,7 +5862,7 @@ limitations under the License.</pre>
 - [indexmap 2.14.0](https://crates.io/crates/indexmap/2.14.0)（[上游仓库](https://github.com/indexmap-rs/indexmap)）
 - [lazy_static 1.5.0](https://crates.io/crates/lazy_static/1.5.0)（[上游仓库](https://github.com/rust-lang-nursery/lazy-static.rs)）
 - [lock_api 0.4.14](https://crates.io/crates/lock_api/0.4.14)（[上游仓库](https://github.com/Amanieu/parking_lot)）
-- [log 0.4.33](https://crates.io/crates/log/0.4.33)（[上游仓库](https://github.com/rust-lang/log)）
+- [log 0.4.34](https://crates.io/crates/log/0.4.34)（[上游仓库](https://github.com/rust-lang/log)）
 - [markup5ever 0.14.1](https://crates.io/crates/markup5ever/0.14.1)（[上游仓库](https://github.com/servo/html5ever)）
 - [markup5ever 0.38.0](https://crates.io/crates/markup5ever/0.38.0)（[上游仓库](https://github.com/servo/html5ever)）
 - [mime 0.3.17](https://crates.io/crates/mime/0.3.17)（[上游仓库](https://github.com/hyperium/mime)）
@@ -5906,7 +5905,7 @@ limitations under the License.</pre>
 - [unicode-segmentation 1.13.3](https://crates.io/crates/unicode-segmentation/1.13.3)（[上游仓库](https://github.com/unicode-rs/unicode-segmentation)）
 - [unicode-width 0.2.2](https://crates.io/crates/unicode-width/0.2.2)（[上游仓库](https://github.com/unicode-rs/unicode-width)）
 - [url 2.5.8](https://crates.io/crates/url/2.5.8)（[上游仓库](https://github.com/servo/rust-url)）
-- [uuid 1.24.0](https://crates.io/crates/uuid/1.24.0)（[上游仓库](https://github.com/uuid-rs/uuid)）
+- [uuid 1.25.0](https://crates.io/crates/uuid/1.25.0)（[上游仓库](https://github.com/uuid-rs/uuid)）
 - [web_atoms 0.2.6](https://crates.io/crates/web_atoms/0.2.6)（[上游仓库](https://github.com/servo/html5ever)）
 - [window-vibrancy 0.6.0](https://crates.io/crates/window-vibrancy/0.6.0)（[上游仓库](https://github.com/tauri-apps/tauri-plugin-vibrancy)）
 - [wry 0.55.1](https://crates.io/crates/wry/0.55.1)（[上游仓库](https://github.com/tauri-apps/wry)）
@@ -6121,7 +6120,7 @@ limitations under the License.
 ### Apache License 2.0
 
 用于：
-- [hashlink 0.10.0](https://crates.io/crates/hashlink/0.10.0)（[上游仓库](https://github.com/kyren/hashlink)）
+- [hashlink 0.12.1](https://crates.io/crates/hashlink/0.12.1)（[上游仓库](https://github.com/djc/hashlink)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -8498,8 +8497,8 @@ limitations under the License.
 - [rand 0.10.2](https://crates.io/crates/rand/0.10.2)（[上游仓库](https://github.com/rust-random/rand)）
 - [rand 0.8.7](https://crates.io/crates/rand/0.8.7)（[上游仓库](https://github.com/rust-random/rand)）
 - [raw-window-handle 0.6.2](https://crates.io/crates/raw-window-handle/0.6.2)（[上游仓库](https://github.com/rust-windowing/raw-window-handle)）
-- [ref-cast-impl 1.0.26](https://crates.io/crates/ref-cast-impl/1.0.26)（[上游仓库](https://github.com/dtolnay/ref-cast)）
-- [ref-cast 1.0.26](https://crates.io/crates/ref-cast/1.0.26)（[上游仓库](https://github.com/dtolnay/ref-cast)）
+- [ref-cast-impl 1.0.27](https://crates.io/crates/ref-cast-impl/1.0.27)（[上游仓库](https://github.com/dtolnay/ref-cast)）
+- [ref-cast 1.0.27](https://crates.io/crates/ref-cast/1.0.27)（[上游仓库](https://github.com/dtolnay/ref-cast)）
 - [rustc-hash 2.1.3](https://crates.io/crates/rustc-hash/2.1.3)（[上游仓库](https://github.com/rust-lang/rustc-hash)）
 - [rustversion 1.0.23](https://crates.io/crates/rustversion/1.0.23)（[上游仓库](https://github.com/dtolnay/rustversion)）
 - [ryu 1.0.23](https://crates.io/crates/ryu/1.0.23)（[上游仓库](https://github.com/dtolnay/ryu)）
@@ -8514,7 +8513,7 @@ limitations under the License.
 - [serde_repr 0.1.21](https://crates.io/crates/serde_repr/0.1.21)（[上游仓库](https://github.com/dtolnay/serde-repr)）
 - [siphasher 1.0.3](https://crates.io/crates/siphasher/1.0.3)（[上游仓库](https://github.com/jedisct1/rust-siphash)）
 - [syn 2.0.119](https://crates.io/crates/syn/2.0.119)（[上游仓库](https://github.com/dtolnay/syn)）
-- [syn 3.0.3](https://crates.io/crates/syn/3.0.3)（[上游仓库](https://github.com/dtolnay/syn)）
+- [syn 3.0.4](https://crates.io/crates/syn/3.0.4)（[上游仓库](https://github.com/dtolnay/syn)）
 - [sync_wrapper 1.0.2](https://crates.io/crates/sync_wrapper/1.0.2)（[上游仓库](https://github.com/Actyx/sync_wrapper)）
 - [tauri-codegen 2.6.3](https://crates.io/crates/tauri-codegen/2.6.3)（[上游仓库](https://github.com/tauri-apps/tauri)）
 - [tauri-macros 2.6.3](https://crates.io/crates/tauri-macros/2.6.3)（[上游仓库](https://github.com/tauri-apps/tauri)）
@@ -9198,7 +9197,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ### ISC License
 
 用于：
-- [rustls-webpki 0.103.13](https://crates.io/crates/rustls-webpki/0.103.13)（[上游仓库](https://github.com/rustls/webpki)）
+- [rustls-webpki 0.103.15](https://crates.io/crates/rustls-webpki/0.103.15)（[上游仓库](https://github.com/rustls/webpki)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9342,8 +9341,8 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [libsqlite3-sys 0.35.0](https://crates.io/crates/libsqlite3-sys/0.35.0)（[上游仓库](https://github.com/rusqlite/rusqlite)）
-- [rusqlite 0.37.0](https://crates.io/crates/rusqlite/0.37.0)（[上游仓库](https://github.com/rusqlite/rusqlite)）
+- [libsqlite3-sys 0.38.2](https://crates.io/crates/libsqlite3-sys/0.38.2)（[上游仓库](https://github.com/rusqlite/rusqlite)）
+- [rusqlite 0.40.2](https://crates.io/crates/rusqlite/0.40.2)（[上游仓库](https://github.com/rusqlite/rusqlite)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9465,7 +9464,7 @@ SOFTWARE.</pre>
 
 用于：
 - [new_debug_unreachable 1.0.6](https://crates.io/crates/new_debug_unreachable/1.0.6)（[上游仓库](https://github.com/mbrubeck/rust-debug-unreachable)）
-- [ordered-float 5.3.0](https://crates.io/crates/ordered-float/5.3.0)（[上游仓库](https://github.com/reem/rust-ordered-float)）
+- [ordered-float 5.5.0](https://crates.io/crates/ordered-float/5.5.0)（[上游仓库](https://github.com/reem/rust-ordered-float)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -9781,7 +9780,7 @@ DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 用于：
-- [http-body-util 0.1.4](https://crates.io/crates/http-body-util/0.1.4)（[上游仓库](https://github.com/hyperium/http-body)）
+- [http-body-util 0.1.5](https://crates.io/crates/http-body-util/0.1.5)（[上游仓库](https://github.com/hyperium/http-body)）
 - [http-body 1.1.0](https://crates.io/crates/http-body/1.1.0)（[上游仓库](https://github.com/hyperium/http-body)）
 
 <details>
@@ -9848,8 +9847,8 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [rig-core 0.41.0](https://crates.io/crates/rig-core/0.41.0)（[上游仓库](https://github.com/0xPlaygrounds/rig)）
-- [rig 0.41.0](https://crates.io/crates/rig/0.41.0)（[上游仓库](https://github.com/0xPlaygrounds/rig)）
+- [rig-core 0.42.0](https://crates.io/crates/rig-core/0.42.0)（[上游仓库](https://github.com/0xPlaygrounds/rig)）
+- [rig 0.42.0](https://crates.io/crates/rig/0.42.0)（[上游仓库](https://github.com/0xPlaygrounds/rig)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -10287,8 +10286,8 @@ SOFTWARE.</pre>
 - [objc2-encode 4.1.0](https://crates.io/crates/objc2-encode/4.1.0)（[上游仓库](https://github.com/madsmtm/objc2)）
 - [objc2-foundation 0.3.2](https://crates.io/crates/objc2-foundation/0.3.2)（[上游仓库](https://github.com/madsmtm/objc2)）
 - [objc2 0.6.4](https://crates.io/crates/objc2/0.6.4)（[上游仓库](https://github.com/madsmtm/objc2)）
-- [rig-agent 0.41.0](https://crates.io/crates/rig-agent/0.41.0)（[上游仓库](https://github.com/0xPlaygrounds/rig)）
-- [rig-derive 0.41.0](https://crates.io/crates/rig-derive/0.41.0)（[上游仓库](https://github.com/0xPlaygrounds/rig)）
+- [rig-agent 0.42.0](https://crates.io/crates/rig-agent/0.42.0)（[上游仓库](https://github.com/0xPlaygrounds/rig)）
+- [rig-derive 0.42.0](https://crates.io/crates/rig-derive/0.42.0)（[上游仓库](https://github.com/0xPlaygrounds/rig)）
 - [webview2-com-macros 0.8.1](https://crates.io/crates/webview2-com-macros/0.8.1)（[上游仓库](https://github.com/wravery/webview2-rs)）
 - [webview2-com-sys 0.38.2](https://crates.io/crates/webview2-com-sys/0.38.2)（[上游仓库](https://github.com/wravery/webview2-rs)）
 - [webview2-com 0.38.2](https://crates.io/crates/webview2-com/0.38.2)（[上游仓库](https://github.com/wravery/webview2-rs)）
@@ -10762,7 +10761,7 @@ THE SOFTWARE.
 ### MIT License
 
 用于：
-- [open 5.4.1](https://crates.io/crates/open/5.4.1)（[上游仓库](https://github.com/Byron/open-rs)）
+- [open 5.4.2](https://crates.io/crates/open/5.4.2)（[上游仓库](https://github.com/Byron/open-rs)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -12135,24 +12134,24 @@ authorization of the copyright holder.
 ### Unicode License v3
 
 用于：
-- [icu_collections 2.2.0](https://crates.io/crates/icu_collections/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
-- [icu_locale_core 2.2.0](https://crates.io/crates/icu_locale_core/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
-- [icu_normalizer 2.2.0](https://crates.io/crates/icu_normalizer/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
-- [icu_normalizer_data 2.2.0](https://crates.io/crates/icu_normalizer_data/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
-- [icu_properties 2.2.0](https://crates.io/crates/icu_properties/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
-- [icu_properties_data 2.2.0](https://crates.io/crates/icu_properties_data/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
-- [icu_provider 2.2.0](https://crates.io/crates/icu_provider/2.2.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
-- [litemap 0.8.2](https://crates.io/crates/litemap/0.8.2)（[上游仓库](https://github.com/unicode-org/icu4x)）
-- [potential_utf 0.1.5](https://crates.io/crates/potential_utf/0.1.5)（[上游仓库](https://github.com/unicode-org/icu4x)）
-- [tinystr 0.8.3](https://crates.io/crates/tinystr/0.8.3)（[上游仓库](https://github.com/unicode-org/icu4x)）
-- [writeable 0.6.3](https://crates.io/crates/writeable/0.6.3)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [icu_collections 2.3.0](https://crates.io/crates/icu_collections/2.3.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [icu_locale_core 2.3.0](https://crates.io/crates/icu_locale_core/2.3.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [icu_normalizer 2.3.0](https://crates.io/crates/icu_normalizer/2.3.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [icu_normalizer_data 2.3.0](https://crates.io/crates/icu_normalizer_data/2.3.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [icu_properties 2.3.0](https://crates.io/crates/icu_properties/2.3.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [icu_properties_data 2.3.0](https://crates.io/crates/icu_properties_data/2.3.0)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [icu_provider 2.3.1](https://crates.io/crates/icu_provider/2.3.1)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [litemap 0.8.3](https://crates.io/crates/litemap/0.8.3)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [potential_utf 0.1.6](https://crates.io/crates/potential_utf/0.1.6)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [tinystr 0.8.4](https://crates.io/crates/tinystr/0.8.4)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [writeable 0.6.4](https://crates.io/crates/writeable/0.6.4)（[上游仓库](https://github.com/unicode-org/icu4x)）
 - [yoke-derive 0.8.2](https://crates.io/crates/yoke-derive/0.8.2)（[上游仓库](https://github.com/unicode-org/icu4x)）
 - [yoke 0.8.3](https://crates.io/crates/yoke/0.8.3)（[上游仓库](https://github.com/unicode-org/icu4x)）
 - [zerofrom-derive 0.1.7](https://crates.io/crates/zerofrom-derive/0.1.7)（[上游仓库](https://github.com/unicode-org/icu4x)）
 - [zerofrom 0.1.8](https://crates.io/crates/zerofrom/0.1.8)（[上游仓库](https://github.com/unicode-org/icu4x)）
-- [zerotrie 0.2.4](https://crates.io/crates/zerotrie/0.2.4)（[上游仓库](https://github.com/unicode-org/icu4x)）
-- [zerovec-derive 0.11.3](https://crates.io/crates/zerovec-derive/0.11.3)（[上游仓库](https://github.com/unicode-org/icu4x)）
-- [zerovec 0.11.6](https://crates.io/crates/zerovec/0.11.6)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [zerotrie 0.2.5](https://crates.io/crates/zerotrie/0.2.5)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [zerovec-derive 0.11.6](https://crates.io/crates/zerovec-derive/0.11.6)（[上游仓库](https://github.com/unicode-org/icu4x)）
+- [zerovec 0.11.8](https://crates.io/crates/zerovec/0.11.8)（[上游仓库](https://github.com/unicode-org/icu4x)）
 
 <details>
 <summary>查看许可证正文</summary>
@@ -12239,7 +12238,6 @@ freely, subject to the following restrictions:
 ### zlib License
 
 用于：
-- [foldhash 0.1.5](https://crates.io/crates/foldhash/0.1.5)（[上游仓库](https://github.com/orlp/foldhash)）
 - [foldhash 0.2.0](https://crates.io/crates/foldhash/0.2.0)（[上游仓库](https://github.com/orlp/foldhash)）
 
 <details>
@@ -12299,11 +12297,11 @@ the following restrictions:
 - `@tauri-apps/plugin-dialog@2.7.2` — MIT OR Apache-2.0
 - `@tauri-apps/plugin-opener@2.5.4` — MIT OR Apache-2.0
 - `@types/react@19.2.18` — MIT
-- `@types/react-dom@19.2.4` — MIT
+- `@types/react-dom@19.2.5` — MIT
 - `class-variance-authority@0.7.1` — Apache-2.0
 - `clsx@2.1.1` — MIT
 - `csstype@3.2.3` — MIT
-- `lucide-react@1.31.0` — ISC
+- `lucide-react@1.34.0` — ISC
 - `react@19.2.8` — MIT
 - `react-dom@19.2.8` — MIT
 - `scheduler@0.27.0` — MIT
@@ -12593,7 +12591,7 @@ Creator: Person: Daniel Thompson-Yvetot</pre>
 </details>
 
 <details>
-<summary>@types/react@19.2.18, @types/react-dom@19.2.4</summary>
+<summary>@types/react@19.2.18, @types/react-dom@19.2.5</summary>
 
 <pre>MIT License
 
@@ -12852,7 +12850,7 @@ SOFTWARE.</pre>
 </details>
 
 <details>
-<summary>lucide-react@1.31.0</summary>
+<summary>lucide-react@1.34.0</summary>
 
 <pre>ISC License
 

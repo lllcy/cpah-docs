@@ -20,8 +20,6 @@ on:
 
 permissions:
   contents: read
-  checks: write
-  issues: write
 
 jobs:
   npm-audit:
@@ -43,7 +41,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: rustsec/audit-check@v2.0.0
+      - uses: taiki-e/install-action@v2.86.7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          working-directory: src-tauri
+          tool: cargo-audit@0.22.2
+          fallback: none
+      - run: cargo audit --file src-tauri/Cargo.lock
