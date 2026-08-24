@@ -36,7 +36,7 @@ const localFormats: FormatRow[] = [
 ];
 
 const cloudFormats: FormatRow[] = [
-  { name: "PDF 文档", extensions: ["pdf"], icon: FileArchive, note: "适合复杂排版、扫描件和表格" },
+  { name: "PDF 文档", extensions: ["pdf"], icon: FileArchive, note: "自动处理 200 页或 200 MB 以上的大文件" },
   { name: "旧版 Word", extensions: ["doc"], icon: FileText, note: "上传 MinerU 解析" },
   { name: "旧版 PowerPoint", extensions: ["ppt"], icon: Presentation, note: "上传 MinerU 解析" },
   { name: "图片与扫描件", extensions: ["png", "jpg", "jpeg", "webp", "bmp"], icon: FileImage, note: "通过 OCR 识别文字与版面" },
@@ -129,7 +129,7 @@ export function FormatsView({ mineruConfigured, enabledExtensions, saveState, on
               <CloudUpload className="size-4 text-foreground" />
               <div className="min-w-0 flex-1">
                 <h2 className="text-xs font-semibold">MinerU 云端转换</h2>
-                <p className="mt-1 text-[10px] leading-4 text-muted-foreground">源文件会上传到 MinerU，需要网络和有效 Token。</p>
+                <p className="mt-1 text-[10px] leading-4 text-muted-foreground">源文件会上传到 MinerU，需要网络和有效 Token；大型 PDF 会先在本地无损分片。</p>
               </div>
               <span className={cn("inline-flex shrink-0 items-center gap-1.5 text-[10px]", mineruConfigured ? "text-success" : "text-muted-foreground")}>
                 {mineruConfigured ? <Check className="size-3" /> : <KeyRound className="size-3" />}

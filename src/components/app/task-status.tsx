@@ -26,6 +26,10 @@ export function TaskStatus({ status, compact = false }: { status: JobStatus; com
 }
 
 export function TaskProgress({ task }: { task: TaskRecord }) {
+  const hasParts = task.kind === "document"
+    && typeof task.partCompletedCount === "number"
+    && typeof task.partCount === "number"
+    && task.partCount > 0;
   const extracted = task.mineruExtractedPages;
   const total = task.mineruTotalPages;
   const hasPages = task.mineruState === "running" && typeof extracted === "number" && typeof total === "number" && total > 0;
@@ -38,17 +42,24 @@ export function TaskProgress({ task }: { task: TaskRecord }) {
     done: "MinerU 解析完成",
     failed: "MinerU 解析失败",
   };
-  const label = task.engine === "mineru" ? labels[task.mineruState ?? ""] ?? statusMeta[task.status].label : statusMeta[task.status].label;
+  const failedParts = task.partFailedCount ?? 0;
+  const label = hasParts
+    ? failedParts > 0
+      ? `${failedParts} 个分片失败，等待重试`
+      : "MinerU 正在处理 PDF 分片"
+    : task.engine === "mineru" ? labels[task.mineruState ?? ""] ?? statusMeta[task.status].label : statusMeta[task.status].label;
 
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
         <span className="truncate">{label}</span>
-        {hasPages && <span className="shrink-0 tabular-nums">{extracted}/{total} 页 · {percentage}%</span>}
+        {hasParts ? (
+          <span className="shrink-0 tabular-nums">{task.partCompletedCount}/{task.partCount} 片</span>
+        ) : hasPages && <span className="shrink-0 tabular-nums">{extracted}/{total} 页 · {percentage}%</span>}
       </div>
-      <div className="h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={hasPages ? total : undefined} aria-valuenow={hasPages ? extracted : undefined}>
-        {hasPages ? (
-          <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${percentage}%` }} />
+      <div className="h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={hasParts ? task.partCount : hasPages ? total : undefined} aria-valuenow={hasParts ? task.partCompletedCount : hasPages ? extracted : undefined}>
+        {hasParts || hasPages ? (
+          <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${hasParts ? Math.round(((task.partCompletedCount ?? 0) / (task.partCount ?? 1)) * 100) : percentage}%` }} />
         ) : (
           <div className="progress-indeterminate h-full w-1/3 rounded-full bg-primary/80" />
         )}

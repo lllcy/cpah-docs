@@ -1,9 +1,14 @@
 use crate::converter::{
-    convert_locally, copy_markdown, default_engine, is_enabled, is_markdown, is_supported,
-    output_path, remove_generated_output, write_artifact,
+    StagedMinerUPart, convert_locally, copy_markdown, default_engine, is_enabled, is_markdown,
+    is_supported, output_path, remove_generated_output, write_artifact, write_multipart_artifact,
+    write_staged_mineru_artifact,
 };
 use crate::mineru::MinerUClient;
-use crate::models::{ConversionEngine, DeletePolicy, JobStatus, TaskRecord, WatchProfile};
+use crate::models::{
+    ConversionEngine, DeletePolicy, JobStatus, MinerUPartMode, MinerUPartRecord, TaskRecord,
+    WatchProfile,
+};
+use crate::pdf_split::{PdfPlan, plan_pdf, recreate_physical_part};
 use crate::state::AppState;
 use crate::tag_runtime::TagRuntimeMessage;
 use anyhow::{Context, Result};
@@ -17,6 +22,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
 use tokio::sync::{Mutex, Semaphore, mpsc};
+use uuid::Uuid;
 use walkdir::WalkDir;
 
 #[derive(Debug, Clone)]
@@ -445,7 +451,7 @@ async fn schedule_path(
         relative,
         metadata.len(),
         modified_ms,
-        engine,
+        engine.clone(),
         &output,
         request.is_force(),
     ) {
@@ -463,6 +469,11 @@ async fn schedule_path(
         }
     };
     let queued_task_id = queued_task.id;
+    let defer_pdf_mineru_permit = engine == ConversionEngine::Mineru
+        && path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"));
     if state.is_paused() {
         let pending = active.lock().await.finish(&key);
         dispatch_pending(state, key, pending);
@@ -474,7 +485,12 @@ async fn schedule_path(
     let semaphore = semaphore.clone();
     tauri::async_runtime::spawn(async move {
         let result = async {
-            let _permit = semaphore.acquire_owned().await?;
+            let part_semaphore = semaphore.clone();
+            let _permit = if defer_pdf_mineru_permit {
+                None
+            } else {
+                Some(semaphore.acquire_owned().await?)
+            };
             if state.is_paused() {
                 return Ok(());
             }
@@ -492,7 +508,15 @@ async fn schedule_path(
                 state.storage.delete_task(&queued_task_id)?;
                 return Ok(());
             };
-            process_path(&state, &mineru, &current_profile, &path, request.is_force()).await
+            process_path(
+                &state,
+                &mineru,
+                &current_profile,
+                &path,
+                request.is_force(),
+                &part_semaphore,
+            )
+            .await
         }
         .await;
         if let Err(error) = result {
@@ -526,6 +550,7 @@ async fn process_path(
     profile: &WatchProfile,
     path: &Path,
     force: bool,
+    semaphore: &Arc<Semaphore>,
 ) -> Result<()> {
     let metadata = wait_until_stable(path).await?;
     let source = path.to_path_buf();
@@ -562,7 +587,7 @@ async fn process_path(
         return Ok(());
     };
 
-    let result: Result<()> = match engine {
+    let result: Result<bool> = match engine {
         ConversionEngine::Anytomd => {
             async {
                 state
@@ -588,15 +613,15 @@ async fn process_path(
                     })
                     .await??;
                 }
-                Ok(())
+                Ok(true)
             }
             .await
         }
-        ConversionEngine::Mineru => run_mineru(state, mineru, profile, &task).await,
+        ConversionEngine::Mineru => run_mineru(state, mineru, profile, &task, semaphore).await,
     };
 
     match result {
-        Ok(()) => {
+        Ok(true) => {
             if let Some(previous) = previous_output {
                 let profile = profile.clone();
                 tokio::task::spawn_blocking(move || {
@@ -614,6 +639,7 @@ async fn process_path(
                 });
             }
         }
+        Ok(false) => {}
         Err(error) => {
             let status = if engine == ConversionEngine::Mineru {
                 mineru_failure_status(&error)
@@ -633,11 +659,89 @@ async fn run_mineru(
     mineru: &MinerUClient,
     profile: &WatchProfile,
     task: &TaskRecord,
-) -> Result<()> {
+    semaphore: &Arc<Semaphore>,
+) -> Result<bool> {
+    let source = Path::new(&task.source_path);
+    let is_pdf = source
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"));
+    if is_pdf {
+        let work_dir = parent_work_dir(state, &task.id);
+        let planning_work_dir = work_dir.join(format!("planning-{}", Uuid::new_v4().simple()));
+        let work_dir_for_create = work_dir.clone();
+        tokio::task::spawn_blocking(move || {
+            std::fs::create_dir_all(&work_dir_for_create)?;
+            Ok::<(), anyhow::Error>(())
+        })
+        .await??;
+        state.storage.delete_mineru_parts(&task.id)?;
+        let source_for_plan = source.to_path_buf();
+        let work_for_plan = planning_work_dir.clone();
+        let plan_result =
+            tokio::task::spawn_blocking(move || plan_pdf(&source_for_plan, &work_for_plan)).await;
+        let plan = match plan_result {
+            Ok(Ok(plan)) => plan,
+            Ok(Err(error)) => {
+                tokio::fs::remove_dir_all(&planning_work_dir).await.ok();
+                return Err(error);
+            }
+            Err(error) => {
+                tokio::fs::remove_dir_all(&planning_work_dir).await.ok();
+                return Err(error.into());
+            }
+        };
+        if let PdfPlan::Multipart { page_count, parts } = plan {
+            let source_hash = task
+                .source_hash
+                .as_deref()
+                .context("MinerU 父任务缺少源文件哈希")?;
+            let records =
+                state
+                    .storage
+                    .replace_mineru_parts(&task.id, source_hash, page_count, &parts)?;
+            let physical_inputs = parts
+                .iter()
+                .zip(records.iter())
+                .filter_map(|(plan, record)| {
+                    plan.input_path
+                        .as_ref()
+                        .map(|source| (source.clone(), part_input_path(state, record)))
+                })
+                .collect::<Vec<_>>();
+            tokio::task::spawn_blocking(move || {
+                for (source, destination) in physical_inputs {
+                    if let Some(parent) = destination.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    std::fs::rename(&source, &destination).with_context(|| {
+                        format!(
+                            "无法安装隔离的 PDF 分片：{} -> {}",
+                            source.display(),
+                            destination.display()
+                        )
+                    })?;
+                }
+                Ok::<(), anyhow::Error>(())
+            })
+            .await??;
+            tokio::fs::remove_dir_all(&planning_work_dir).await.ok();
+            for part in records {
+                schedule_new_mineru_part(state, mineru, semaphore, part).await?;
+            }
+            return Ok(false);
+        }
+        tokio::fs::remove_dir_all(&planning_work_dir).await.ok();
+    }
+
+    let _direct_pdf_permit = if is_pdf {
+        Some(semaphore.clone().acquire_owned().await?)
+    } else {
+        None
+    };
     let token = AppState::read_mineru_token()?;
     let base_url = state.settings.read().await.mineru_base_url.clone();
-    let source = Path::new(&task.source_path);
-    let submission = mineru.submit(source, &base_url, &token).await?;
+    let submission = mineru.submit(source, None, &base_url, &token).await?;
     state.storage.set_mineru_submission(
         &task.id,
         &submission.batch_id,
@@ -671,10 +775,368 @@ async fn run_mineru(
     state
         .storage
         .set_status(&task.id, JobStatus::Downloading, None)?;
-    let artifact = mineru.download(&result).await?;
+    let stage_dir = parent_work_dir(state, &task.id).join("single");
+    mineru.download_to_stage(&result, &stage_dir).await?;
+    verify_mineru_source_hash(state, task).await?;
     let profile = profile.clone();
     let task = task.clone();
-    tokio::task::spawn_blocking(move || write_artifact(&profile, &task, artifact)).await??;
+    let task_id = task.id.clone();
+    tokio::task::spawn_blocking(move || write_staged_mineru_artifact(&profile, &task, &stage_dir))
+        .await??;
+    let work_dir = parent_work_dir(state, &task_id);
+    let cleanup = tokio::task::spawn_blocking(move || {
+        if work_dir.exists() {
+            std::fs::remove_dir_all(work_dir)?;
+        }
+        Ok::<(), anyhow::Error>(())
+    })
+    .await;
+    match cleanup {
+        Ok(Ok(())) => {}
+        Ok(Err(error)) => {
+            tracing::warn!(error = %format!("{error:#}"), "failed to clean completed MinerU cache");
+        }
+        Err(error) => {
+            tracing::warn!(error = %error, "completed MinerU cache cleanup task failed");
+        }
+    }
+    Ok(true)
+}
+
+fn parent_work_dir(state: &AppState, parent_task_id: &str) -> PathBuf {
+    state.storage.mineru_work_root().join(parent_task_id)
+}
+
+fn part_input_path(state: &AppState, part: &MinerUPartRecord) -> PathBuf {
+    parent_work_dir(state, &part.parent_task_id)
+        .join("input")
+        .join(format!("{}.pdf", part.id))
+}
+
+fn part_stage_dir(state: &AppState, part: &MinerUPartRecord) -> PathBuf {
+    parent_work_dir(state, &part.parent_task_id)
+        .join("artifacts")
+        .join(&part.id)
+}
+
+async fn schedule_new_mineru_part(
+    state: &AppState,
+    mineru: &MinerUClient,
+    semaphore: &Arc<Semaphore>,
+    part: MinerUPartRecord,
+) -> Result<()> {
+    if state.is_paused() || !state.storage.claim_queued_mineru_part(&part.id)? {
+        return Ok(());
+    }
+    spawn_mineru_part(state, mineru, semaphore, part, false);
+    Ok(())
+}
+
+async fn schedule_resumed_mineru_part(
+    state: &AppState,
+    mineru: &MinerUClient,
+    semaphore: &Arc<Semaphore>,
+    part: MinerUPartRecord,
+) -> Result<()> {
+    state
+        .storage
+        .set_mineru_part_status(&part.id, JobStatus::Processing, None)?;
+    spawn_mineru_part(state, mineru, semaphore, part, true);
+    Ok(())
+}
+
+fn spawn_mineru_part(
+    state: &AppState,
+    mineru: &MinerUClient,
+    semaphore: &Arc<Semaphore>,
+    part: MinerUPartRecord,
+    resume_existing: bool,
+) {
+    let state = state.clone();
+    let mineru = mineru.clone();
+    let semaphore = semaphore.clone();
+    tauri::async_runtime::spawn(async move {
+        let result = async {
+            let _permit = semaphore.acquire_owned().await?;
+            if state.is_paused() && !resume_existing {
+                state.storage.reset_mineru_part_for_retry(&part.id)?;
+                return Ok(());
+            }
+            process_mineru_part(&state, &mineru, &part, resume_existing).await
+        }
+        .await;
+        if result.is_ok() {
+            if let Err(error) = try_finalize_mineru_parent(&state, &part.parent_task_id).await {
+                tracing::error!(
+                    parent_task_id = %part.parent_task_id,
+                    error = %format!("{error:#}"),
+                    "MinerU parent merge failed"
+                );
+            }
+        } else if let Err(error) = result {
+            let status = mineru_failure_status(&error);
+            let _ =
+                state
+                    .storage
+                    .set_mineru_part_status(&part.id, status, Some(&format!("{error:#}")));
+            tracing::error!(
+                part_id = %part.id,
+                parent_task_id = %part.parent_task_id,
+                pages = %format!("{}-{}", part.page_start, part.page_end),
+                error = %format!("{error:#}"),
+                "MinerU part failed"
+            );
+            if state
+                .storage
+                .get_mineru_part(&part.id)
+                .ok()
+                .flatten()
+                .is_none()
+            {
+                tokio::fs::remove_file(part_input_path(&state, &part))
+                    .await
+                    .ok();
+                tokio::fs::remove_dir_all(part_stage_dir(&state, &part))
+                    .await
+                    .ok();
+                if state
+                    .storage
+                    .get_task(&part.parent_task_id)
+                    .ok()
+                    .flatten()
+                    .is_none()
+                {
+                    tokio::fs::remove_dir_all(parent_work_dir(&state, &part.parent_task_id))
+                        .await
+                        .ok();
+                }
+            }
+        }
+    });
+}
+
+async fn process_mineru_part(
+    state: &AppState,
+    mineru: &MinerUClient,
+    part: &MinerUPartRecord,
+    resume_existing: bool,
+) -> Result<()> {
+    let parent = state
+        .storage
+        .get_task(&part.parent_task_id)?
+        .context("MinerU 分片缺少父任务")?;
+    if parent.source_hash.as_deref() != Some(part.source_hash.as_str()) {
+        anyhow::bail!("源文件已变化，旧 MinerU 分片结果已作废");
+    }
+    let source = PathBuf::from(&parent.source_path);
+    if !source.is_file() {
+        anyhow::bail!("MinerU 分片源文件不存在：{}", source.display());
+    }
+    let token = AppState::read_mineru_token()?;
+    let base_url = state.settings.read().await.mineru_base_url.clone();
+    let result = if resume_existing {
+        let batch_id = part
+            .mineru_batch_id
+            .as_deref()
+            .context("MinerU 分片缺少 batch_id")?;
+        poll_mineru_part(
+            state,
+            mineru,
+            part,
+            batch_id,
+            part.mineru_data_id.as_deref(),
+            &base_url,
+            &token,
+        )
+        .await?
+    } else {
+        let (upload_path, page_ranges) = match part.mode {
+            MinerUPartMode::PageRanges => (
+                source.clone(),
+                Some(format!("{}-{}", part.page_start, part.page_end)),
+            ),
+            MinerUPartMode::SplitPdf => {
+                let input_path = part_input_path(state, part);
+                if !input_path.is_file() {
+                    let source_for_split = source.clone();
+                    let destination = input_path.clone();
+                    let page_start = u32::try_from(part.page_start).context("分片起始页无效")?;
+                    let page_end = u32::try_from(part.page_end).context("分片结束页无效")?;
+                    tokio::task::spawn_blocking(move || {
+                        recreate_physical_part(
+                            &source_for_split,
+                            page_start,
+                            page_end,
+                            &destination,
+                        )
+                    })
+                    .await??;
+                }
+                (input_path, None)
+            }
+        };
+        let submission = mineru
+            .submit(&upload_path, page_ranges.as_deref(), &base_url, &token)
+            .await?;
+        state.storage.set_mineru_part_submission(
+            &part.id,
+            &submission.batch_id,
+            &submission.data_id,
+        )?;
+        if let Err(error) = mineru.upload(&upload_path, &submission.upload_url).await {
+            state.storage.clear_mineru_part_submission(&part.id)?;
+            return Err(error);
+        }
+        if part.mode == MinerUPartMode::SplitPdf {
+            tokio::fs::remove_file(&upload_path).await.ok();
+        }
+        state
+            .storage
+            .set_mineru_part_status(&part.id, JobStatus::Processing, None)?;
+        poll_mineru_part(
+            state,
+            mineru,
+            part,
+            &submission.batch_id,
+            Some(&submission.data_id),
+            &base_url,
+            &token,
+        )
+        .await?
+    };
+
+    state
+        .storage
+        .set_mineru_part_status(&part.id, JobStatus::Downloading, None)?;
+    let stage_dir = part_stage_dir(state, part);
+    mineru.download_to_stage(&result, &stage_dir).await?;
+    let current_parent = state.storage.get_task(&part.parent_task_id)?;
+    let current_part = state.storage.get_mineru_part(&part.id)?;
+    if current_parent
+        .as_ref()
+        .and_then(|parent| parent.source_hash.as_deref())
+        != Some(part.source_hash.as_str())
+        || current_part
+            .as_ref()
+            .is_none_or(|current| current.source_hash != part.source_hash)
+    {
+        tokio::fs::remove_dir_all(&stage_dir).await.ok();
+        if current_parent.is_none() {
+            tokio::fs::remove_dir_all(parent_work_dir(state, &part.parent_task_id))
+                .await
+                .ok();
+        }
+        return Ok(());
+    }
+    state.storage.complete_mineru_part(&part.id)?;
+    Ok(())
+}
+
+async fn poll_mineru_part(
+    state: &AppState,
+    mineru: &MinerUClient,
+    part: &MinerUPartRecord,
+    batch_id: &str,
+    data_id: Option<&str>,
+    base_url: &str,
+    token: &str,
+) -> Result<crate::mineru::ExtractResult> {
+    let progress_storage = state.storage.clone();
+    let progress_part_id = part.id.clone();
+    mineru
+        .poll(batch_id, data_id, base_url, token, move |item| {
+            let progress = item.extract_progress.as_ref();
+            progress_storage.set_mineru_part_progress(
+                &progress_part_id,
+                item.state.as_deref(),
+                progress.and_then(|value| value.extracted_pages),
+                progress.and_then(|value| value.total_pages),
+                progress.and_then(|value| value.start_time.as_deref()),
+            )
+        })
+        .await
+}
+
+async fn try_finalize_mineru_parent(state: &AppState, parent_task_id: &str) -> Result<()> {
+    if !state.storage.claim_parent_for_merge(parent_task_id)? {
+        return Ok(());
+    }
+    let result = async {
+        let parent = state
+            .storage
+            .get_task(parent_task_id)?
+            .context("MinerU 父任务不存在")?;
+        let parts = state
+            .storage
+            .list_mineru_parts_for_parent(parent_task_id)?;
+        if parts
+            .iter()
+            .any(|part| parent.source_hash.as_deref() != Some(part.source_hash.as_str()))
+        {
+            anyhow::bail!("源文件已变化，不能合并旧 MinerU 分片");
+        }
+        verify_mineru_source_hash(state, &parent).await?;
+        let settings = state.settings.read().await.clone();
+        let profile = settings
+            .profiles
+            .into_iter()
+            .find(|profile| profile.id == parent.profile_id)
+            .context("MinerU 父任务所属目录不存在")?;
+        let staged = parts
+            .iter()
+            .map(|part| StagedMinerUPart {
+                index: part.part_index,
+                page_start: part.page_start,
+                page_end: part.page_end,
+                stage_dir: part_stage_dir(state, part),
+            })
+            .collect::<Vec<_>>();
+        let profile_for_write = profile.clone();
+        let parent_for_write = parent.clone();
+        tokio::task::spawn_blocking(move || {
+            write_multipart_artifact(&profile_for_write, &parent_for_write, &staged)
+        })
+        .await??;
+        state
+            .storage
+            .set_status(parent_task_id, JobStatus::Completed, None)?;
+        if profile.tagging.enabled
+            && !profile.tagging.labels.is_empty()
+            && let Some(output) = parent.output_path.as_deref()
+        {
+            let _ = state.send_tag_runtime(TagRuntimeMessage::Path {
+                path: PathBuf::from(output),
+                force: true,
+            });
+        }
+        let work_dir = parent_work_dir(state, parent_task_id);
+        let cleanup = tokio::task::spawn_blocking(move || {
+            if work_dir.exists() {
+                std::fs::remove_dir_all(work_dir)?;
+            }
+            Ok::<(), anyhow::Error>(())
+        })
+        .await;
+        match cleanup {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => {
+                tracing::warn!(error = %format!("{error:#}"), "failed to clean completed multipart MinerU cache");
+            }
+            Err(error) => {
+                tracing::warn!(error = %error, "completed multipart MinerU cache cleanup task failed");
+            }
+        }
+        Ok::<(), anyhow::Error>(())
+    }
+    .await;
+    if let Err(error) = result {
+        state.storage.set_status(
+            parent_task_id,
+            JobStatus::Failed,
+            Some(&format!("MinerU 分片合并失败：{error:#}")),
+        )?;
+        return Err(error);
+    }
     Ok(())
 }
 
@@ -684,6 +1146,42 @@ async fn resume_interrupted(
     active: &SharedActivePaths,
     semaphore: &Arc<Semaphore>,
 ) -> Result<()> {
+    state.storage.reset_interrupted_parent_merges()?;
+    let parts = state.storage.list_mineru_parts_with_statuses(&[
+        JobStatus::Queued,
+        JobStatus::Uploading,
+        JobStatus::Processing,
+        JobStatus::Downloading,
+        JobStatus::Completed,
+    ])?;
+    let mut parents_to_finalize = HashSet::new();
+    for part in parts {
+        parents_to_finalize.insert(part.parent_task_id.clone());
+        match part.status {
+            JobStatus::Completed if part.artifact_ready => {}
+            JobStatus::Processing | JobStatus::Downloading if part.mineru_batch_id.is_some() => {
+                schedule_resumed_mineru_part(state, mineru, semaphore, part).await?;
+            }
+            JobStatus::Uploading => {
+                state.storage.reset_mineru_part_for_retry(&part.id)?;
+                if !state.is_paused() {
+                    let part = state
+                        .storage
+                        .get_mineru_part(&part.id)?
+                        .context("重启恢复的 MinerU 分片不存在")?;
+                    schedule_new_mineru_part(state, mineru, semaphore, part).await?;
+                }
+            }
+            JobStatus::Queued if !state.is_paused() => {
+                schedule_new_mineru_part(state, mineru, semaphore, part).await?;
+            }
+            _ => {}
+        }
+    }
+    for parent_id in parents_to_finalize {
+        try_finalize_mineru_parent(state, &parent_id).await.ok();
+    }
+
     let tasks = state.storage.list_tasks_with_statuses(&[
         JobStatus::WaitingStable,
         JobStatus::Uploading,
@@ -783,16 +1281,44 @@ async fn resume_mineru(
             state
                 .storage
                 .set_status(&task.id, JobStatus::Downloading, None)?;
-            let artifact = mineru.download(&result).await?;
+            let stage_dir = parent_work_dir(&state, &task.id).join("single");
+            mineru.download_to_stage(&result, &stage_dir).await?;
+            verify_mineru_source_hash(&state, &task).await?;
             let profile_for_write = profile.clone();
             let task_for_write = task.clone();
             tokio::task::spawn_blocking(move || {
-                write_artifact(&profile_for_write, &task_for_write, artifact)
+                write_staged_mineru_artifact(&profile_for_write, &task_for_write, &stage_dir)
             })
             .await??;
             state
                 .storage
                 .set_status(&task.id, JobStatus::Completed, None)?;
+            if profile.tagging.enabled
+                && !profile.tagging.labels.is_empty()
+                && let Some(output) = task.output_path.as_deref()
+            {
+                let _ = state.send_tag_runtime(TagRuntimeMessage::Path {
+                    path: PathBuf::from(output),
+                    force: true,
+                });
+            }
+            let work_dir = parent_work_dir(&state, &task.id);
+            let cleanup = tokio::task::spawn_blocking(move || {
+                if work_dir.exists() {
+                    std::fs::remove_dir_all(work_dir)?;
+                }
+                Ok::<(), anyhow::Error>(())
+            })
+            .await;
+            match cleanup {
+                Ok(Ok(())) => {}
+                Ok(Err(error)) => {
+                    tracing::warn!(error = %format!("{error:#}"), "failed to clean resumed MinerU cache");
+                }
+                Err(error) => {
+                    tracing::warn!(error = %error, "resumed MinerU cache cleanup task failed");
+                }
+            }
             Ok::<(), anyhow::Error>(())
         }
         .await;
@@ -808,6 +1334,24 @@ async fn resume_mineru(
     });
 }
 
+async fn verify_mineru_source_hash(state: &AppState, task: &TaskRecord) -> Result<()> {
+    let expected = task
+        .source_hash
+        .as_deref()
+        .context("MinerU 任务缺少源文件哈希")?;
+    let source = PathBuf::from(&task.source_path);
+    let source_for_hash = source.clone();
+    let actual = tokio::task::spawn_blocking(move || sha256_file(&source_for_hash)).await??;
+    if actual != expected {
+        let _ = state.send_runtime(RuntimeMessage::Path {
+            path: source,
+            force: true,
+        });
+        anyhow::bail!("源文件已变化，当前 MinerU 结果已作废");
+    }
+    Ok(())
+}
+
 async fn retry_task(
     state: &AppState,
     mineru: &MinerUClient,
@@ -815,7 +1359,112 @@ async fn retry_task(
     semaphore: &Arc<Semaphore>,
     task_id: &str,
 ) -> Result<()> {
+    if let Some(part) = state.storage.get_mineru_part(task_id)? {
+        let parent = state
+            .storage
+            .get_task(&part.parent_task_id)?
+            .context("MinerU 分片父任务不存在")?;
+        let source = PathBuf::from(&parent.source_path);
+        if !source.is_file() {
+            anyhow::bail!("MinerU 分片源文件不存在：{}", source.display());
+        }
+        let source_for_hash = source.clone();
+        let current_hash =
+            tokio::task::spawn_blocking(move || sha256_file(&source_for_hash)).await??;
+        if parent.source_hash.as_deref() != Some(current_hash.as_str())
+            || part.source_hash != current_hash
+        {
+            schedule_path(
+                state,
+                mineru,
+                active,
+                semaphore,
+                source,
+                ScheduleRequest::Force,
+            )
+            .await;
+            return Ok(());
+        }
+        let stage_dir = part_stage_dir(state, &part);
+        tokio::task::spawn_blocking(move || {
+            if stage_dir.exists() {
+                std::fs::remove_dir_all(stage_dir)?;
+            }
+            Ok::<(), anyhow::Error>(())
+        })
+        .await??;
+        state.storage.reset_mineru_part_for_retry(&part.id)?;
+        state
+            .storage
+            .set_parent_waiting_parts(&part.parent_task_id)?;
+        if !state.is_paused() {
+            let part = state
+                .storage
+                .get_mineru_part(&part.id)?
+                .context("待重试的 MinerU 分片不存在")?;
+            schedule_new_mineru_part(state, mineru, semaphore, part).await?;
+        }
+        return Ok(());
+    }
+
     let task = state.storage.get_task(task_id)?.context("任务不存在")?;
+    let parts = state.storage.list_mineru_parts_for_parent(&task.id)?;
+    if !parts.is_empty() {
+        let source = PathBuf::from(&task.source_path);
+        if !source.is_file() {
+            anyhow::bail!("MinerU 父任务源文件不存在：{}", source.display());
+        }
+        let source_for_hash = source.clone();
+        let current_hash =
+            tokio::task::spawn_blocking(move || sha256_file(&source_for_hash)).await??;
+        if task.source_hash.as_deref() != Some(current_hash.as_str())
+            || parts.iter().any(|part| part.source_hash != current_hash)
+        {
+            schedule_path(
+                state,
+                mineru,
+                active,
+                semaphore,
+                source,
+                ScheduleRequest::Force,
+            )
+            .await;
+            return Ok(());
+        }
+        state.storage.set_parent_waiting_parts(&task.id)?;
+        for part in parts {
+            match part.status {
+                JobStatus::Failed => {
+                    state.storage.reset_mineru_part_for_retry(&part.id)?;
+                    if !state.is_paused() {
+                        let part = state
+                            .storage
+                            .get_mineru_part(&part.id)?
+                            .context("待重试的 MinerU 分片不存在")?;
+                        schedule_new_mineru_part(state, mineru, semaphore, part).await?;
+                    }
+                }
+                JobStatus::Queued if !state.is_paused() => {
+                    schedule_new_mineru_part(state, mineru, semaphore, part).await?;
+                }
+                JobStatus::WaitingMineru if !state.is_paused() => {
+                    if part.mineru_batch_id.is_some() {
+                        schedule_resumed_mineru_part(state, mineru, semaphore, part).await?;
+                    } else {
+                        state.storage.reset_mineru_part_for_retry(&part.id)?;
+                        let part = state
+                            .storage
+                            .get_mineru_part(&part.id)?
+                            .context("待重试的 MinerU 分片不存在")?;
+                        schedule_new_mineru_part(state, mineru, semaphore, part).await?;
+                    }
+                }
+                _ => {}
+            }
+        }
+        try_finalize_mineru_parent(state, &task.id).await?;
+        return Ok(());
+    }
     if state.is_paused() {
         state
             .storage
@@ -858,6 +1507,12 @@ async fn process_queued(
     if state.is_paused() {
         return Ok(());
     }
+    for part in state
+        .storage
+        .list_mineru_parts_with_statuses(&[JobStatus::Queued])?
+    {
+        schedule_new_mineru_part(state, mineru, semaphore, part).await?;
+    }
     let tasks = state.storage.list_tasks_with_statuses(&[
         JobStatus::WaitingStable,
         JobStatus::Queued,
@@ -889,6 +1544,21 @@ async fn retry_waiting_mineru(
 ) -> Result<()> {
     if state.is_paused() {
         return Ok(());
+    }
+    for part in state
+        .storage
+        .list_mineru_parts_with_statuses(&[JobStatus::WaitingMineru])?
+    {
+        if part.mineru_batch_id.is_some() {
+            schedule_resumed_mineru_part(state, mineru, semaphore, part).await?;
+        } else {
+            state.storage.reset_mineru_part_for_retry(&part.id)?;
+            let part = state
+                .storage
+                .get_mineru_part(&part.id)?
+                .context("待重试的 MinerU 分片不存在")?;
+            schedule_new_mineru_part(state, mineru, semaphore, part).await?;
+        }
     }
     for task in state
         .storage
@@ -964,6 +1634,18 @@ async fn reconcile_missing_sources(state: &AppState, active: &SharedActivePaths)
                 }
             }
             state.storage.delete_task(&task.id)?;
+            let work_dir = parent_work_dir(state, &task.id);
+            if let Err(error) = tokio::task::spawn_blocking(move || {
+                if work_dir.exists()
+                    && let Err(error) = std::fs::remove_dir_all(&work_dir)
+                {
+                    tracing::warn!(path = %work_dir.display(), error = %error, "failed to clean deleted source MinerU cache");
+                }
+            })
+            .await
+            {
+                tracing::warn!(error = %error, "deleted source MinerU cache cleanup task failed");
+            }
         }
         tokio::task::spawn_blocking(move || prune_empty_output_directories(&profile)).await??;
     }

@@ -1,10 +1,12 @@
 use crate::models::{
-    AppSettings, ConversionEngine, JobStatus, TagJobRecord, TagJobStatus, TaskRecord, WatchProfile,
+    AppSettings, ConversionEngine, JobStatus, MinerUPartMode, MinerUPartRecord, TagJobRecord,
+    TagJobStatus, TaskKind, TaskRecord, WatchProfile,
 };
+use crate::pdf_split::PdfPartPlan;
 use anyhow::{Context, Result};
 use chrono::Utc;
 use rusqlite::{Connection, OptionalExtension, params, params_from_iter};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
@@ -33,6 +35,7 @@ impl Storage {
         let connection = Connection::open(&self.db_path)
             .with_context(|| format!("无法打开任务数据库：{}", self.db_path.display()))?;
         connection.busy_timeout(std::time::Duration::from_secs(5))?;
+        connection.execute_batch("PRAGMA foreign_keys=ON;")?;
         Ok(connection)
     }
 
@@ -99,6 +102,31 @@ impl Storage {
              );
              CREATE INDEX IF NOT EXISTS idx_tasks_profile ON tasks(profile_id);
              CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+             CREATE TABLE IF NOT EXISTS mineru_parts (
+               id TEXT PRIMARY KEY,
+               parent_task_id TEXT NOT NULL,
+               source_hash TEXT NOT NULL,
+               part_index INTEGER NOT NULL,
+               part_count INTEGER NOT NULL,
+               page_start INTEGER NOT NULL,
+               page_end INTEGER NOT NULL,
+               mode TEXT NOT NULL,
+               status TEXT NOT NULL,
+               error TEXT,
+               mineru_batch_id TEXT,
+               mineru_data_id TEXT,
+               mineru_state TEXT,
+               mineru_extracted_pages INTEGER,
+               mineru_total_pages INTEGER,
+               mineru_started_at TEXT,
+               artifact_ready INTEGER NOT NULL DEFAULT 0,
+               created_at TEXT NOT NULL,
+               updated_at TEXT NOT NULL,
+               FOREIGN KEY(parent_task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+               UNIQUE(parent_task_id, part_index)
+             );
+             CREATE INDEX IF NOT EXISTS idx_mineru_parts_parent ON mineru_parts(parent_task_id);
+             CREATE INDEX IF NOT EXISTS idx_mineru_parts_status ON mineru_parts(status);
              CREATE TABLE IF NOT EXISTS tag_jobs (
                id TEXT PRIMARY KEY,
                profile_id TEXT NOT NULL,
@@ -131,6 +159,13 @@ impl Storage {
             ensure_column(&connection, "tasks", name, declaration)?;
         }
         Ok(())
+    }
+
+    pub fn mineru_work_root(&self) -> PathBuf {
+        self.db_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join("mineru-work")
     }
 
     pub fn load_settings(&self) -> Result<AppSettings> {
@@ -199,7 +234,13 @@ impl Storage {
                 && existing.output_path.as_deref() == Some(output.as_str())
                 && matches!(
                     existing.status,
-                    JobStatus::Failed | JobStatus::WaitingMineru
+                    JobStatus::Failed
+                        | JobStatus::WaitingMineru
+                        | JobStatus::WaitingParts
+                        | JobStatus::Uploading
+                        | JobStatus::Processing
+                        | JobStatus::Downloading
+                        | JobStatus::Converting
                 )
             {
                 self.update_source_metadata(&existing.id, source_size as i64, source_modified_ms)?;
@@ -208,10 +249,17 @@ impl Storage {
         }
 
         let now = Utc::now().to_rfc3339();
-        let existing_id = self.find_by_source(&source)?.map(|task| task.id);
-        let id = existing_id.unwrap_or_else(|| Uuid::new_v4().to_string());
-        let connection = self.open()?;
-        connection.execute(
+        let existing = self.find_by_source(&source)?;
+        let invalidate_parts = force
+            || existing
+                .as_ref()
+                .is_some_and(|task| task.source_hash.as_deref() != Some(source_hash));
+        let id = existing
+            .map(|task| task.id)
+            .unwrap_or_else(|| Uuid::new_v4().to_string());
+        let mut connection = self.open()?;
+        let transaction = connection.transaction()?;
+        transaction.execute(
             "INSERT INTO tasks (
                id, profile_id, source_path, relative_path, source_hash,
                source_size, source_modified_ms, engine, status, output_path,
@@ -248,6 +296,10 @@ impl Storage {
                 now,
             ],
         )?;
+        if invalidate_parts {
+            transaction.execute("DELETE FROM mineru_parts WHERE parent_task_id=?1", [&id])?;
+        }
+        transaction.commit()?;
         self.get_task(&id)
     }
 
@@ -277,7 +329,13 @@ impl Storage {
             }
             if matches!(
                 existing.status,
-                JobStatus::Failed | JobStatus::WaitingMineru
+                JobStatus::Failed
+                    | JobStatus::WaitingMineru
+                    | JobStatus::WaitingParts
+                    | JobStatus::Uploading
+                    | JobStatus::Processing
+                    | JobStatus::Downloading
+                    | JobStatus::Converting
             ) {
                 return Ok(None);
             }
@@ -425,6 +483,338 @@ impl Storage {
         Ok(())
     }
 
+    pub fn replace_mineru_parts(
+        &self,
+        parent_task_id: &str,
+        source_hash: &str,
+        page_count: u32,
+        parts: &[PdfPartPlan],
+    ) -> Result<Vec<MinerUPartRecord>> {
+        let mut connection = self.open()?;
+        let transaction = connection.transaction()?;
+        transaction.execute(
+            "DELETE FROM mineru_parts WHERE parent_task_id=?1",
+            [parent_task_id],
+        )?;
+        let now = Utc::now().to_rfc3339();
+        for part in parts {
+            transaction.execute(
+                "INSERT INTO mineru_parts (
+                   id, parent_task_id, source_hash, part_index, part_count,
+                   page_start, page_end, mode, status, artifact_ready,
+                   created_at, updated_at
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0, ?10, ?10)",
+                params![
+                    Uuid::new_v4().to_string(),
+                    parent_task_id,
+                    source_hash,
+                    i64::from(part.index),
+                    i64::from(part.count),
+                    i64::from(part.page_start),
+                    i64::from(part.page_end),
+                    part.mode.as_str(),
+                    JobStatus::Queued.as_str(),
+                    now,
+                ],
+            )?;
+        }
+        transaction.execute(
+            "UPDATE tasks SET status=?2, error=NULL, mineru_batch_id=NULL,
+                    mineru_data_id=NULL, mineru_state='running',
+                    mineru_extracted_pages=0, mineru_total_pages=?3,
+                    mineru_started_at=NULL, updated_at=?4 WHERE id=?1",
+            params![
+                parent_task_id,
+                JobStatus::WaitingParts.as_str(),
+                i64::from(page_count),
+                now,
+            ],
+        )?;
+        transaction.commit()?;
+        self.list_mineru_parts_for_parent(parent_task_id)
+    }
+
+    pub fn get_mineru_part(&self, id: &str) -> Result<Option<MinerUPartRecord>> {
+        self.open()?
+            .query_row(
+                "SELECT id, parent_task_id, source_hash, part_index, part_count,
+                        page_start, page_end, mode, status, error,
+                        mineru_batch_id, mineru_data_id, mineru_state,
+                        mineru_extracted_pages, mineru_total_pages,
+                        mineru_started_at, artifact_ready, updated_at
+                 FROM mineru_parts WHERE id=?1",
+                [id],
+                map_mineru_part,
+            )
+            .optional()
+            .map_err(Into::into)
+    }
+
+    pub fn list_mineru_parts_for_parent(
+        &self,
+        parent_task_id: &str,
+    ) -> Result<Vec<MinerUPartRecord>> {
+        let connection = self.open()?;
+        let mut statement = connection.prepare(
+            "SELECT id, parent_task_id, source_hash, part_index, part_count,
+                    page_start, page_end, mode, status, error,
+                    mineru_batch_id, mineru_data_id, mineru_state,
+                    mineru_extracted_pages, mineru_total_pages,
+                    mineru_started_at, artifact_ready, updated_at
+             FROM mineru_parts WHERE parent_task_id=?1 ORDER BY part_index ASC",
+        )?;
+        statement
+            .query_map([parent_task_id], map_mineru_part)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    pub fn list_mineru_parts_with_statuses(
+        &self,
+        statuses: &[JobStatus],
+    ) -> Result<Vec<MinerUPartRecord>> {
+        if statuses.is_empty() {
+            return Ok(Vec::new());
+        }
+        let placeholders = std::iter::repeat_n("?", statuses.len())
+            .collect::<Vec<_>>()
+            .join(",");
+        let query = format!(
+            "SELECT id, parent_task_id, source_hash, part_index, part_count,
+                    page_start, page_end, mode, status, error,
+                    mineru_batch_id, mineru_data_id, mineru_state,
+                    mineru_extracted_pages, mineru_total_pages,
+                    mineru_started_at, artifact_ready, updated_at
+             FROM mineru_parts WHERE status IN ({placeholders}) ORDER BY updated_at ASC"
+        );
+        let connection = self.open()?;
+        let mut statement = connection.prepare(&query)?;
+        statement
+            .query_map(
+                params_from_iter(statuses.iter().map(JobStatus::as_str)),
+                map_mineru_part,
+            )?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    pub fn set_mineru_part_status(
+        &self,
+        id: &str,
+        status: JobStatus,
+        error: Option<&str>,
+    ) -> Result<()> {
+        self.open()?.execute(
+            "UPDATE mineru_parts SET status=?2, error=?3, updated_at=?4 WHERE id=?1",
+            params![id, status.as_str(), error, Utc::now().to_rfc3339()],
+        )?;
+        if let Some(part) = self.get_mineru_part(id)? {
+            self.refresh_parent_part_summary(&part.parent_task_id)?;
+        }
+        Ok(())
+    }
+
+    pub fn claim_queued_mineru_part(&self, id: &str) -> Result<bool> {
+        Ok(self.open()?.execute(
+            "UPDATE mineru_parts SET status=?2, error=NULL, updated_at=?3
+             WHERE id=?1 AND status=?4",
+            params![
+                id,
+                JobStatus::Uploading.as_str(),
+                Utc::now().to_rfc3339(),
+                JobStatus::Queued.as_str()
+            ],
+        )? == 1)
+    }
+
+    pub fn clear_mineru_part_submission(&self, id: &str) -> Result<()> {
+        self.open()?.execute(
+            "UPDATE mineru_parts SET mineru_batch_id=NULL, mineru_data_id=NULL,
+                    mineru_state=NULL, mineru_extracted_pages=NULL,
+                    mineru_total_pages=NULL, mineru_started_at=NULL,
+                    artifact_ready=0, updated_at=?2 WHERE id=?1",
+            params![id, Utc::now().to_rfc3339()],
+        )?;
+        Ok(())
+    }
+
+    pub fn set_parent_waiting_parts(&self, parent_task_id: &str) -> Result<()> {
+        self.open()?.execute(
+            "UPDATE tasks SET status=?2, error=NULL, updated_at=?3 WHERE id=?1",
+            params![
+                parent_task_id,
+                JobStatus::WaitingParts.as_str(),
+                Utc::now().to_rfc3339()
+            ],
+        )?;
+        self.refresh_parent_part_summary(parent_task_id)
+    }
+
+    pub fn set_mineru_part_submission(
+        &self,
+        id: &str,
+        batch_id: &str,
+        data_id: &str,
+    ) -> Result<()> {
+        self.open()?.execute(
+            "UPDATE mineru_parts SET mineru_batch_id=?2, mineru_data_id=?3,
+                    status=?4, error=NULL, mineru_state=NULL,
+                    mineru_extracted_pages=NULL, mineru_total_pages=NULL,
+                    mineru_started_at=NULL, artifact_ready=0, updated_at=?5
+             WHERE id=?1",
+            params![
+                id,
+                batch_id,
+                data_id,
+                JobStatus::Uploading.as_str(),
+                Utc::now().to_rfc3339()
+            ],
+        )?;
+        if let Some(part) = self.get_mineru_part(id)? {
+            self.refresh_parent_part_summary(&part.parent_task_id)?;
+        }
+        Ok(())
+    }
+
+    pub fn set_mineru_part_progress(
+        &self,
+        id: &str,
+        state: Option<&str>,
+        extracted_pages: Option<i64>,
+        total_pages: Option<i64>,
+        started_at: Option<&str>,
+    ) -> Result<()> {
+        self.open()?.execute(
+            "UPDATE mineru_parts SET mineru_state=?2, mineru_extracted_pages=?3,
+                    mineru_total_pages=?4, mineru_started_at=?5, updated_at=?6
+             WHERE id=?1",
+            params![
+                id,
+                state,
+                extracted_pages,
+                total_pages,
+                started_at,
+                Utc::now().to_rfc3339()
+            ],
+        )?;
+        if let Some(part) = self.get_mineru_part(id)? {
+            self.refresh_parent_part_summary(&part.parent_task_id)?;
+        }
+        Ok(())
+    }
+
+    pub fn complete_mineru_part(&self, id: &str) -> Result<()> {
+        self.open()?.execute(
+            "UPDATE mineru_parts SET status=?2, error=NULL, mineru_state='done',
+                    mineru_extracted_pages=page_end-page_start+1,
+                    mineru_total_pages=page_end-page_start+1,
+                    artifact_ready=1, updated_at=?3 WHERE id=?1",
+            params![id, JobStatus::Completed.as_str(), Utc::now().to_rfc3339()],
+        )?;
+        if let Some(part) = self.get_mineru_part(id)? {
+            self.refresh_parent_part_summary(&part.parent_task_id)?;
+        }
+        Ok(())
+    }
+
+    pub fn reset_mineru_part_for_retry(&self, id: &str) -> Result<()> {
+        self.open()?.execute(
+            "UPDATE mineru_parts SET status=?2, error=NULL, mineru_batch_id=NULL,
+                    mineru_data_id=NULL, mineru_state=NULL,
+                    mineru_extracted_pages=NULL, mineru_total_pages=NULL,
+                    mineru_started_at=NULL, artifact_ready=0, updated_at=?3
+             WHERE id=?1",
+            params![id, JobStatus::Queued.as_str(), Utc::now().to_rfc3339()],
+        )?;
+        if let Some(part) = self.get_mineru_part(id)? {
+            self.refresh_parent_part_summary(&part.parent_task_id)?;
+        }
+        Ok(())
+    }
+
+    pub fn delete_mineru_parts(&self, parent_task_id: &str) -> Result<()> {
+        self.open()?.execute(
+            "DELETE FROM mineru_parts WHERE parent_task_id=?1",
+            [parent_task_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn claim_parent_for_merge(&self, parent_task_id: &str) -> Result<bool> {
+        let connection = self.open()?;
+        let ready: i64 = connection.query_row(
+            "SELECT CASE WHEN COUNT(*) > 0
+                         AND SUM(CASE WHEN status='completed' AND artifact_ready=1 THEN 1 ELSE 0 END)=COUNT(*)
+                         THEN 1 ELSE 0 END
+             FROM mineru_parts WHERE parent_task_id=?1",
+            [parent_task_id],
+            |row| row.get(0),
+        )?;
+        if ready == 0 {
+            return Ok(false);
+        }
+        Ok(connection.execute(
+            "UPDATE tasks SET status=?2, error=NULL, updated_at=?3
+             WHERE id=?1 AND status=?4",
+            params![
+                parent_task_id,
+                JobStatus::Converting.as_str(),
+                Utc::now().to_rfc3339(),
+                JobStatus::WaitingParts.as_str()
+            ],
+        )? == 1)
+    }
+
+    pub fn reset_interrupted_parent_merges(&self) -> Result<usize> {
+        Ok(self.open()?.execute(
+            "UPDATE tasks SET status=?1, error=NULL, updated_at=?2
+             WHERE status=?3 AND id IN (SELECT DISTINCT parent_task_id FROM mineru_parts)",
+            params![
+                JobStatus::WaitingParts.as_str(),
+                Utc::now().to_rfc3339(),
+                JobStatus::Converting.as_str()
+            ],
+        )?)
+    }
+
+    fn refresh_parent_part_summary(&self, parent_task_id: &str) -> Result<()> {
+        let connection = self.open()?;
+        let (total, completed, failed, extracted): (i64, i64, i64, i64) = connection.query_row(
+            "SELECT COUNT(*),
+                    COALESCE(SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END), 0),
+                    COALESCE(SUM(CASE
+                      WHEN status='completed' THEN page_end-page_start+1
+                      ELSE COALESCE(mineru_extracted_pages, 0)
+                    END), 0)
+             FROM mineru_parts WHERE parent_task_id=?1",
+            [parent_task_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )?;
+        if total == 0 {
+            return Ok(());
+        }
+        let error = (failed > 0).then(|| format!("{failed} 个 MinerU 分片解析失败"));
+        connection.execute(
+            "UPDATE tasks SET status=?2, error=?3, mineru_state=?4,
+                    mineru_extracted_pages=?5, updated_at=?6
+             WHERE id=?1 AND status NOT IN ('completed', 'failed', 'converting')",
+            params![
+                parent_task_id,
+                JobStatus::WaitingParts.as_str(),
+                error,
+                if completed == total {
+                    "done"
+                } else {
+                    "running"
+                },
+                extracted,
+                Utc::now().to_rfc3339()
+            ],
+        )?;
+        Ok(())
+    }
+
     pub fn get_task(&self, id: &str) -> Result<Option<TaskRecord>> {
         let connection = self.open()?;
         connection
@@ -474,6 +864,57 @@ impl Storage {
             .map_err(Into::into)
     }
 
+    pub fn list_visible_tasks(&self, limit: usize) -> Result<Vec<TaskRecord>> {
+        let mut tasks = self.list_tasks(limit)?;
+        let connection = self.open()?;
+        let mut counts = HashMap::<String, (i64, i64, i64)>::new();
+        {
+            let mut statement = connection.prepare(
+                "SELECT parent_task_id, COUNT(*),
+                        SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END)
+                 FROM mineru_parts GROUP BY parent_task_id",
+            )?;
+            for row in statement.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, i64>(3)?,
+                ))
+            })? {
+                let (id, total, completed, failed) = row?;
+                counts.insert(id, (total, completed, failed));
+            }
+        }
+        for task in &mut tasks {
+            if let Some((total, completed, failed)) = counts.get(&task.id) {
+                task.part_count = Some(*total);
+                task.part_completed_count = Some(*completed);
+                task.part_failed_count = Some(*failed);
+            }
+        }
+        let mut statement = connection.prepare(
+            "SELECT p.id, p.parent_task_id, p.source_hash, p.part_index, p.part_count,
+                    p.page_start, p.page_end, p.mode, p.status, p.error,
+                    p.mineru_batch_id, p.mineru_data_id, p.mineru_state,
+                    p.mineru_extracted_pages, p.mineru_total_pages,
+                    p.mineru_started_at, p.updated_at,
+                    t.profile_id, t.source_path, t.relative_path,
+                    t.source_size, t.source_modified_ms
+             FROM mineru_parts p
+             JOIN tasks t ON t.id=p.parent_task_id
+             ORDER BY p.updated_at DESC LIMIT ?1",
+        )?;
+        let parts = statement
+            .query_map([limit as i64], map_visible_mineru_part)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        tasks.extend(parts);
+        tasks.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
+        tasks.truncate(limit);
+        Ok(tasks)
+    }
+
     pub fn list_profile_tasks(&self, profile_id: &str) -> Result<Vec<TaskRecord>> {
         let connection = self.open()?;
         let mut statement = connection.prepare(
@@ -514,6 +955,7 @@ impl Storage {
             .map_err(Into::into)
     }
 
+    #[cfg(test)]
     pub fn task_count(&self) -> Result<usize> {
         self.open()?
             .query_row("SELECT COUNT(*) FROM tasks", [], |row| row.get::<_, i64>(0))
@@ -521,11 +963,26 @@ impl Storage {
             .map_err(Into::into)
     }
 
-    pub fn count_tasks_with_statuses(&self, statuses: &[JobStatus]) -> Result<usize> {
-        count_statuses(
-            &self.open()?,
-            "tasks",
-            statuses.iter().map(JobStatus::as_str),
+    pub fn visible_task_count(&self) -> Result<usize> {
+        self.open()?
+            .query_row(
+                "SELECT (SELECT COUNT(*) FROM tasks) + (SELECT COUNT(*) FROM mineru_parts)",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|count| count.max(0) as usize)
+            .map_err(Into::into)
+    }
+
+    pub fn count_visible_tasks_with_statuses(&self, statuses: &[JobStatus]) -> Result<usize> {
+        let connection = self.open()?;
+        Ok(
+            count_statuses(&connection, "tasks", statuses.iter().map(JobStatus::as_str))?
+                + count_statuses(
+                    &connection,
+                    "mineru_parts",
+                    statuses.iter().map(JobStatus::as_str),
+                )?,
         )
     }
 
@@ -536,6 +993,11 @@ impl Storage {
         let mut connection = self.open()?;
         let transaction = connection.transaction()?;
         for profile_id in profile_ids {
+            transaction.execute(
+                "DELETE FROM mineru_parts WHERE parent_task_id IN
+                 (SELECT id FROM tasks WHERE profile_id=?1)",
+                [profile_id],
+            )?;
             transaction.execute("DELETE FROM tasks WHERE profile_id=?1", [profile_id])?;
             transaction.execute("DELETE FROM tag_jobs WHERE profile_id=?1", [profile_id])?;
         }
@@ -543,8 +1005,9 @@ impl Storage {
     }
 
     pub fn delete_task(&self, id: &str) -> Result<()> {
-        self.open()?
-            .execute("DELETE FROM tasks WHERE id=?1", [id])?;
+        let connection = self.open()?;
+        connection.execute("DELETE FROM mineru_parts WHERE parent_task_id=?1", [id])?;
+        connection.execute("DELETE FROM tasks WHERE id=?1", [id])?;
         Ok(())
     }
 
@@ -815,6 +1278,15 @@ fn map_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<TaskRecord> {
     let guidance = crate::diagnostics::classify_error(error.as_deref());
     Ok(TaskRecord {
         id: row.get(0)?,
+        kind: TaskKind::Document,
+        parent_task_id: None,
+        part_index: None,
+        part_count: None,
+        page_start: None,
+        page_end: None,
+        part_mode: None,
+        part_completed_count: None,
+        part_failed_count: None,
         profile_id: row.get(1)?,
         source_path: row.get(2)?,
         relative_path: row.get(3)?,
@@ -839,6 +1311,80 @@ fn map_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<TaskRecord> {
         mineru_total_pages: row.get(15)?,
         mineru_started_at: row.get(16)?,
         updated_at: row.get(17)?,
+        tag_job_id: None,
+        tag_status: None,
+    })
+}
+
+fn map_mineru_part(row: &rusqlite::Row<'_>) -> rusqlite::Result<MinerUPartRecord> {
+    let mode: String = row.get(7)?;
+    let status: String = row.get(8)?;
+    Ok(MinerUPartRecord {
+        id: row.get(0)?,
+        parent_task_id: row.get(1)?,
+        source_hash: row.get(2)?,
+        part_index: row.get(3)?,
+        part_count: row.get(4)?,
+        page_start: row.get(5)?,
+        page_end: row.get(6)?,
+        mode: MinerUPartMode::try_from(mode.as_str()).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(7, rusqlite::types::Type::Text, error.into())
+        })?,
+        status: JobStatus::try_from(status.as_str()).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(8, rusqlite::types::Type::Text, error.into())
+        })?,
+        error: row.get(9)?,
+        mineru_batch_id: row.get(10)?,
+        mineru_data_id: row.get(11)?,
+        mineru_state: row.get(12)?,
+        mineru_extracted_pages: row.get(13)?,
+        mineru_total_pages: row.get(14)?,
+        mineru_started_at: row.get(15)?,
+        artifact_ready: row.get::<_, i64>(16)? != 0,
+        updated_at: row.get(17)?,
+    })
+}
+
+fn map_visible_mineru_part(row: &rusqlite::Row<'_>) -> rusqlite::Result<TaskRecord> {
+    let mode: String = row.get(7)?;
+    let status: String = row.get(8)?;
+    let error: Option<String> = row.get(9)?;
+    let guidance = crate::diagnostics::classify_error(error.as_deref());
+    Ok(TaskRecord {
+        id: row.get(0)?,
+        kind: TaskKind::MineruPart,
+        parent_task_id: Some(row.get(1)?),
+        source_hash: Some(row.get(2)?),
+        part_index: Some(row.get(3)?),
+        part_count: Some(row.get(4)?),
+        page_start: Some(row.get(5)?),
+        page_end: Some(row.get(6)?),
+        part_mode: Some(MinerUPartMode::try_from(mode.as_str()).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(7, rusqlite::types::Type::Text, error.into())
+        })?),
+        part_completed_count: None,
+        part_failed_count: None,
+        status: JobStatus::try_from(status.as_str()).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(8, rusqlite::types::Type::Text, error.into())
+        })?,
+        error,
+        error_code: guidance.as_ref().map(|value| value.code.to_string()),
+        error_title: guidance.as_ref().map(|value| value.title.to_string()),
+        error_suggestion: guidance.as_ref().map(|value| value.suggestion.to_string()),
+        mineru_batch_id: row.get(10)?,
+        mineru_data_id: row.get(11)?,
+        mineru_state: row.get(12)?,
+        mineru_extracted_pages: row.get(13)?,
+        mineru_total_pages: row.get(14)?,
+        mineru_started_at: row.get(15)?,
+        updated_at: row.get(16)?,
+        profile_id: row.get(17)?,
+        source_path: row.get(18)?,
+        relative_path: row.get(19)?,
+        source_size: row.get(20)?,
+        source_modified_ms: row.get(21)?,
+        engine: ConversionEngine::Mineru,
+        output_path: None,
         tag_job_id: None,
         tag_status: None,
     })
@@ -1254,5 +1800,116 @@ mod tests {
         assert_eq!(storage.tag_job_count().unwrap(), 1);
         assert_eq!(storage.list_tasks(10).unwrap()[0].profile_id, "keep");
         assert_eq!(storage.list_tag_jobs(10).unwrap()[0].profile_id, "keep");
+    }
+
+    #[test]
+    fn mineru_parts_are_visible_retryable_and_recoverable_without_restarting_successes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let input = temporary.path().join("input");
+        let output = temporary.path().join("output");
+        fs::create_dir_all(&input).unwrap();
+        fs::create_dir_all(&output).unwrap();
+        let source = input.join("large.pdf");
+        let result = output.join("large.md");
+        fs::write(&source, b"pdf").unwrap();
+        let profile = WatchProfile {
+            id: "profile".to_string(),
+            name: "profile".to_string(),
+            input_dir: input.to_string_lossy().to_string(),
+            output_dir: output.to_string_lossy().to_string(),
+            enabled: true,
+            delete_policy: Default::default(),
+            tagging: Default::default(),
+        };
+        let storage = Storage::new(temporary.path().join("data")).unwrap();
+        let parent = storage
+            .prepare_task(
+                &profile,
+                &source,
+                Path::new("large.pdf"),
+                "hash-one",
+                3,
+                123,
+                ConversionEngine::Mineru,
+                &result,
+                true,
+            )
+            .unwrap()
+            .unwrap();
+        let plans = vec![
+            PdfPartPlan {
+                index: 1,
+                count: 2,
+                page_start: 1,
+                page_end: 200,
+                mode: MinerUPartMode::PageRanges,
+                input_path: None,
+            },
+            PdfPartPlan {
+                index: 2,
+                count: 2,
+                page_start: 201,
+                page_end: 201,
+                mode: MinerUPartMode::PageRanges,
+                input_path: None,
+            },
+        ];
+        let parts = storage
+            .replace_mineru_parts(&parent.id, "hash-one", 201, &plans)
+            .unwrap();
+
+        assert_eq!(storage.visible_task_count().unwrap(), 3);
+        let visible = storage.list_visible_tasks(10).unwrap();
+        assert_eq!(
+            visible
+                .iter()
+                .filter(|task| task.kind == TaskKind::MineruPart)
+                .count(),
+            2
+        );
+        storage.complete_mineru_part(&parts[0].id).unwrap();
+        storage
+            .set_mineru_part_status(&parts[1].id, JobStatus::Failed, Some("part failed"))
+            .unwrap();
+        let waiting_parent = storage.get_task(&parent.id).unwrap().unwrap();
+        assert_eq!(waiting_parent.status, JobStatus::WaitingParts);
+        assert!(waiting_parent.error.unwrap().contains("1 个 MinerU 分片"));
+
+        storage.reset_mineru_part_for_retry(&parts[1].id).unwrap();
+        let persisted_first = storage.get_mineru_part(&parts[0].id).unwrap().unwrap();
+        assert_eq!(persisted_first.status, JobStatus::Completed);
+        assert!(persisted_first.artifact_ready);
+        storage.complete_mineru_part(&parts[1].id).unwrap();
+        assert!(storage.claim_parent_for_merge(&parent.id).unwrap());
+        assert_eq!(
+            storage.get_task(&parent.id).unwrap().unwrap().status,
+            JobStatus::Converting
+        );
+        assert_eq!(storage.reset_interrupted_parent_merges().unwrap(), 1);
+        assert_eq!(
+            storage.get_task(&parent.id).unwrap().unwrap().status,
+            JobStatus::WaitingParts
+        );
+
+        storage
+            .prepare_task(
+                &profile,
+                &source,
+                Path::new("large.pdf"),
+                "hash-two",
+                3,
+                124,
+                ConversionEngine::Mineru,
+                &result,
+                false,
+            )
+            .unwrap()
+            .unwrap();
+        assert!(
+            storage
+                .list_mineru_parts_for_parent(&parent.id)
+                .unwrap()
+                .is_empty()
+        );
     }
 }

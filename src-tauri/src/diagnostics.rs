@@ -75,6 +75,53 @@ pub fn classify_error(message: Option<&str>) -> Option<ErrorGuidance> {
             title: "模型返回结果不符合分类规则",
             suggestion: "请重试；若持续失败，请更换支持 Tool Calling 的模型或简化候选类别描述。",
         }
+    } else if contains_any(&message, &["超过 512 mib", "512 mib 本地预处理安全上限"]) {
+        ErrorGuidance {
+            code: "pdf_source_too_large",
+            title: "PDF 超过 512 MiB 安全上限",
+            suggestion: "请先在可信工具中无损拆分该 PDF，再把拆分后的文件放入监控目录。",
+        }
+    } else if contains_any(
+        &message,
+        &[
+            "单页分片达到或超过 190 mb",
+            "单页分片仍超过 190 mb",
+            "单页分片超过安全大小",
+        ],
+    ) {
+        ErrorGuidance {
+            code: "pdf_page_too_large",
+            title: "PDF 单页体积过大",
+            suggestion: "当前版本不会有损压缩页面；请先手动拆解或优化该页后重试。",
+        }
+    } else if contains_any(&message, &["分片合并失败", "不能合并旧 mineru 分片"]) {
+        ErrorGuidance {
+            code: "mineru_part_merge_failed",
+            title: "MinerU 分片结果合并失败",
+            suggestion: "已完成分片会保留；请重试父任务以重新执行最终合并。",
+        }
+    } else if contains_any(
+        &message,
+        &["pdf 分片", "拆分失败", "无法安装隔离的 pdf 分片"],
+    ) {
+        ErrorGuidance {
+            code: "pdf_split_failed",
+            title: "PDF 本地拆分失败",
+            suggestion: "请确认磁盘空间和文件权限充足；问题持续时可手动无损拆分后重试。",
+        }
+    } else if contains_any(&message, &["pdf 已损坏", "pdf 分片无法重新读取"]) {
+        ErrorGuidance {
+            code: "pdf_invalid",
+            title: "PDF 已损坏或结构不受支持",
+            suggestion: "请先使用 PDF 阅读器重新另存或修复文件，然后重试。",
+        }
+    } else if contains_any(&message, &["mineru 分片解析失败", "个 mineru 分片解析失败"])
+    {
+        ErrorGuidance {
+            code: "mineru_part_failed",
+            title: "部分 MinerU 分片失败",
+            suggestion: "请在任务列表中重试失败分片；已完成分片不会重复提交。",
+        }
     } else if contains_any(&message, &["encrypted", "password", "加密", "密码"]) {
         ErrorGuidance {
             code: "document_encrypted",
@@ -276,19 +323,20 @@ fn health_counts(state: &AppState) -> Result<HealthCounts> {
     Ok(HealthCounts {
         conversion_pending: state
             .storage
-            .count_tasks_with_statuses(&[JobStatus::WaitingStable, JobStatus::Queued])?,
-        conversion_active: state.storage.count_tasks_with_statuses(&[
+            .count_visible_tasks_with_statuses(&[JobStatus::WaitingStable, JobStatus::Queued])?,
+        conversion_active: state.storage.count_visible_tasks_with_statuses(&[
             JobStatus::Converting,
+            JobStatus::WaitingParts,
             JobStatus::Uploading,
             JobStatus::Processing,
             JobStatus::Downloading,
         ])?,
         conversion_waiting_mineru: state
             .storage
-            .count_tasks_with_statuses(&[JobStatus::WaitingMineru])?,
+            .count_visible_tasks_with_statuses(&[JobStatus::WaitingMineru])?,
         conversion_failed: state
             .storage
-            .count_tasks_with_statuses(&[JobStatus::Failed])?,
+            .count_visible_tasks_with_statuses(&[JobStatus::Failed])?,
         classification_pending: state
             .storage
             .count_tag_jobs_with_statuses(&[TagJobStatus::Queued])?,
@@ -559,6 +607,24 @@ mod tests {
         assert_eq!(
             classify_error(Some("模型未调用分类工具")).unwrap().code,
             "agent_tool_calling"
+        );
+        assert_eq!(
+            classify_error(Some("PDF 超过 512 MiB 本地预处理安全上限"))
+                .unwrap()
+                .code,
+            "pdf_source_too_large"
+        );
+        assert_eq!(
+            classify_error(Some("2 个 MinerU 分片解析失败"))
+                .unwrap()
+                .code,
+            "mineru_part_failed"
+        );
+        assert_eq!(
+            classify_error(Some("MinerU 分片合并失败：磁盘已满"))
+                .unwrap()
+                .code,
+            "mineru_part_merge_failed"
         );
     }
 

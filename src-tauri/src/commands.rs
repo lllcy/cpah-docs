@@ -27,13 +27,13 @@ pub async fn get_dashboard(state: State<'_, AppState>) -> CommandResult<Dashboar
     const DASHBOARD_RECORD_LIMIT: usize = 5_000;
     let mut tasks = state
         .storage
-        .list_tasks(DASHBOARD_RECORD_LIMIT)
+        .list_visible_tasks(DASHBOARD_RECORD_LIMIT)
         .map_err(display_error)?;
     let tag_jobs = state
         .storage
         .list_tag_jobs(DASHBOARD_RECORD_LIMIT)
         .map_err(display_error)?;
-    let task_total = state.storage.task_count().map_err(display_error)?;
+    let task_total = state.storage.visible_task_count().map_err(display_error)?;
     let tag_job_total = state.storage.tag_job_count().map_err(display_error)?;
     let by_output = tag_jobs
         .iter()
@@ -96,15 +96,32 @@ pub fn rescan_all_profiles(state: State<'_, AppState>) -> CommandResult<()> {
 
 #[tauri::command]
 pub fn retry_failed_tasks(state: State<'_, AppState>) -> CommandResult<usize> {
-    let tasks = state
+    let parent_tasks = state
         .storage
         .list_tasks_with_statuses(&[JobStatus::Failed])
         .map_err(display_error)?;
+    let part_tasks = state
+        .storage
+        .list_mineru_parts_with_statuses(&[JobStatus::Failed])
+        .map_err(display_error)?;
     let mut queued = 0;
-    for task in tasks {
+    for task in parent_tasks {
         if Path::new(&task.source_path).is_file() {
             state
                 .send_runtime(RuntimeMessage::Retry { task_id: task.id })
+                .map_err(display_error)?;
+            queued += 1;
+        }
+    }
+    for part in part_tasks {
+        let source_exists = state
+            .storage
+            .get_task(&part.parent_task_id)
+            .map_err(display_error)?
+            .is_some_and(|task| Path::new(&task.source_path).is_file());
+        if source_exists {
+            state
+                .send_runtime(RuntimeMessage::Retry { task_id: part.id })
                 .map_err(display_error)?;
             queued += 1;
         }
@@ -161,10 +178,33 @@ pub async fn save_settings(
     }
     state.set_monitoring_paused_flag(settings.monitoring_paused);
     state.set_paused_flag(settings.paused);
+    let removed_work_dirs = removed_profile_ids
+        .iter()
+        .flat_map(|profile_id| {
+            state
+                .storage
+                .list_profile_tasks(profile_id)
+                .unwrap_or_default()
+        })
+        .map(|task| state.storage.mineru_work_root().join(task.id))
+        .collect::<Vec<_>>();
     state
         .storage
         .delete_profile_records(&removed_profile_ids)
         .map_err(display_error)?;
+    if let Err(error) = tokio::task::spawn_blocking(move || {
+        for work_dir in removed_work_dirs {
+            if work_dir.exists()
+                && let Err(error) = std::fs::remove_dir_all(&work_dir)
+            {
+                tracing::warn!(path = %work_dir.display(), error = %error, "failed to clean removed profile MinerU cache");
+            }
+        }
+    })
+    .await
+    {
+        tracing::warn!(error = %error, "removed profile MinerU cache cleanup task failed");
+    }
     state
         .storage
         .delete_disabled_waiting_tasks(&settings.enabled_extensions)

@@ -23,6 +23,7 @@ anytomd = { version = "1.3.1", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 dunce = "1"
 keyring = "4.1.6"
+lopdf = "0.44"
 notify = "8"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "stream"] }
 rig = { version = "=0.41.0", default-features = false, features = ["agent", "derive", "rustls"] }
@@ -35,6 +36,7 @@ tauri = { version = "2.11.5", features = ["tray-icon"] }
 tauri-plugin-dialog = "2.7.2"
 tauri-plugin-opener = "2.5.4"
 tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "sync", "time"] }
+tokio-util = { version = "0.7", features = ["io"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt"] }
 uuid = { version = "1", features = ["v4", "serde"] }

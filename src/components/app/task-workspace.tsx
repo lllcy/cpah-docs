@@ -25,6 +25,11 @@ function TagStatus({ status }: { status?: TagJobStatus }) {
   return <span className={cn("inline-flex items-center gap-1 text-[10px]", meta.tone === "active" && "text-primary", meta.tone === "success" && "text-success", meta.tone === "danger" && "text-destructive", meta.tone === "neutral" && "text-muted-foreground")}><span className="size-1.5 rounded-full bg-current" />{meta.label}</span>;
 }
 
+function TaskTagStatus({ task }: { task: TaskRecord }) {
+  if (task.kind === "mineru_part") return <span className="text-[10px] text-muted-foreground">不适用</span>;
+  return <TagStatus status={task.tagStatus} />;
+}
+
 const filters: { id: TaskFilter; label: string }[] = [
   { id: "all", label: "全部" },
   { id: "pending", label: "待执行" },
@@ -118,8 +123,15 @@ function TaskInspector({
         <dl className="space-y-3.5 text-[11px]">
           <div>
             <dt className="mb-1 text-muted-foreground">转换引擎</dt>
-            <dd className="text-foreground">{isMarkdownTask(task) ? "Markdown 直通同步" : task.engine === "mineru" ? "MinerU 文档解析" : "AnyToMD 本地转换"}</dd>
+            <dd className="text-foreground">{task.kind === "mineru_part" ? "MinerU PDF 分片" : isMarkdownTask(task) ? "Markdown 直通同步" : task.engine === "mineru" ? "MinerU 文档解析" : "AnyToMD 本地转换"}</dd>
           </div>
+          {task.kind === "mineru_part" && (
+            <>
+              <div><dt className="mb-1 text-muted-foreground">父任务</dt><dd className="break-all text-foreground">{task.parentTaskId}</dd></div>
+              <div><dt className="mb-1 text-muted-foreground">页码范围</dt><dd className="text-foreground">第 {task.pageStart}–{task.pageEnd} 页（{task.partIndex}/{task.partCount}）</dd></div>
+              <div><dt className="mb-1 text-muted-foreground">分片方式</dt><dd className="text-foreground">{task.partMode === "page_ranges" ? "MinerU page_ranges" : "本地无损物理拆分"}</dd></div>
+            </>
+          )}
           <div>
             <dt className="mb-1 text-muted-foreground">所属目录</dt>
             <dd className="truncate text-foreground" title={profile?.name}>{profile?.name ?? "未知目录"}</dd>
@@ -135,10 +147,10 @@ function TaskInspector({
           <div>
             <dt className="mb-1 text-muted-foreground">输出文件</dt>
             <dd className={cn("break-all leading-4", task.outputPath ? "text-foreground" : "text-muted-foreground")}>
-              {task.outputPath ?? "转换完成后生成同名 .md 文件"}
+              {task.kind === "mineru_part" ? "不单独生成；由父任务合并" : task.outputPath ?? "转换完成后生成同名 .md 文件"}
             </dd>
           </div>
-          <div><dt className="mb-1 text-muted-foreground">分类状态</dt><dd><TagStatus status={task.tagStatus} /></dd></div>
+          <div><dt className="mb-1 text-muted-foreground">分类状态</dt><dd><TaskTagStatus task={task} /></dd></div>
         </dl>
 
         {task.error && (
@@ -153,7 +165,7 @@ function TaskInspector({
       <div className="space-y-3 border-t px-4 py-4">
         {active && <TaskProgress task={task} />}
         <div className="flex gap-2">
-          <Button className="min-w-0 flex-1" disabled={!task.outputPath} onClick={() => task.outputPath && onOpenResult(task.outputPath)}>
+          <Button className="min-w-0 flex-1" disabled={task.kind === "mineru_part" || !task.outputPath} onClick={() => task.outputPath && onOpenResult(task.outputPath)}>
             <ArrowUpRight />打开结果
           </Button>
           {task.status === "failed" && (
@@ -204,7 +216,7 @@ export function TaskWorkspace({
   const visibleTasks = useMemo(() => tasks.filter((task) => {
     if (!filterTask(task, filter)) return false;
     if (!normalizedQuery) return true;
-    const haystack = [task.relativePath, task.sourcePath, task.engine, statusMeta[task.status].label].join(" ").toLocaleLowerCase();
+    const haystack = [taskFileName(task), task.relativePath, task.sourcePath, task.engine, statusMeta[task.status].label, task.partMode].join(" ").toLocaleLowerCase();
     return haystack.includes(normalizedQuery);
   }), [filter, normalizedQuery, tasks]);
 
@@ -298,7 +310,7 @@ export function TaskWorkspace({
                   <span className="truncate pr-3 text-[11px] text-muted-foreground" title={profile?.name}><Folder className="mr-1 inline size-3 -translate-y-px" />{profile?.name ?? "未知"}</span>
                   <span className="text-[10px] tabular-nums text-muted-foreground">{formatUpdatedAt(task.updatedAt).split(" ").at(-1)}</span>
                   <TaskStatus status={task.status} />
-                  <TagStatus status={task.tagStatus} />
+                  <TaskTagStatus task={task} />
                 </button>
               );
             })}

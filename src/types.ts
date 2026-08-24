@@ -45,6 +45,7 @@ export type JobStatus =
   | "waiting_stable"
   | "queued"
   | "converting"
+  | "waiting_parts"
   | "waiting_mineru"
   | "uploading"
   | "processing"
@@ -54,6 +55,15 @@ export type JobStatus =
 
 export interface TaskRecord {
   id: string;
+  kind: "document" | "mineru_part";
+  parentTaskId?: string;
+  partIndex?: number;
+  partCount?: number;
+  pageStart?: number;
+  pageEnd?: number;
+  partMode?: "page_ranges" | "split_pdf";
+  partCompletedCount?: number;
+  partFailedCount?: number;
   profileId: string;
   sourcePath: string;
   relativePath: string;

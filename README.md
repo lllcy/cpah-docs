@@ -12,6 +12,7 @@
 - 目录监听、格式转换和 Agent 分类分别控制：监听只发现文件并放入待执行，转换和分类分别消费自己的队列。
 - 本地转换：Markdown 原样同步；DOCX、XLS、XLSX、PPTX、HTML、HTM、CSV、TXT 使用纯 Rust / anytomd。
 - 云端解析：PDF、PNG、JPG、JPEG、WEBP、BMP、旧版 DOC、旧版 PPT 使用 MinerU。
+- 大型 PDF 会自动预检：超过 200 页时按页段提交，超过 MinerU 200 MB 限制时在本地无损拆分；原文件最大支持 512 MiB，最终仍只生成一份 Markdown。
 - 可按目录配置单分类或多分类候选类别；在“分类任务”页独立开始、停止、重试并查看 Token 用量。
 - SQLite 保存任务状态，程序重启后恢复队列和 MinerU 轮询；帮助页提供离线运行诊断和脱敏报告。
 - Token 与 API Key 保存到系统凭据库（Windows 凭据管理器或 macOS 钥匙串）；关闭窗口后驻留 Windows 系统托盘或 macOS 菜单栏。
@@ -114,7 +115,7 @@ npm run release
 
 Windows 生成 `release/CPAH-Docs-v<版本>-windows-x64.exe`；macOS 生成 `release/CPAH-Docs-v<版本>-macos-universal.dmg`。发布目录同时包含 `LICENSE.txt`、`THIRD_PARTY_LICENSES.md` 和 `SHA256SUMS.txt`，`src-tauri/target` 只是本机构建缓存。推送与版本一致的 `v*` 标签后，GitHub Actions 会并行构建 Windows x64 和 macOS 通用版，并在两个构建都成功后发布同一个 GitHub Release。
 
-真实 MinerU 回归测试需要设置 `CPAHDOCS_MINERU_E2E` 和 `CPAHDOCS_MINERU_TOKEN`（也可使用应用已保存的 Token）。真实 Agent Tool Calling 回归测试需要设置 `CPAHDOCS_AGENT_BASE_URL`、`CPAHDOCS_AGENT_MODEL` 和 `CPAHDOCS_AGENT_API_KEY`，再运行被忽略的 E2E 用例。所有真实 E2E 资料只能放在 Git 忽略的本机目录中。
+真实 MinerU 回归测试需要设置 `CPAHDOCS_MINERU_E2E` 和 `CPAHDOCS_MINERU_TOKEN`（也可使用应用已保存的 Token）。大型 PDF 的两个忽略用例分别使用 `CPAHDOCS_MINERU_PAGE_RANGES_E2E`（超过 200 页且不超过 200 MB）和 `CPAHDOCS_MINERU_PHYSICAL_E2E`（200–512 MiB）。真实 Agent Tool Calling 回归测试需要设置 `CPAHDOCS_AGENT_BASE_URL`、`CPAHDOCS_AGENT_MODEL` 和 `CPAHDOCS_AGENT_API_KEY`，再运行被忽略的 E2E 用例。所有真实 E2E 资料只能放在 Git 忽略的本机目录中。
 
 第三方许可清单可通过 `node scripts/generate-third-party-licenses.mjs` 重新生成；Windows 也可使用 PowerShell 包装脚本 `scripts/generate-third-party-licenses.ps1`。生成时需要 [cargo-about 0.9.1](https://github.com/EmbarkStudios/cargo-about/releases/tag/0.9.1)。
 

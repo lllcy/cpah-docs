@@ -22,6 +22,7 @@ export const emptySettings: AppSettings = {
 
 export const activeStatuses: JobStatus[] = [
   "converting",
+  "waiting_parts",
   "uploading",
   "processing",
   "downloading",
@@ -33,6 +34,7 @@ export const statusMeta: Record<JobStatus, { label: string; tone: "neutral" | "a
   waiting_stable: { label: "等待稳定", tone: "neutral" },
   queued: { label: "待执行", tone: "neutral" },
   converting: { label: "本地转换", tone: "active" },
+  waiting_parts: { label: "等待分片", tone: "active" },
   waiting_mineru: { label: "等待 MinerU", tone: "neutral" },
   uploading: { label: "正在上传", tone: "active" },
   processing: { label: "云端解析", tone: "active" },
@@ -95,6 +97,7 @@ export const previewDashboard: Dashboard = {
   tasks: [
     {
       id: "task-1",
+      kind: "document",
       profileId: "profile-finance",
       sourcePath: "C:\\Users\\Demo\\Documents\\公司资料\\财务与公告\\2026年半年度报告.pdf",
       relativePath: "2026年半年度报告.pdf",
@@ -105,6 +108,7 @@ export const previewDashboard: Dashboard = {
     },
     {
       id: "task-2",
+      kind: "document",
       profileId: "profile-projects",
       sourcePath: "D:\\Projects\\共享项目资料\\2026年度重点项目\\实施方案终稿.docx",
       relativePath: "实施方案终稿.docx",
@@ -114,6 +118,7 @@ export const previewDashboard: Dashboard = {
     },
     {
       id: "task-3",
+      kind: "document",
       profileId: "profile-finance",
       sourcePath: "C:\\Users\\Demo\\Documents\\公司资料\\财务与公告\\经营分析数据.xlsx",
       relativePath: "经营分析数据.xlsx",
@@ -124,6 +129,7 @@ export const previewDashboard: Dashboard = {
     },
     {
       id: "task-4",
+      kind: "document",
       profileId: "profile-projects",
       sourcePath: "D:\\Projects\\共享项目资料\\2026年度重点项目\\产品路线图.pptx",
       relativePath: "产品路线图.pptx",
@@ -133,6 +139,7 @@ export const previewDashboard: Dashboard = {
     },
     {
       id: "task-5",
+      kind: "document",
       profileId: "profile-finance",
       sourcePath: "C:\\Users\\Demo\\Documents\\公司资料\\财务与公告\\合同与补充协议\\扫描合同.pdf",
       relativePath: "合同与补充协议/扫描合同.pdf",
@@ -145,6 +152,7 @@ export const previewDashboard: Dashboard = {
     },
     {
       id: "task-6",
+      kind: "document",
       profileId: "profile-finance",
       sourcePath: "C:\\Users\\Demo\\Documents\\公司资料\\财务与公告\\季度经营简报.docx",
       relativePath: "季度经营简报.docx",
@@ -233,10 +241,19 @@ export function formatUpdatedAt(value: string) {
 }
 
 export function taskFileName(task: TaskRecord) {
-  return task.relativePath.split(/[\\/]/).at(-1) ?? task.relativePath;
+  const fileName = task.relativePath.split(/[\\/]/).at(-1) ?? task.relativePath;
+  if (task.kind !== "mineru_part") return fileName;
+  const pageRange = typeof task.pageStart === "number" && typeof task.pageEnd === "number"
+    ? `第 ${task.pageStart}–${task.pageEnd} 页`
+    : "PDF 分片";
+  const partPosition = typeof task.partIndex === "number" && typeof task.partCount === "number"
+    ? `（${task.partIndex}/${task.partCount}）`
+    : "";
+  return `${fileName} · ${pageRange}${partPosition}`;
 }
 
 export function taskDirectory(task: TaskRecord) {
+  if (task.kind === "mineru_part") return "MinerU 分片任务";
   const pieces = task.relativePath.split(/[\\/]/);
   return pieces.length > 1 ? pieces.slice(0, -1).join(" / ") : "根目录";
 }

@@ -4,7 +4,7 @@ use anytomd::{ConversionOptions, convert_bytes, convert_file};
 use chrono::Utc;
 use std::ffi::OsString;
 use std::fs;
-use std::io::{Cursor, Read, Write};
+use std::io::{BufRead, BufReader, Cursor, Read, Write};
 use std::path::{Component, Path, PathBuf};
 use uuid::Uuid;
 use zip::write::SimpleFileOptions;
@@ -26,6 +26,14 @@ pub struct ConversionArtifact {
     pub markdown: String,
     pub assets: Vec<ConversionAsset>,
     pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct StagedMinerUPart {
+    pub index: i64,
+    pub page_start: i64,
+    pub page_end: i64,
+    pub stage_dir: PathBuf,
 }
 
 pub fn is_supported(path: &Path) -> bool {
@@ -321,6 +329,318 @@ pub fn write_artifact(
     Ok(output)
 }
 
+pub fn write_multipart_artifact(
+    profile: &WatchProfile,
+    task: &TaskRecord,
+    parts: &[StagedMinerUPart],
+) -> Result<PathBuf> {
+    if parts.is_empty() {
+        bail!("MinerU 分片结果为空");
+    }
+    let output = task
+        .output_path
+        .as_ref()
+        .map(PathBuf::from)
+        .context("任务缺少输出路径")?;
+    ensure_output_is_safe(profile, &output)?;
+    let output_parent = output.parent().context("输出文件缺少父目录")?;
+    fs::create_dir_all(output_parent)?;
+    let asset_dir = asset_path_for_output(&output).context("无法确定附件目录")?;
+    ensure_output_is_safe(profile, &asset_dir)?;
+    let asset_dir_name = asset_dir
+        .file_name()
+        .context("附件目录缺少名称")?
+        .to_string_lossy()
+        .to_string();
+    let temporary_asset_dir =
+        output_parent.join(format!(".{asset_dir_name}.tmp-{}", Uuid::new_v4().simple()));
+    let output_name = output
+        .file_name()
+        .context("输出文件缺少名称")?
+        .to_string_lossy();
+    let temporary_markdown = output_parent.join(format!(
+        ".{output_name}.multipart-{}.tmp",
+        Uuid::new_v4().simple()
+    ));
+    ensure_output_is_safe(profile, &temporary_asset_dir)?;
+    ensure_output_is_safe(profile, &temporary_markdown)?;
+
+    let warnings = vec![format!(
+        "MinerU 已按限制分为 {} 个页段解析（第 {}-{} 页）",
+        parts.len(),
+        parts
+            .first()
+            .map(|part| part.page_start)
+            .unwrap_or_default(),
+        parts.last().map(|part| part.page_end).unwrap_or_default()
+    )];
+    let frontmatter = build_frontmatter(task, &warnings)?;
+    let result = (|| -> Result<(bool, Option<PathBuf>)> {
+        let mut markdown_file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary_markdown)?;
+        markdown_file.write_all(frontmatter.as_bytes())?;
+        markdown_file.write_all(b"\n")?;
+        let mut has_assets = false;
+        let mut total_asset_bytes = 0_u64;
+        for (offset, part) in parts.iter().enumerate() {
+            let markdown_path = part.stage_dir.join("full.md");
+            let mut asset_mappings = Vec::new();
+            let assets_root = part.stage_dir.join("assets");
+            if assets_root.exists() {
+                for entry in walkdir::WalkDir::new(&assets_root).follow_links(false) {
+                    let entry = entry?;
+                    if !entry.file_type().is_file() {
+                        continue;
+                    }
+                    let original = entry
+                        .path()
+                        .strip_prefix(&assets_root)
+                        .context("MinerU 分片附件路径无效")?
+                        .to_path_buf();
+                    let safe = sanitize_relative_path(&original)?;
+                    let prefixed = PathBuf::from(format!("part-{:04}", part.index)).join(safe);
+                    let destination = temporary_asset_dir.join(&prefixed);
+                    if let Some(parent) = destination.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    let size = entry.metadata()?.len();
+                    total_asset_bytes = total_asset_bytes
+                        .checked_add(size)
+                        .context("MinerU 合并附件大小溢出")?;
+                    if total_asset_bytes > 512 * 1024 * 1024 {
+                        bail!("MinerU 分片附件合计超过 512 MiB 安全上限");
+                    }
+                    fs::copy(entry.path(), &destination)?;
+                    asset_mappings.push((original, prefixed));
+                    has_assets = true;
+                }
+            }
+            if offset > 0 {
+                markdown_file.write_all(b"\n\n")?;
+            }
+            writeln!(
+                markdown_file,
+                "<!-- cpah-docs: MinerU source pages {}-{} -->",
+                part.page_start, part.page_end
+            )?;
+            write_staged_markdown_body(
+                &mut markdown_file,
+                &markdown_path,
+                &asset_mappings,
+                &asset_dir_name,
+            )?;
+            markdown_file.write_all(b"\n")?;
+        }
+        markdown_file.sync_all()?;
+        drop(markdown_file);
+        let asset_backup = if has_assets {
+            Some(install_staged_assets(&temporary_asset_dir, &asset_dir)?)
+        } else {
+            None
+        };
+        Ok((has_assets, asset_backup.flatten()))
+    })();
+
+    let (has_assets, asset_backup) = match result {
+        Ok(value) => value,
+        Err(error) => {
+            if temporary_markdown.exists() {
+                fs::remove_file(&temporary_markdown).ok();
+            }
+            if temporary_asset_dir.exists() {
+                fs::remove_dir_all(&temporary_asset_dir).ok();
+            }
+            return Err(error);
+        }
+    };
+    if let Err(error) = crate::atomic_file::replace_file(&temporary_markdown, &output) {
+        if has_assets {
+            rollback_staged_assets(&asset_dir, asset_backup.as_deref())?;
+        }
+        if temporary_markdown.exists() {
+            fs::remove_file(&temporary_markdown).ok();
+        }
+        return Err(error).context("无法原子写入 MinerU 分片合并结果");
+    }
+    if !has_assets && asset_dir.exists() {
+        fs::remove_dir_all(&asset_dir)?;
+    }
+    if let Some(backup) = asset_backup
+        && let Err(error) = fs::remove_dir_all(&backup)
+    {
+        tracing::warn!(error = %error, "failed to clean previous multipart asset backup");
+    }
+    Ok(output)
+}
+
+pub fn write_staged_mineru_artifact(
+    profile: &WatchProfile,
+    task: &TaskRecord,
+    stage_dir: &Path,
+) -> Result<PathBuf> {
+    let output = task
+        .output_path
+        .as_ref()
+        .map(PathBuf::from)
+        .context("任务缺少输出路径")?;
+    ensure_output_is_safe(profile, &output)?;
+    let output_parent = output.parent().context("输出文件缺少父目录")?;
+    fs::create_dir_all(output_parent)?;
+    let asset_dir = asset_path_for_output(&output).context("无法确定附件目录")?;
+    ensure_output_is_safe(profile, &asset_dir)?;
+    let asset_dir_name = asset_dir
+        .file_name()
+        .context("附件目录缺少名称")?
+        .to_string_lossy()
+        .to_string();
+    let temporary_asset_dir =
+        output_parent.join(format!(".{asset_dir_name}.tmp-{}", Uuid::new_v4().simple()));
+    let output_name = output
+        .file_name()
+        .context("输出文件缺少名称")?
+        .to_string_lossy();
+    let temporary_markdown = output_parent.join(format!(
+        ".{output_name}.mineru-{}.tmp",
+        Uuid::new_v4().simple()
+    ));
+    ensure_output_is_safe(profile, &temporary_asset_dir)?;
+    ensure_output_is_safe(profile, &temporary_markdown)?;
+
+    let result = (|| -> Result<(bool, Option<PathBuf>)> {
+        let mut asset_mappings = Vec::new();
+        let mut total_asset_bytes = 0_u64;
+        let assets_root = stage_dir.join("assets");
+        if assets_root.exists() {
+            for entry in walkdir::WalkDir::new(&assets_root).follow_links(false) {
+                let entry = entry?;
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+                let original = entry
+                    .path()
+                    .strip_prefix(&assets_root)
+                    .context("MinerU 暂存附件路径无效")?
+                    .to_path_buf();
+                let safe = sanitize_relative_path(&original)?;
+                let destination = temporary_asset_dir.join(&safe);
+                if let Some(parent) = destination.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                let copied = fs::copy(entry.path(), &destination)?;
+                total_asset_bytes = total_asset_bytes
+                    .checked_add(copied)
+                    .context("MinerU 附件大小溢出")?;
+                if total_asset_bytes > 512 * 1024 * 1024 {
+                    bail!("MinerU 附件合计超过 512 MiB 安全上限");
+                }
+                asset_mappings.push((original, safe));
+            }
+        }
+
+        let mut markdown_file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary_markdown)?;
+        markdown_file.write_all(build_frontmatter(task, &[])?.as_bytes())?;
+        markdown_file.write_all(b"\n")?;
+        write_staged_markdown_body(
+            &mut markdown_file,
+            &stage_dir.join("full.md"),
+            &asset_mappings,
+            &asset_dir_name,
+        )?;
+        markdown_file.sync_all()?;
+        drop(markdown_file);
+        let has_assets = !asset_mappings.is_empty();
+        let asset_backup = if has_assets {
+            Some(install_staged_assets(&temporary_asset_dir, &asset_dir)?)
+        } else {
+            None
+        };
+        Ok((has_assets, asset_backup.flatten()))
+    })();
+
+    let (has_assets, asset_backup) = match result {
+        Ok(value) => value,
+        Err(error) => {
+            if temporary_markdown.exists() {
+                fs::remove_file(&temporary_markdown).ok();
+            }
+            if temporary_asset_dir.exists() {
+                fs::remove_dir_all(&temporary_asset_dir).ok();
+            }
+            return Err(error);
+        }
+    };
+    if let Err(error) = crate::atomic_file::replace_file(&temporary_markdown, &output) {
+        if has_assets {
+            rollback_staged_assets(&asset_dir, asset_backup.as_deref())?;
+        }
+        if temporary_markdown.exists() {
+            fs::remove_file(&temporary_markdown).ok();
+        }
+        return Err(error).context("无法原子写入 MinerU 转换结果");
+    }
+    if !has_assets && asset_dir.exists() {
+        fs::remove_dir_all(&asset_dir)?;
+    }
+    if let Some(backup) = asset_backup
+        && let Err(error) = fs::remove_dir_all(&backup)
+    {
+        tracing::warn!(error = %error, "failed to clean previous MinerU asset backup");
+    }
+    Ok(output)
+}
+
+fn write_staged_markdown_body(
+    output: &mut fs::File,
+    markdown_path: &Path,
+    asset_mappings: &[(PathBuf, PathBuf)],
+    asset_dir_name: &str,
+) -> Result<()> {
+    let file = fs::File::open(markdown_path)
+        .with_context(|| format!("无法读取 MinerU 分片 Markdown：{}", markdown_path.display()))?;
+    let mut reader = BufReader::new(file);
+    let mut line = String::new();
+    let mut first_line = true;
+    let mut skipping_frontmatter = false;
+    loop {
+        line.clear();
+        if reader.read_line(&mut line)? == 0 {
+            break;
+        }
+        if first_line {
+            first_line = false;
+            if line.starts_with('\u{feff}') {
+                line.remove(0);
+            }
+            if line.trim_end_matches(['\r', '\n']) == "---" {
+                skipping_frontmatter = true;
+                continue;
+            }
+        } else if skipping_frontmatter {
+            if line.trim_end_matches(['\r', '\n']) == "---" {
+                skipping_frontmatter = false;
+            }
+            continue;
+        }
+        let mut rewritten = std::mem::take(&mut line);
+        for (original, safe) in asset_mappings {
+            rewritten = rewrite_asset_reference(rewritten, original, safe, asset_dir_name);
+        }
+        output.write_all(rewritten.as_bytes())?;
+    }
+    if skipping_frontmatter {
+        bail!(
+            "MinerU 分片 Markdown 的 frontmatter 未闭合：{}",
+            markdown_path.display()
+        );
+    }
+    Ok(())
+}
+
 fn install_staged_assets(staged: &Path, destination: &Path) -> Result<Option<PathBuf>> {
     let backup = destination.with_file_name(format!(
         ".{}.backup-{}",
@@ -548,6 +868,7 @@ fn ensure_output_is_safe(profile: &WatchProfile, path: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::{JobStatus, TaskKind};
 
     fn profile() -> WatchProfile {
         WatchProfile {
@@ -563,6 +884,43 @@ mod tests {
             enabled: true,
             delete_policy: Default::default(),
             tagging: Default::default(),
+        }
+    }
+
+    fn multipart_task(output: &Path) -> TaskRecord {
+        TaskRecord {
+            id: "parent".to_string(),
+            kind: TaskKind::Document,
+            parent_task_id: None,
+            part_index: None,
+            part_count: Some(2),
+            page_start: None,
+            page_end: None,
+            part_mode: None,
+            part_completed_count: Some(2),
+            part_failed_count: Some(0),
+            profile_id: "one".to_string(),
+            source_path: "input/report.pdf".to_string(),
+            relative_path: "report.pdf".to_string(),
+            source_hash: Some("sha256".to_string()),
+            source_size: Some(123),
+            source_modified_ms: Some(456),
+            engine: ConversionEngine::Mineru,
+            status: JobStatus::Converting,
+            output_path: Some(output.to_string_lossy().to_string()),
+            error: None,
+            error_code: None,
+            error_title: None,
+            error_suggestion: None,
+            mineru_batch_id: None,
+            mineru_data_id: None,
+            mineru_state: Some("done".to_string()),
+            mineru_extracted_pages: Some(201),
+            mineru_total_pages: Some(201),
+            mineru_started_at: None,
+            updated_at: Utc::now().to_rfc3339(),
+            tag_job_id: None,
+            tag_status: None,
         }
     }
 
@@ -811,5 +1169,114 @@ mod tests {
         )));
         assert!(!rewritten.contains("](images/chart%20one.png)"));
         assert!(!rewritten.contains("src=\"images/chart one.png\""));
+    }
+
+    #[test]
+    fn multipart_merge_orders_pages_strips_part_frontmatter_and_namespaces_assets() {
+        let temporary = tempfile::tempdir().unwrap();
+        let input = temporary.path().join("input");
+        let output_root = temporary.path().join("output");
+        let stages = temporary.path().join("stages");
+        fs::create_dir_all(&input).unwrap();
+        fs::create_dir_all(&output_root).unwrap();
+        let profile = WatchProfile {
+            input_dir: input.to_string_lossy().to_string(),
+            output_dir: output_root.to_string_lossy().to_string(),
+            ..profile()
+        };
+        let output = output_root.join("report.md");
+        fs::write(&output, "old markdown").unwrap();
+        let old_assets = output_root.join("report.assets");
+        fs::create_dir_all(&old_assets).unwrap();
+        fs::write(old_assets.join("old.png"), b"old").unwrap();
+
+        let first = stages.join("first");
+        let second = stages.join("second");
+        for stage in [&first, &second] {
+            fs::create_dir_all(stage.join("assets/images")).unwrap();
+        }
+        fs::write(
+            first.join("full.md"),
+            "---\nsource: mineru-one\n---\n# First\n![](images/same.png)\n",
+        )
+        .unwrap();
+        fs::write(first.join("assets/images/same.png"), b"first").unwrap();
+        fs::write(
+            second.join("full.md"),
+            "---\nsource: mineru-two\n---\n# Second\n<img src=\"images/same.png\">\n",
+        )
+        .unwrap();
+        fs::write(second.join("assets/images/same.png"), b"second").unwrap();
+
+        let parts = vec![
+            StagedMinerUPart {
+                index: 1,
+                page_start: 1,
+                page_end: 200,
+                stage_dir: first,
+            },
+            StagedMinerUPart {
+                index: 2,
+                page_start: 201,
+                page_end: 201,
+                stage_dir: second,
+            },
+        ];
+        write_multipart_artifact(&profile, &multipart_task(&output), &parts).unwrap();
+
+        let markdown = fs::read_to_string(&output).unwrap();
+        assert_eq!(markdown.lines().filter(|line| *line == "---").count(), 2);
+        assert!(!markdown.contains("source: mineru-one"));
+        assert!(!markdown.contains("source: mineru-two"));
+        let first_position = markdown.find("# First").unwrap();
+        let second_position = markdown.find("# Second").unwrap();
+        assert!(first_position < second_position);
+        assert!(markdown.contains("<!-- cpah-docs: MinerU source pages 1-200 -->"));
+        assert!(markdown.contains("<!-- cpah-docs: MinerU source pages 201-201 -->"));
+        assert!(markdown.contains("report.assets/part-0001/images/same.png"));
+        assert!(markdown.contains("report.assets/part-0002/images/same.png"));
+        assert_eq!(
+            fs::read(output_root.join("report.assets/part-0001/images/same.png")).unwrap(),
+            b"first"
+        );
+        assert_eq!(
+            fs::read(output_root.join("report.assets/part-0002/images/same.png")).unwrap(),
+            b"second"
+        );
+        assert!(!old_assets.join("old.png").exists());
+    }
+
+    #[test]
+    fn staged_mineru_write_streams_assets_without_part_namespace() {
+        let temporary = tempfile::tempdir().unwrap();
+        let input = temporary.path().join("input");
+        let output_root = temporary.path().join("output");
+        let stage = temporary.path().join("stage");
+        fs::create_dir_all(&input).unwrap();
+        fs::create_dir_all(stage.join("assets/images")).unwrap();
+        fs::create_dir_all(&output_root).unwrap();
+        fs::write(
+            stage.join("full.md"),
+            "---\nsource: mineru\n---\n# Direct\n![](images/chart.png)\n",
+        )
+        .unwrap();
+        fs::write(stage.join("assets/images/chart.png"), b"chart").unwrap();
+        let profile = WatchProfile {
+            input_dir: input.to_string_lossy().to_string(),
+            output_dir: output_root.to_string_lossy().to_string(),
+            ..profile()
+        };
+        let output = output_root.join("direct.md");
+
+        write_staged_mineru_artifact(&profile, &multipart_task(&output), &stage).unwrap();
+
+        let markdown = fs::read_to_string(&output).unwrap();
+        assert_eq!(markdown.lines().filter(|line| *line == "---").count(), 2);
+        assert!(markdown.contains("direct.assets/images/chart.png"));
+        assert!(!markdown.contains("part-0001"));
+        assert_eq!(
+            fs::read(output_root.join("direct.assets/images/chart.png")).unwrap(),
+            b"chart"
+        );
     }
 }

@@ -168,6 +168,7 @@ pub enum JobStatus {
     WaitingStable,
     Queued,
     Converting,
+    WaitingParts,
     WaitingMineru,
     Uploading,
     Processing,
@@ -182,6 +183,7 @@ impl JobStatus {
             Self::WaitingStable => "waiting_stable",
             Self::Queued => "queued",
             Self::Converting => "converting",
+            Self::WaitingParts => "waiting_parts",
             Self::WaitingMineru => "waiting_mineru",
             Self::Uploading => "uploading",
             Self::Processing => "processing",
@@ -200,6 +202,7 @@ impl TryFrom<&str> for JobStatus {
             "waiting_stable" => Ok(Self::WaitingStable),
             "queued" => Ok(Self::Queued),
             "converting" => Ok(Self::Converting),
+            "waiting_parts" => Ok(Self::WaitingParts),
             "waiting_mineru" => Ok(Self::WaitingMineru),
             "uploading" => Ok(Self::Uploading),
             "processing" => Ok(Self::Processing),
@@ -211,10 +214,55 @@ impl TryFrom<&str> for JobStatus {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskKind {
+    #[default]
+    Document,
+    MineruPart,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MinerUPartMode {
+    PageRanges,
+    SplitPdf,
+}
+
+impl MinerUPartMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::PageRanges => "page_ranges",
+            Self::SplitPdf => "split_pdf",
+        }
+    }
+}
+
+impl TryFrom<&str> for MinerUPartMode {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "page_ranges" => Ok(Self::PageRanges),
+            "split_pdf" => Ok(Self::SplitPdf),
+            _ => anyhow::bail!("未知 MinerU 分片方式：{value}"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskRecord {
     pub id: String,
+    pub kind: TaskKind,
+    pub parent_task_id: Option<String>,
+    pub part_index: Option<i64>,
+    pub part_count: Option<i64>,
+    pub page_start: Option<i64>,
+    pub page_end: Option<i64>,
+    pub part_mode: Option<MinerUPartMode>,
+    pub part_completed_count: Option<i64>,
+    pub part_failed_count: Option<i64>,
     pub profile_id: String,
     pub source_path: String,
     pub relative_path: String,
@@ -237,6 +285,29 @@ pub struct TaskRecord {
     pub updated_at: String,
     pub tag_job_id: Option<String>,
     pub tag_status: Option<TagJobStatus>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct MinerUPartRecord {
+    pub id: String,
+    pub parent_task_id: String,
+    pub source_hash: String,
+    pub part_index: i64,
+    pub part_count: i64,
+    pub page_start: i64,
+    pub page_end: i64,
+    pub mode: MinerUPartMode,
+    pub status: JobStatus,
+    pub error: Option<String>,
+    pub mineru_batch_id: Option<String>,
+    pub mineru_data_id: Option<String>,
+    pub mineru_state: Option<String>,
+    pub mineru_extracted_pages: Option<i64>,
+    pub mineru_total_pages: Option<i64>,
+    pub mineru_started_at: Option<String>,
+    pub artifact_ready: bool,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
