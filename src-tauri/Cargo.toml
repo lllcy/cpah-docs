@@ -41,7 +41,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 walkdir = "2"
-yaml-edit = { version = "=0.2.3", default-features = false }
+yaml-edit = { version = "=0.3.0", default-features = false }
 zip = { version = "8.2", default-features = false, features = ["deflate"] }
 
 [target.'cfg(windows)'.dependencies]
