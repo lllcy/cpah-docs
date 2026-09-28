@@ -6,7 +6,7 @@ use crate::models::{
     TaggingConfig, TaggingImpact,
 };
 use crate::runtime::RuntimeMessage;
-use crate::state::AppState;
+use crate::state::{AppState, ProfileRuntimeControl};
 use crate::tag_runtime::{self, TagRuntimeMessage};
 use crate::tagging::{
     schema_hash, test_tool_calling, validate_agent_base_url, validate_tagging_config,
@@ -133,12 +133,65 @@ pub fn retry_failed_tasks(state: State<'_, AppState>) -> CommandResult<usize> {
 #[tauri::command]
 pub async fn save_settings(
     state: State<'_, AppState>,
-    mut settings: AppSettings,
+    settings: AppSettings,
+    expected_profile_ids: Vec<String>,
 ) -> CommandResult<AppSettings> {
-    let current = state.settings.read().await.clone();
+    let (settings, removed_profile_ids, controls, tag_baselines) =
+        save_settings_core(&state, settings, &expected_profile_ids).await?;
+    state.set_monitoring_paused_flag(settings.monitoring_paused);
+    state.set_paused_flag(settings.paused);
+    cleanup_removed_profiles(&state, &removed_profile_ids, controls).await?;
+    state
+        .storage
+        .delete_disabled_waiting_tasks(&settings.enabled_extensions)
+        .map_err(display_error)?;
+    state
+        .send_runtime(RuntimeMessage::Reload)
+        .map_err(display_error)?;
+    for profile_id in tag_baselines {
+        state
+            .send_tag_runtime(TagRuntimeMessage::ApplyRules {
+                profile_id,
+                process_existing: false,
+            })
+            .map_err(display_error)?;
+    }
+    state
+        .send_tag_runtime(TagRuntimeMessage::Reload)
+        .map_err(display_error)?;
+    state
+        .send_index_runtime(IndexRuntimeMessage::Reload)
+        .map_err(display_error)?;
+    Ok(settings)
+}
+
+async fn save_settings_core(
+    state: &AppState,
+    mut settings: AppSettings,
+    expected_profile_ids: &[String],
+) -> CommandResult<(
+    AppSettings,
+    Vec<String>,
+    Vec<ProfileRuntimeControl>,
+    Vec<String>,
+)> {
     // Agent 连接只允许通过凭据命令修改。分类规则本身可以安全自动保存；
     // 保存后只建立“从现在开始”的基线，不会把历史 Markdown 批量送给模型。
     validate_settings(&mut settings).map_err(display_error)?;
+    let mut live = state.settings.write().await;
+    let current = live.clone();
+    let actual_ids = current
+        .profiles
+        .iter()
+        .map(|profile| profile.id.as_str())
+        .collect::<HashSet<_>>();
+    let expected_ids = expected_profile_ids
+        .iter()
+        .map(String::as_str)
+        .collect::<HashSet<_>>();
+    if actual_ids != expected_ids || expected_ids.len() != expected_profile_ids.len() {
+        return Err("监控目录已在其他窗口变更，请重新载入后再保存".to_string());
+    }
     let removed_profile_ids = current
         .profiles
         .iter()
@@ -163,37 +216,89 @@ pub async fn save_settings(
         .collect::<Vec<_>>();
     settings.mineru_configured =
         AppState::read_mineru_token().is_ok_and(|token| !token.trim().is_empty());
-    {
+    // 保存、控制对象切换和取消必须在同一设置写锁内完成。
+    settings.agent = live.agent.clone();
+    settings.monitoring_paused = live.monitoring_paused;
+    settings.paused = live.paused;
+    settings.classification_paused = live.classification_paused;
+    state
+        .storage
+        .save_settings(&settings)
+        .map_err(display_error)?;
+    *live = settings.clone();
+    state.ensure_profile_controls(settings.profiles.iter().map(|profile| profile.id.as_str()));
+    let controls = removed_profile_ids
+        .iter()
+        .filter_map(|profile_id| state.begin_profile_removal(profile_id))
+        .collect();
+    Ok((settings, removed_profile_ids, controls, tag_baselines))
+}
+
+#[tauri::command]
+pub async fn remove_profile(
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> CommandResult<AppSettings> {
+    let settings = remove_profile_core(&state, &profile_id).await?;
+    state
+        .send_runtime(RuntimeMessage::Reload)
+        .map_err(display_error)?;
+    state
+        .send_tag_runtime(TagRuntimeMessage::Reload)
+        .map_err(display_error)?;
+    state
+        .send_index_runtime(IndexRuntimeMessage::Reload)
+        .map_err(display_error)?;
+    tracing::info!(profile_id = %profile_id, "watch profile removed and active work cancelled");
+    Ok(settings)
+}
+
+async fn remove_profile_core(state: &AppState, profile_id: &str) -> CommandResult<AppSettings> {
+    let (settings, controls) = {
         let mut live = state.settings.write().await;
-        // 这些状态只能由各自的专用命令修改。持有写锁完成落盘，避免目录自动保存与按钮操作并发时互相覆盖。
-        settings.agent = live.agent.clone();
-        settings.monitoring_paused = live.monitoring_paused;
-        settings.paused = live.paused;
-        settings.classification_paused = live.classification_paused;
+        if !live.profiles.iter().any(|profile| profile.id == profile_id) {
+            return Err("找不到监控目录".to_string());
+        }
+        let mut updated = live.clone();
+        updated.profiles.retain(|profile| profile.id != profile_id);
         state
             .storage
-            .save_settings(&settings)
+            .save_settings(&updated)
             .map_err(display_error)?;
-        *live = settings.clone();
+        *live = updated.clone();
+        let controls = state
+            .begin_profile_removal(profile_id)
+            .into_iter()
+            .collect();
+        (updated, controls)
+    };
+    cleanup_removed_profiles(state, &[profile_id.to_string()], controls).await?;
+    Ok(settings)
+}
+
+async fn cleanup_removed_profiles(
+    state: &AppState,
+    profile_ids: &[String],
+    controls: Vec<ProfileRuntimeControl>,
+) -> CommandResult<()> {
+    for control in controls {
+        control.wait_for_writers().await;
     }
-    state.set_monitoring_paused_flag(settings.monitoring_paused);
-    state.set_paused_flag(settings.paused);
-    let removed_work_dirs = removed_profile_ids
+    let work_dirs = profile_ids
         .iter()
-        .flat_map(|profile_id| {
-            state
-                .storage
-                .list_profile_tasks(profile_id)
-                .unwrap_or_default()
-        })
+        .map(|profile_id| state.storage.list_profile_tasks(profile_id))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(display_error)?
+        .into_iter()
+        .flatten()
         .map(|task| state.storage.mineru_work_root().join(task.id))
         .collect::<Vec<_>>();
     state
         .storage
-        .delete_profile_records(&removed_profile_ids)
+        .delete_profile_records(profile_ids)
         .map_err(display_error)?;
     if let Err(error) = tokio::task::spawn_blocking(move || {
-        for work_dir in removed_work_dirs {
+        for work_dir in work_dirs {
             if work_dir.exists()
                 && let Err(error) = std::fs::remove_dir_all(&work_dir)
             {
@@ -205,28 +310,10 @@ pub async fn save_settings(
     {
         tracing::warn!(error = %error, "removed profile MinerU cache cleanup task failed");
     }
-    state
-        .storage
-        .delete_disabled_waiting_tasks(&settings.enabled_extensions)
-        .map_err(display_error)?;
-    state
-        .send_runtime(RuntimeMessage::Reload)
-        .map_err(display_error)?;
-    for profile_id in tag_baselines {
-        state
-            .send_tag_runtime(TagRuntimeMessage::ApplyRules {
-                profile_id,
-                process_existing: false,
-            })
-            .map_err(display_error)?;
+    for profile_id in profile_ids {
+        state.forget_cancelled_profile(profile_id);
     }
-    state
-        .send_tag_runtime(TagRuntimeMessage::Reload)
-        .map_err(display_error)?;
-    state
-        .send_index_runtime(IndexRuntimeMessage::Reload)
-        .map_err(display_error)?;
-    Ok(settings)
+    Ok(())
 }
 
 #[tauri::command]
@@ -637,7 +724,12 @@ fn display_error(error: impl std::fmt::Display) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::{remove_profile_core, save_settings_core};
+    use crate::models::{ConversionEngine, MinerUPartMode, TagJobStatus, WatchProfile};
+    use crate::pdf_split::PdfPartPlan;
+    use crate::state::AppState;
     use crate::tagging::validate_agent_base_url;
+    use std::path::Path;
 
     #[test]
     fn validates_agent_base_urls_strictly() {
@@ -659,5 +751,186 @@ mod tests {
         assert!(validate_agent_base_url("https://user:secret@example.com/v1").is_err());
         assert!(validate_agent_base_url("https://example.com/v1?key=secret").is_err());
         assert!(validate_agent_base_url("not a url").is_err());
+    }
+
+    #[tokio::test]
+    async fn removing_profile_persists_config_and_records_without_deleting_files() {
+        let temporary = tempfile::tempdir().unwrap();
+        let input = temporary.path().join("input");
+        let output = temporary.path().join("output");
+        std::fs::create_dir_all(&input).unwrap();
+        std::fs::create_dir_all(&output).unwrap();
+        let source = input.join("notes.md");
+        let generated = output.join("notes.md");
+        std::fs::write(&source, b"# source").unwrap();
+        std::fs::write(&generated, b"# generated").unwrap();
+        let profile = WatchProfile {
+            id: "remove-me".to_string(),
+            name: "Remove me".to_string(),
+            input_dir: input.to_string_lossy().to_string(),
+            output_dir: output.to_string_lossy().to_string(),
+            enabled: true,
+            delete_policy: Default::default(),
+            tagging: Default::default(),
+        };
+        let state = AppState::new(temporary.path().join("data")).unwrap();
+        {
+            let mut settings = state.settings.write().await;
+            settings.profiles = vec![profile.clone()];
+            state.storage.save_settings(&settings).unwrap();
+        }
+        state.ensure_profile_controls([profile.id.as_str()]);
+        state
+            .storage
+            .queue_task(
+                &profile,
+                &source,
+                Path::new("notes.md"),
+                8,
+                1,
+                ConversionEngine::Anytomd,
+                &generated,
+                false,
+            )
+            .unwrap();
+        state
+            .storage
+            .put_tag_job(
+                &profile.id,
+                &generated,
+                Path::new("notes.md"),
+                "schema",
+                TagJobStatus::Queued,
+                true,
+            )
+            .unwrap();
+
+        let saved = remove_profile_core(&state, &profile.id).await.unwrap();
+
+        assert!(saved.profiles.is_empty());
+        assert!(state.storage.load_settings().unwrap().profiles.is_empty());
+        assert_eq!(state.storage.task_count().unwrap(), 0);
+        assert_eq!(state.storage.tag_job_count().unwrap(), 0);
+        assert!(source.exists());
+        assert!(generated.exists());
+        assert!(state.profile_control(&profile.id).is_none());
+    }
+
+    #[tokio::test]
+    async fn stale_settings_cannot_restore_a_removed_profile() {
+        let temporary = tempfile::tempdir().unwrap();
+        let input = temporary.path().join("input");
+        let output = temporary.path().join("output");
+        std::fs::create_dir_all(&input).unwrap();
+        std::fs::create_dir_all(&output).unwrap();
+        let profile = WatchProfile {
+            id: "stale-profile".to_string(),
+            name: "Stale".to_string(),
+            input_dir: input.to_string_lossy().to_string(),
+            output_dir: output.to_string_lossy().to_string(),
+            enabled: true,
+            delete_policy: Default::default(),
+            tagging: Default::default(),
+        };
+        let state = AppState::new(temporary.path().join("data")).unwrap();
+        let stale_settings = {
+            let mut settings = state.settings.write().await;
+            settings.profiles.push(profile.clone());
+            state.storage.save_settings(&settings).unwrap();
+            settings.clone()
+        };
+        state.ensure_profile_controls([profile.id.as_str()]);
+
+        remove_profile_core(&state, &profile.id).await.unwrap();
+        let error = save_settings_core(&state, stale_settings, &[profile.id.clone()])
+            .await
+            .err()
+            .unwrap();
+        assert!(error.contains("其他窗口变更"));
+        assert!(state.settings.read().await.profiles.is_empty());
+        assert!(state.storage.load_settings().unwrap().profiles.is_empty());
+    }
+
+    #[tokio::test]
+    async fn deleting_profile_waits_for_pdf_writer_and_cleans_parts_and_cache() {
+        let temporary = tempfile::tempdir().unwrap();
+        let input = temporary.path().join("input");
+        let output = temporary.path().join("output");
+        std::fs::create_dir_all(&input).unwrap();
+        std::fs::create_dir_all(&output).unwrap();
+        let source = input.join("large.pdf");
+        let generated = output.join("large.md");
+        std::fs::write(&source, b"pdf").unwrap();
+        std::fs::write(&generated, b"existing result").unwrap();
+        let profile = WatchProfile {
+            id: "pdf-profile".to_string(),
+            name: "PDF".to_string(),
+            input_dir: input.to_string_lossy().to_string(),
+            output_dir: output.to_string_lossy().to_string(),
+            enabled: true,
+            delete_policy: Default::default(),
+            tagging: Default::default(),
+        };
+        let state = AppState::new(temporary.path().join("data")).unwrap();
+        {
+            let mut settings = state.settings.write().await;
+            settings.profiles.push(profile.clone());
+            state.storage.save_settings(&settings).unwrap();
+        }
+        state.ensure_profile_controls([profile.id.as_str()]);
+        let parent = state
+            .storage
+            .prepare_task(
+                &profile,
+                &source,
+                Path::new("large.pdf"),
+                "hash",
+                3,
+                1,
+                ConversionEngine::Mineru,
+                &generated,
+                true,
+            )
+            .unwrap()
+            .unwrap();
+        state
+            .storage
+            .replace_mineru_parts(
+                &parent.id,
+                "hash",
+                1,
+                &[PdfPartPlan {
+                    index: 1,
+                    count: 1,
+                    page_start: 1,
+                    page_end: 1,
+                    mode: MinerUPartMode::SplitPdf,
+                    input_path: None,
+                }],
+            )
+            .unwrap();
+        let work_dir = state.storage.mineru_work_root().join(&parent.id);
+        std::fs::create_dir_all(&work_dir).unwrap();
+        std::fs::write(work_dir.join("part.pdf"), b"part").unwrap();
+
+        let control = state.profile_control(&profile.id).unwrap();
+        let writer = control.write_permit().await.unwrap();
+        let state_for_delete = state.clone();
+        let profile_id = profile.id.clone();
+        let deleting =
+            tokio::spawn(async move { remove_profile_core(&state_for_delete, &profile_id).await });
+        tokio::time::timeout(std::time::Duration::from_secs(2), control.cancelled())
+            .await
+            .unwrap();
+        assert!(!deleting.is_finished());
+        assert!(work_dir.exists());
+        drop(writer);
+        deleting.await.unwrap().unwrap();
+
+        assert!(control.write_permit().await.is_err());
+        assert_eq!(state.storage.visible_task_count().unwrap(), 0);
+        assert!(!work_dir.exists());
+        assert_eq!(std::fs::read(&generated).unwrap(), b"existing result");
+        assert!(source.exists());
     }
 }

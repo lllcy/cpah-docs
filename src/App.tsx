@@ -10,6 +10,7 @@ import {
   errorMessage,
   makeProfile,
   pendingStatuses,
+  profileSignature,
   profilesReadyToSave,
   settingsSaveSignature,
   previewDashboard,
@@ -53,6 +54,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [removingProfileId, setRemovingProfileId] = useState<string | null>(null);
   const [autoSaveError, setAutoSaveError] = useState("");
   const [savingToken, setSavingToken] = useState(false);
   const [changingMonitoringState, setChangingMonitoringState] = useState(false);
@@ -70,6 +72,8 @@ export default function App() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
   const failedAutoSaveSignatureRef = useRef<string | null>(null);
+  const savingSettingsRef = useRef(false);
+  const removingProfileIdRef = useRef<string | null>(null);
   const initialViewResolvedRef = useRef(false);
   const { theme, setTheme } = useThemeMode();
 
@@ -174,7 +178,7 @@ export default function App() {
   const persistedProfilesSignature = useMemo(() => settingsSaveSignature(persistedSettings), [persistedSettings]);
   const directorySettingsDirty = currentProfilesSignature !== persistedProfilesSignature;
   const directorySettingsComplete = profilesReadyToSave(settings.profiles);
-  const directorySaveState: DirectorySaveState = savingSettings
+  const directorySaveState: DirectorySaveState = savingSettings || removingProfileId !== null
     ? "saving"
     : directorySettingsDirty && autoSaveError
       ? "error"
@@ -194,6 +198,7 @@ export default function App() {
     if (
       loading ||
       savingSettings ||
+      removingProfileId !== null ||
       !directorySettingsDirty ||
       !directorySettingsComplete ||
       failedAutoSaveSignatureRef.current === currentProfilesSignature
@@ -207,6 +212,7 @@ export default function App() {
     directorySettingsComplete,
     directorySettingsDirty,
     loading,
+    removingProfileId,
     savingSettings,
     settings,
   ]);
@@ -218,6 +224,7 @@ export default function App() {
   }
 
   function patchProfile(id: string, patch: Partial<WatchProfile>) {
+    if (removingProfileIdRef.current === id) return;
     failedAutoSaveSignatureRef.current = null;
     setAutoSaveError("");
     setSettings((current) => ({
@@ -234,10 +241,62 @@ export default function App() {
     return profile;
   }
 
-  function removeProfile(id: string) {
+  async function removeProfile(id: string) {
+    if (savingSettingsRef.current || removingProfileIdRef.current) return;
     failedAutoSaveSignatureRef.current = null;
     setAutoSaveError("");
-    setSettings((current) => ({ ...current, profiles: current.profiles.filter((profile) => profile.id !== id) }));
+    const persisted = persistedSettings.profiles.some((profile) => profile.id === id);
+    if (!persisted) {
+      setSettings((current) => ({ ...current, profiles: current.profiles.filter((profile) => profile.id !== id) }));
+      return;
+    }
+
+    const previousProfiles = new Map(persistedSettings.profiles.map((profile) => [profile.id, profile]));
+    function adoptSavedRemoval(saved: AppSettings) {
+      const savedIds = new Set(saved.profiles.map((profile) => profile.id));
+      setPersistedSettings(saved);
+      setSettings((current) => {
+        const localById = new Map(current.profiles.map((profile) => [profile.id, profile]));
+        return {
+          ...current,
+          profiles: [
+            ...saved.profiles.map((remote) => {
+              const local = localById.get(remote.id);
+              const previous = previousProfiles.get(remote.id);
+              return local && previous && profileSignature(local) !== profileSignature(previous) ? local : remote;
+            }),
+            ...current.profiles.filter((profile) =>
+              profile.id !== id && !savedIds.has(profile.id) && !previousProfiles.has(profile.id)),
+          ],
+        };
+      });
+    }
+
+    removingProfileIdRef.current = id;
+    setRemovingProfileId(id);
+    try {
+      const saved = previewMode
+        ? { ...persistedSettings, profiles: persistedSettings.profiles.filter((profile) => profile.id !== id) }
+        : await invoke<AppSettings>("remove_profile", { profileId: id });
+      adoptSavedRemoval(saved);
+      setNotice({ kind: "success", message: "监控目录已删除，相关后台任务已停止。" });
+      await refresh();
+    } catch (error) {
+      try {
+        const dashboard = await invoke<Dashboard>("get_dashboard");
+        if (!dashboard.settings.profiles.some((profile) => profile.id === id)) {
+          adoptSavedRemoval(dashboard.settings);
+          setNotice({ kind: "error", message: `监控目录已移除，但后续清理未完成：${errorMessage(error)}` });
+        } else {
+          setNotice({ kind: "error", message: errorMessage(error) });
+        }
+      } catch {
+        setNotice({ kind: "error", message: errorMessage(error) });
+      }
+    } finally {
+      removingProfileIdRef.current = null;
+      setRemovingProfileId(null);
+    }
   }
 
   function toggleFormatExtensions(extensions: string[], enabled: boolean) {
@@ -267,10 +326,12 @@ export default function App() {
   }
 
   async function saveSettings(automatic = false, snapshot = settings) {
+    if (savingSettingsRef.current || removingProfileIdRef.current) return;
     const submittedSignature = settingsSaveSignature(snapshot);
     const containsNewProfile = snapshot.profiles.some(
       (profile) => !persistedSettings.profiles.some((persisted) => persisted.id === profile.id),
     );
+    savingSettingsRef.current = true;
     setSavingSettings(true);
     setAutoSaveError("");
     try {
@@ -278,7 +339,10 @@ export default function App() {
       if (previewMode) {
         saved = snapshot;
       } else {
-        saved = await invoke<AppSettings>("save_settings", { settings: snapshot });
+        saved = await invoke<AppSettings>("save_settings", {
+          settings: snapshot,
+          expectedProfileIds: persistedSettings.profiles.map((profile) => profile.id),
+        });
       }
       setPersistedSettings(saved);
       setSettings((current) => (
@@ -296,6 +360,7 @@ export default function App() {
       if (automatic) failedAutoSaveSignatureRef.current = submittedSignature;
       setNotice({ kind: "error", message: automatic ? `自动保存失败：${message}` : message });
     } finally {
+      savingSettingsRef.current = false;
       setSavingSettings(false);
     }
   }
@@ -617,6 +682,7 @@ export default function App() {
       selectedId={selectedProfileId}
       onSelectedIdChange={setSelectedProfileId}
       saving={savingSettings}
+      removingProfileId={removingProfileId}
       saveState={directorySaveState}
       saveError={autoSaveError}
       monitoringPaused={settings.monitoringPaused}

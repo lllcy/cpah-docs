@@ -164,7 +164,18 @@ async fn rebuild_one(state: &AppState, profile_id: &str) {
 
 async fn rebuild(state: &AppState, profile: WatchProfile) {
     let profile_name = profile.name.clone();
-    match tokio::task::spawn_blocking(move || rebuild_profile_index(&profile)).await {
+    let Some(control) = state.profile_control(&profile.id) else {
+        return;
+    };
+    let Ok(write_permit) = control.write_permit().await else {
+        return;
+    };
+    match tokio::task::spawn_blocking(move || {
+        let _write_permit = write_permit;
+        rebuild_profile_index(&profile)
+    })
+    .await
+    {
         Ok(Ok(())) => state.clear_index_runtime_error(),
         Ok(Err(error)) => {
             let message = format!("知识库索引更新失败（{profile_name}）：{error:#}");

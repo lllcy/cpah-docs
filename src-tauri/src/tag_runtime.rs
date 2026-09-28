@@ -1,6 +1,6 @@
 use crate::knowledge_index::is_profile_index;
 use crate::models::{TagJobStatus, WatchProfile};
-use crate::state::AppState;
+use crate::state::{AppState, ProfileCancelled, is_profile_cancelled};
 use crate::tagging::{run_tag_agent, schema_hash};
 use anyhow::{Context, Result};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
@@ -322,6 +322,12 @@ async fn enqueue_path(
         return Ok(());
     }
     let hash = schema_hash(&profile.tagging)?;
+    let Some(control) = state.profile_control(&profile.id) else {
+        return Ok(());
+    };
+    let Ok(_operation_permit) = control.write_permit().await else {
+        return Ok(());
+    };
     state.storage.put_tag_job(
         &profile.id,
         &path,
@@ -346,6 +352,12 @@ async fn apply_profile_rules(
         .find(|profile| profile.id == profile_id)
     else {
         anyhow::bail!("找不到监控目录");
+    };
+    let Some(control) = state.profile_control(profile_id) else {
+        return Ok(());
+    };
+    let Ok(_operation_permit) = control.write_permit().await else {
+        return Ok(());
     };
     if !classification_enabled(&profile) {
         state.storage.cancel_profile_pending_tag_jobs(profile_id)?;
@@ -466,6 +478,12 @@ async fn pump_queue(
             )?;
             continue;
         }
+        let Some(control) = state.profile_control(&job.profile_id) else {
+            continue;
+        };
+        let Ok(operation_permit) = control.write_permit().await else {
+            continue;
+        };
         {
             let mut running = active.lock().await;
             if !running.paths.insert(path.clone()) {
@@ -475,6 +493,7 @@ async fn pump_queue(
         state
             .storage
             .set_tag_job_status(&job.id, TagJobStatus::Reading, None)?;
+        drop(operation_permit);
         started += 1;
         let state = state.clone();
         let active = active.clone();
@@ -485,15 +504,18 @@ async fn pump_queue(
         let model = settings.agent.clone();
         let api_key = api_key.clone();
         tauri::async_runtime::spawn(async move {
-            let result = run_tag_agent(
-                state.storage.clone(),
-                job_id.clone(),
-                path.clone(),
-                config,
-                model,
-                api_key,
-            )
-            .await;
+            let result = tokio::select! {
+                _ = control.cancelled() => Err(ProfileCancelled.into()),
+                result = run_tag_agent(
+                    state.storage.clone(),
+                    job_id.clone(),
+                    path.clone(),
+                    config,
+                    model,
+                    api_key,
+                    control.clone(),
+                ) => result,
+            };
             match result {
                 Ok(result) => {
                     let result_json = serde_json::to_string(&result.categories)
@@ -528,11 +550,13 @@ async fn pump_queue(
                     }
                 }
                 Err(error) => {
-                    let _ = state.storage.set_tag_job_status(
-                        &job_id,
-                        TagJobStatus::Failed,
-                        Some(&format!("{error:#}")),
-                    );
+                    if !control.is_cancelled() && !is_profile_cancelled(&error) {
+                        let _ = state.storage.set_tag_job_status(
+                            &job_id,
+                            TagJobStatus::Failed,
+                            Some(&format!("{error:#}")),
+                        );
+                    }
                 }
             }
             let pending_force = {

@@ -9,7 +9,7 @@ use crate::models::{
     WatchProfile,
 };
 use crate::pdf_split::{PdfPlan, plan_pdf, recreate_physical_part};
-use crate::state::AppState;
+use crate::state::{AppState, ProfileCancelled, ProfileRuntimeControl, is_profile_cancelled};
 use crate::tag_runtime::TagRuntimeMessage;
 use anyhow::{Context, Result};
 use notify::event::ModifyKind;
@@ -274,18 +274,22 @@ async fn scan_all(
         .filter(|profile| profile.enabled)
         .collect();
     let enabled_extensions = settings.enabled_extensions;
-    let paths = tokio::task::spawn_blocking(move || -> Result<Vec<PathBuf>> {
-        let mut paths = Vec::new();
-        for profile in profiles {
-            paths.extend(scan_profile_tree(
-                &profile,
-                Path::new(&profile.input_dir),
-                &enabled_extensions,
-            )?);
-        }
-        Ok(paths)
-    })
-    .await??;
+    let mut paths = Vec::new();
+    for profile in profiles {
+        let Some(control) = state.profile_control(&profile.id) else {
+            continue;
+        };
+        let Ok(write_permit) = control.write_permit().await else {
+            continue;
+        };
+        let extensions = enabled_extensions.clone();
+        let discovered = tokio::task::spawn_blocking(move || {
+            let _write_permit = write_permit;
+            scan_profile_tree(&profile, Path::new(&profile.input_dir), &extensions)
+        })
+        .await??;
+        paths.extend(discovered);
+    }
     for path in paths {
         schedule_path(
             state,
@@ -323,10 +327,17 @@ async fn handle_path(
         let Some(profile) = matching_profile(&settings.profiles, &path) else {
             return Ok(());
         };
+        let Some(control) = state.profile_control(&profile.id) else {
+            return Ok(());
+        };
+        let Ok(write_permit) = control.write_permit().await else {
+            return Ok(());
+        };
         let profile_for_scan = profile.clone();
         let enabled_extensions = settings.enabled_extensions;
         let root = path.clone();
         let paths = tokio::task::spawn_blocking(move || {
+            let _write_permit = write_permit;
             scan_profile_tree(&profile_for_scan, &root, &enabled_extensions)
         })
         .await??;
@@ -386,6 +397,14 @@ fn mirror_source_directory(profile: &WatchProfile, source: &Path) -> Result<Path
     Ok(output)
 }
 
+async fn run_if_profile_active<T>(
+    control: &ProfileRuntimeControl,
+    operation: impl FnOnce() -> Result<T>,
+) -> Result<T> {
+    let _permit = control.write_permit().await?;
+    operation()
+}
+
 async fn schedule_path(
     state: &AppState,
     mineru: &MinerUClient,
@@ -411,6 +430,9 @@ async fn schedule_path(
         return;
     }
     let Some(profile) = matching_profile(&settings.profiles, &path) else {
+        return;
+    };
+    let Some(control) = state.profile_control(&profile.id) else {
         return;
     };
     let key = path.clone();
@@ -446,18 +468,27 @@ async fn schedule_path(
         .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
         .map(|duration| duration.as_millis() as i64)
         .unwrap_or_default();
-    let queued_task = match state.storage.queue_task(
-        &profile,
-        &path,
-        relative,
-        metadata.len(),
-        modified_ms,
-        engine.clone(),
-        &output,
-        request.is_force(),
-    ) {
+    let queued_task_result = run_if_profile_active(&control, || {
+        state.storage.queue_task(
+            &profile,
+            &path,
+            relative,
+            metadata.len(),
+            modified_ms,
+            engine.clone(),
+            &output,
+            request.is_force(),
+        )
+    })
+    .await;
+    let queued_task = match queued_task_result {
         Ok(Some(task)) => task,
         Ok(None) => {
+            let pending = active.lock().await.finish(&key);
+            dispatch_pending(state, key, pending);
+            return;
+        }
+        Err(error) if is_profile_cancelled(&error) => {
             let pending = active.lock().await.finish(&key);
             dispatch_pending(state, key, pending);
             return;
@@ -485,7 +516,10 @@ async fn schedule_path(
     let active = active.clone();
     let semaphore = semaphore.clone();
     tauri::async_runtime::spawn(async move {
-        let result = async {
+        let result = tokio::select! {
+            _ = control.cancelled() => Err(ProfileCancelled.into()),
+            result = async {
+            let _operation_permit = control.write_permit().await?;
             let part_semaphore = semaphore.clone();
             let _permit = if defer_pdf_mineru_permit {
                 None
@@ -516,17 +550,20 @@ async fn schedule_path(
                 &path,
                 request.is_force(),
                 &part_semaphore,
+                &control,
             )
             .await
-        }
-        .await;
+            } => result,
+        };
         if let Err(error) = result {
-            let _ = state.storage.set_status(
-                &queued_task_id,
-                JobStatus::Failed,
-                Some(&format!("{error:#}")),
-            );
-            tracing::error!(file = %path.file_name().and_then(|name| name.to_str()).unwrap_or("<unknown>"), error = %format!("{error:#}"), "conversion failed");
+            if !control.is_cancelled() && !is_profile_cancelled(&error) {
+                let _ = state.storage.set_status(
+                    &queued_task_id,
+                    JobStatus::Failed,
+                    Some(&format!("{error:#}")),
+                );
+                tracing::error!(file = %path.file_name().and_then(|name| name.to_str()).unwrap_or("<unknown>"), error = %format!("{error:#}"), "conversion failed");
+            }
         }
         let pending = active.lock().await.finish(&key);
         dispatch_pending(&state, key, pending);
@@ -552,6 +589,7 @@ async fn process_path(
     path: &Path,
     force: bool,
     semaphore: &Arc<Semaphore>,
+    control: &ProfileRuntimeControl,
 ) -> Result<()> {
     let metadata = wait_until_stable(path).await?;
     let source = path.to_path_buf();
@@ -602,14 +640,20 @@ async fn process_path(
                         .map(PathBuf::from)
                         .context("Markdown 任务缺少输出路径")?;
                     let profile = profile.clone();
-                    tokio::task::spawn_blocking(move || copy_markdown(&profile, &source, &output))
-                        .await??;
+                    let write_permit = control.write_permit().await?;
+                    tokio::task::spawn_blocking(move || {
+                        let _write_permit = write_permit;
+                        copy_markdown(&profile, &source, &output)
+                    })
+                    .await??;
                 } else {
                     let artifact =
                         tokio::task::spawn_blocking(move || convert_locally(&source)).await??;
                     let profile = profile.clone();
                     let task_for_write = task.clone();
+                    let write_permit = control.write_permit().await?;
                     tokio::task::spawn_blocking(move || {
+                        let _write_permit = write_permit;
                         write_artifact(&profile, &task_for_write, artifact)
                     })
                     .await??;
@@ -618,14 +662,18 @@ async fn process_path(
             }
             .await
         }
-        ConversionEngine::Mineru => run_mineru(state, mineru, profile, &task, semaphore).await,
+        ConversionEngine::Mineru => {
+            run_mineru(state, mineru, profile, &task, semaphore, control).await
+        }
     };
 
     match result {
         Ok(true) => {
             if let Some(previous) = previous_output {
                 let profile = profile.clone();
+                let write_permit = control.write_permit().await?;
                 tokio::task::spawn_blocking(move || {
+                    let _write_permit = write_permit;
                     remove_generated_output(&profile, &previous, false)
                 })
                 .await??;
@@ -661,6 +709,7 @@ async fn run_mineru(
     profile: &WatchProfile,
     task: &TaskRecord,
     semaphore: &Arc<Semaphore>,
+    control: &ProfileRuntimeControl,
 ) -> Result<bool> {
     let source = Path::new(&task.source_path);
     let is_pdf = source
@@ -671,7 +720,9 @@ async fn run_mineru(
         let work_dir = parent_work_dir(state, &task.id);
         let planning_work_dir = work_dir.join(format!("planning-{}", Uuid::new_v4().simple()));
         let work_dir_for_create = work_dir.clone();
+        let write_permit = control.write_permit().await?;
         tokio::task::spawn_blocking(move || {
+            let _write_permit = write_permit;
             std::fs::create_dir_all(&work_dir_for_create)?;
             Ok::<(), anyhow::Error>(())
         })
@@ -679,8 +730,12 @@ async fn run_mineru(
         state.storage.delete_mineru_parts(&task.id)?;
         let source_for_plan = source.to_path_buf();
         let work_for_plan = planning_work_dir.clone();
-        let plan_result =
-            tokio::task::spawn_blocking(move || plan_pdf(&source_for_plan, &work_for_plan)).await;
+        let write_permit = control.write_permit().await?;
+        let plan_result = tokio::task::spawn_blocking(move || {
+            let _write_permit = write_permit;
+            plan_pdf(&source_for_plan, &work_for_plan)
+        })
+        .await;
         let plan = match plan_result {
             Ok(Ok(plan)) => plan,
             Ok(Err(error)) => {
@@ -710,7 +765,9 @@ async fn run_mineru(
                         .map(|source| (source.clone(), part_input_path(state, record)))
                 })
                 .collect::<Vec<_>>();
+            let write_permit = control.write_permit().await?;
             tokio::task::spawn_blocking(move || {
+                let _write_permit = write_permit;
                 for (source, destination) in physical_inputs {
                     if let Some(parent) = destination.parent() {
                         std::fs::create_dir_all(parent)?;
@@ -782,8 +839,12 @@ async fn run_mineru(
     let profile = profile.clone();
     let task = task.clone();
     let task_id = task.id.clone();
-    tokio::task::spawn_blocking(move || write_staged_mineru_artifact(&profile, &task, &stage_dir))
-        .await??;
+    let write_permit = control.write_permit().await?;
+    tokio::task::spawn_blocking(move || {
+        let _write_permit = write_permit;
+        write_staged_mineru_artifact(&profile, &task, &stage_dir)
+    })
+    .await??;
     let work_dir = parent_work_dir(state, &task_id);
     let cleanup = tokio::task::spawn_blocking(move || {
         if work_dir.exists() {
@@ -829,7 +890,7 @@ async fn schedule_new_mineru_part(
     if state.is_paused() || !state.storage.claim_queued_mineru_part(&part.id)? {
         return Ok(());
     }
-    spawn_mineru_part(state, mineru, semaphore, part, false);
+    spawn_mineru_part(state, mineru, semaphore, part, false)?;
     Ok(())
 }
 
@@ -842,7 +903,7 @@ async fn schedule_resumed_mineru_part(
     state
         .storage
         .set_mineru_part_status(&part.id, JobStatus::Processing, None)?;
-    spawn_mineru_part(state, mineru, semaphore, part, true);
+    spawn_mineru_part(state, mineru, semaphore, part, true)?;
     Ok(())
 }
 
@@ -852,21 +913,30 @@ fn spawn_mineru_part(
     semaphore: &Arc<Semaphore>,
     part: MinerUPartRecord,
     resume_existing: bool,
-) {
+) -> Result<()> {
+    let Some(parent) = state.storage.get_task(&part.parent_task_id)? else {
+        return Ok(());
+    };
+    let Some(control) = state.profile_control(&parent.profile_id) else {
+        return Ok(());
+    };
     let state = state.clone();
     let mineru = mineru.clone();
     let semaphore = semaphore.clone();
     tauri::async_runtime::spawn(async move {
-        let result = async {
+        let result = tokio::select! {
+            _ = control.cancelled() => Err(ProfileCancelled.into()),
+            result = async {
+            let _operation_permit = control.write_permit().await?;
             let _permit = semaphore.acquire_owned().await?;
             if state.is_paused() && !resume_existing {
                 state.storage.reset_mineru_part_for_retry(&part.id)?;
                 return Ok(());
             }
-            process_mineru_part(&state, &mineru, &part, resume_existing).await
-        }
-        .await;
-        if result.is_ok() {
+            process_mineru_part(&state, &mineru, &part, resume_existing, &control).await
+            } => result,
+        };
+        if result.is_ok() && !control.is_cancelled() {
             if let Err(error) = try_finalize_mineru_parent(&state, &part.parent_task_id).await {
                 tracing::error!(
                     parent_task_id = %part.parent_task_id,
@@ -874,7 +944,10 @@ fn spawn_mineru_part(
                     "MinerU parent merge failed"
                 );
             }
-        } else if let Err(error) = result {
+        } else if let Err(error) = result
+            && !control.is_cancelled()
+            && !is_profile_cancelled(&error)
+        {
             let status = mineru_failure_status(&error);
             let _ =
                 state
@@ -914,6 +987,7 @@ fn spawn_mineru_part(
             }
         }
     });
+    Ok(())
 }
 
 async fn process_mineru_part(
@@ -921,6 +995,7 @@ async fn process_mineru_part(
     mineru: &MinerUClient,
     part: &MinerUPartRecord,
     resume_existing: bool,
+    control: &ProfileRuntimeControl,
 ) -> Result<()> {
     let parent = state
         .storage
@@ -963,7 +1038,9 @@ async fn process_mineru_part(
                     let destination = input_path.clone();
                     let page_start = u32::try_from(part.page_start).context("分片起始页无效")?;
                     let page_end = u32::try_from(part.page_end).context("分片结束页无效")?;
+                    let write_permit = control.write_permit().await?;
                     tokio::task::spawn_blocking(move || {
+                        let _write_permit = write_permit;
                         recreate_physical_part(
                             &source_for_split,
                             page_start,
@@ -1059,6 +1136,13 @@ async fn poll_mineru_part(
 }
 
 async fn try_finalize_mineru_parent(state: &AppState, parent_task_id: &str) -> Result<()> {
+    let Some(parent) = state.storage.get_task(parent_task_id)? else {
+        return Ok(());
+    };
+    let Some(control) = state.profile_control(&parent.profile_id) else {
+        return Ok(());
+    };
+    let _operation_permit = control.write_permit().await?;
     if !state.storage.claim_parent_for_merge(parent_task_id)? {
         return Ok(());
     }
@@ -1094,7 +1178,9 @@ async fn try_finalize_mineru_parent(state: &AppState, parent_task_id: &str) -> R
             .collect::<Vec<_>>();
         let profile_for_write = profile.clone();
         let parent_for_write = parent.clone();
+        let write_permit = control.write_permit().await?;
         tokio::task::spawn_blocking(move || {
+            let _write_permit = write_permit;
             write_multipart_artifact(&profile_for_write, &parent_for_write, &staged)
         })
         .await??;
@@ -1131,6 +1217,9 @@ async fn try_finalize_mineru_parent(state: &AppState, parent_task_id: &str) -> R
     }
     .await;
     if let Err(error) = result {
+        if control.is_cancelled() || is_profile_cancelled(&error) {
+            return Ok(());
+        }
         state.storage.set_status(
             parent_task_id,
             JobStatus::Failed,
@@ -1246,12 +1335,20 @@ async fn resume_mineru(
         dispatch_pending(state, path, pending);
         return;
     };
+    let Some(control) = state.profile_control(&profile.id) else {
+        let pending = active.lock().await.finish(&path);
+        dispatch_pending(state, path, pending);
+        return;
+    };
     let state = state.clone();
     let mineru = mineru.clone();
     let active = active.clone();
     let semaphore = semaphore.clone();
     tauri::async_runtime::spawn(async move {
-        let result = async {
+        let result = tokio::select! {
+            _ = control.cancelled() => Err(ProfileCancelled.into()),
+            result = async {
+            let _operation_permit = control.write_permit().await?;
             let _permit = semaphore.acquire_owned().await?;
             let token = AppState::read_mineru_token()?;
             let base_url = state.settings.read().await.mineru_base_url.clone();
@@ -1287,7 +1384,9 @@ async fn resume_mineru(
             verify_mineru_source_hash(&state, &task).await?;
             let profile_for_write = profile.clone();
             let task_for_write = task.clone();
+            let write_permit = control.write_permit().await?;
             tokio::task::spawn_blocking(move || {
+                let _write_permit = write_permit;
                 write_staged_mineru_artifact(&profile_for_write, &task_for_write, &stage_dir)
             })
             .await??;
@@ -1321,14 +1420,16 @@ async fn resume_mineru(
                 }
             }
             Ok::<(), anyhow::Error>(())
-        }
-        .await;
+            } => result,
+        };
         if let Err(error) = result {
-            let _ = state.storage.set_status(
-                &task.id,
-                mineru_failure_status(&error),
-                Some(&format!("{error:#}")),
-            );
+            if !control.is_cancelled() && !is_profile_cancelled(&error) {
+                let _ = state.storage.set_status(
+                    &task.id,
+                    mineru_failure_status(&error),
+                    Some(&format!("{error:#}")),
+                );
+            }
         }
         let pending = active.lock().await.finish(&path);
         dispatch_pending(&state, path, pending);
@@ -1597,6 +1698,12 @@ async fn reconcile_missing_sources(state: &AppState, active: &SharedActivePaths)
         .into_iter()
         .filter(|profile| profile.enabled)
     {
+        let Some(control) = state.profile_control(&profile.id) else {
+            continue;
+        };
+        let Ok(write_permit) = control.write_permit().await else {
+            continue;
+        };
         let input_root = Path::new(&profile.input_dir);
         let root_available = std::fs::read_dir(input_root)
             .and_then(|mut entries| entries.next().transpose().map(|_| ()))
@@ -1648,7 +1755,11 @@ async fn reconcile_missing_sources(state: &AppState, active: &SharedActivePaths)
                 tracing::warn!(error = %error, "deleted source MinerU cache cleanup task failed");
             }
         }
-        tokio::task::spawn_blocking(move || prune_empty_output_directories(&profile)).await??;
+        tokio::task::spawn_blocking(move || {
+            let _write_permit = write_permit;
+            prune_empty_output_directories(&profile)
+        })
+        .await??;
     }
     Ok(())
 }
@@ -1801,6 +1912,43 @@ mod tests {
         (source, output, task)
     }
 
+    #[tokio::test]
+    async fn stale_scanner_cannot_queue_after_profile_cancellation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let input = temporary.path().join("input");
+        let output = temporary.path().join("output");
+        std::fs::create_dir_all(&input).unwrap();
+        let profile = temporary_profile(&input, &output);
+        let source = input.join("notes.md");
+        let generated = output.join("notes.md");
+        std::fs::write(&source, b"# source").unwrap();
+        let state = AppState::new(temporary.path().join("data")).unwrap();
+        state.ensure_profile_controls([profile.id.as_str()]);
+        let stale_control = state.profile_control(&profile.id).unwrap();
+
+        state.begin_profile_removal(&profile.id);
+        let result = run_if_profile_active(&stale_control, || {
+            state.storage.queue_task(
+                &profile,
+                &source,
+                Path::new("notes.md"),
+                8,
+                1,
+                ConversionEngine::Anytomd,
+                &generated,
+                false,
+            )
+        })
+        .await;
+
+        assert!(
+            result
+                .err()
+                .is_some_and(|error| is_profile_cancelled(&error))
+        );
+        assert_eq!(state.storage.task_count().unwrap(), 0);
+    }
+
     #[test]
     fn waiting_mineru_retry_is_deferred_while_scan_is_active() {
         let path = PathBuf::from("report.pdf");
@@ -1838,6 +1986,7 @@ mod tests {
         let profile = temporary_profile(&input, &output_root);
         let state = AppState::new(temporary.path().join("data")).unwrap();
         state.settings.write().await.profiles = vec![profile.clone()];
+        state.ensure_profile_controls([profile.id.as_str()]);
         let (_, output, task) = completed_task(&state, &profile, &source);
 
         std::fs::remove_file(source).unwrap();
@@ -1861,6 +2010,7 @@ mod tests {
         let profile = temporary_profile(&input, &output_root);
         let state = AppState::new(temporary.path().join("data")).unwrap();
         state.settings.write().await.profiles = vec![profile.clone()];
+        state.ensure_profile_controls([profile.id.as_str()]);
         let (source, output, task) = completed_task(&state, &profile, &source);
         std::fs::remove_file(&source).unwrap();
 
@@ -1900,6 +2050,7 @@ mod tests {
         let canonical_source = dunce::canonicalize(&source).unwrap();
         let profile = temporary_profile(&input, &output);
         let state = AppState::new(data).unwrap();
+        state.ensure_profile_controls([profile.id.as_str()]);
         {
             let mut settings = state.settings.write().await;
             settings.profiles = vec![profile];

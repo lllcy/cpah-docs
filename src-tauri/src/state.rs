@@ -4,17 +4,82 @@ use crate::runtime::RuntimeMessage;
 use crate::storage::Storage;
 use crate::tag_runtime::TagRuntimeMessage;
 use anyhow::{Context, Result};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use tokio::sync::{RwLock, mpsc};
+use tokio::sync::{OwnedRwLockReadGuard, RwLock, mpsc};
+use tokio_util::sync::CancellationToken;
 
 const KEYRING_SERVICE: &str = "CPAHDocs";
 const LEGACY_KEYRING_SERVICE: &str = "CPAHelperDocumentConverter";
 const LEGACY_APP_IDENTIFIER: &str = "com.cpahelper.document-converter";
 const MINERU_KEYRING_USER: &str = "mineru-token";
 const AGENT_KEYRING_USER: &str = "agent-api-key";
+
+#[derive(Debug)]
+pub struct ProfileCancelled;
+
+impl std::fmt::Display for ProfileCancelled {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("监控目录已删除，任务已取消")
+    }
+}
+
+impl std::error::Error for ProfileCancelled {}
+
+#[derive(Clone)]
+pub struct ProfileRuntimeControl {
+    cancellation: CancellationToken,
+    write_barrier: Arc<RwLock<()>>,
+}
+
+impl ProfileRuntimeControl {
+    pub(crate) fn new() -> Self {
+        Self {
+            cancellation: CancellationToken::new(),
+            write_barrier: Arc::new(RwLock::new(())),
+        }
+    }
+
+    pub async fn cancelled(&self) {
+        self.cancellation.cancelled().await;
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancellation.is_cancelled()
+    }
+
+    pub async fn write_permit(
+        &self,
+    ) -> std::result::Result<OwnedRwLockReadGuard<()>, ProfileCancelled> {
+        let permit = self.write_barrier.clone().read_owned().await;
+        if self.is_cancelled() {
+            Err(ProfileCancelled)
+        } else {
+            Ok(permit)
+        }
+    }
+
+    pub fn cancel(&self) {
+        self.cancellation.cancel();
+    }
+
+    pub async fn wait_for_writers(&self) {
+        let _barrier = self.write_barrier.write().await;
+    }
+
+    #[cfg(test)]
+    async fn cancel_and_wait(&self) {
+        self.cancel();
+        self.wait_for_writers().await;
+    }
+}
+
+pub fn is_profile_cancelled(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<ProfileCancelled>().is_some()
+}
 
 #[derive(Clone)]
 pub struct AppState {
@@ -23,6 +88,7 @@ pub struct AppState {
     monitoring_paused: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
     classification_paused: Arc<AtomicBool>,
+    profile_controls: Arc<Mutex<HashMap<String, ProfileRuntimeControl>>>,
     runtime_sender: Arc<Mutex<Option<mpsc::UnboundedSender<RuntimeMessage>>>>,
     tag_runtime_sender: Arc<Mutex<Option<mpsc::UnboundedSender<TagRuntimeMessage>>>>,
     index_runtime_sender: Arc<Mutex<Option<mpsc::UnboundedSender<IndexRuntimeMessage>>>>,
@@ -40,12 +106,18 @@ impl AppState {
         let monitoring_paused = settings.monitoring_paused;
         let paused = settings.paused;
         let classification_paused = settings.classification_paused;
+        let profile_controls = settings
+            .profiles
+            .iter()
+            .map(|profile| (profile.id.clone(), ProfileRuntimeControl::new()))
+            .collect();
         Ok(Self {
             storage,
             settings: Arc::new(RwLock::new(settings)),
             monitoring_paused: Arc::new(AtomicBool::new(monitoring_paused)),
             paused: Arc::new(AtomicBool::new(paused)),
             classification_paused: Arc::new(AtomicBool::new(classification_paused)),
+            profile_controls: Arc::new(Mutex::new(profile_controls)),
             runtime_sender: Arc::new(Mutex::new(None)),
             tag_runtime_sender: Arc::new(Mutex::new(None)),
             index_runtime_sender: Arc::new(Mutex::new(None)),
@@ -128,6 +200,45 @@ impl AppState {
 
     pub fn set_classification_paused_flag(&self, paused: bool) {
         self.classification_paused.store(paused, Ordering::Relaxed);
+    }
+
+    pub fn profile_control(&self, profile_id: &str) -> Option<ProfileRuntimeControl> {
+        self.profile_controls
+            .lock()
+            .expect("profile controls lock poisoned")
+            .get(profile_id)
+            .cloned()
+    }
+
+    pub fn ensure_profile_controls<'a>(&self, profile_ids: impl IntoIterator<Item = &'a str>) {
+        let mut controls = self
+            .profile_controls
+            .lock()
+            .expect("profile controls lock poisoned");
+        for profile_id in profile_ids {
+            controls
+                .entry(profile_id.to_string())
+                .or_insert_with(ProfileRuntimeControl::new);
+        }
+    }
+
+    pub fn begin_profile_removal(&self, profile_id: &str) -> Option<ProfileRuntimeControl> {
+        let control = self.profile_control(profile_id)?;
+        control.cancel();
+        Some(control)
+    }
+
+    pub fn forget_cancelled_profile(&self, profile_id: &str) {
+        let mut controls = self
+            .profile_controls
+            .lock()
+            .expect("profile controls lock poisoned");
+        if controls
+            .get(profile_id)
+            .is_some_and(ProfileRuntimeControl::is_cancelled)
+        {
+            controls.remove(profile_id);
+        }
     }
 
     pub fn set_runtime_error(&self, error: String) {
@@ -244,7 +355,7 @@ pub fn migrate_legacy_data_dir(data_dir: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::migrate_legacy_data_dir;
+    use super::{ProfileRuntimeControl, migrate_legacy_data_dir};
     use std::fs;
 
     #[test]
@@ -272,5 +383,29 @@ mod tests {
             fs::read(current.join("settings.json")).unwrap(),
             b"current settings"
         );
+    }
+
+    #[tokio::test]
+    async fn cancelling_profile_waits_for_active_writer_and_blocks_future_writes() {
+        let control = ProfileRuntimeControl::new();
+        let write_permit = control.write_permit().await.unwrap();
+        let cancelling = control.clone();
+        let cancellation = tokio::spawn(async move {
+            cancelling.cancel_and_wait().await;
+        });
+
+        tokio::time::timeout(std::time::Duration::from_secs(1), async {
+            while !control.is_cancelled() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(control.is_cancelled());
+        assert!(!cancellation.is_finished());
+
+        drop(write_permit);
+        cancellation.await.unwrap();
+        assert!(control.write_permit().await.is_err());
     }
 }

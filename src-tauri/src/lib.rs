@@ -17,8 +17,8 @@ mod tagging;
 use commands::{
     apply_tagging_config, get_dashboard, get_diagnostic_report, get_project_license, get_tag_jobs,
     get_third_party_licenses, open_managed_path, open_mineru_token_page, preview_tagging_change,
-    rescan_all_profiles, retry_failed_tasks, retry_tag_job, retry_tag_jobs, retry_task,
-    run_health_check, save_agent_settings, save_settings, set_classification_paused,
+    remove_profile, rescan_all_profiles, retry_failed_tasks, retry_tag_job, retry_tag_jobs,
+    retry_task, run_health_check, save_agent_settings, save_settings, set_classification_paused,
     set_mineru_token, set_monitoring_paused, set_paused, test_agent_connection,
 };
 use state::AppState;
@@ -81,6 +81,7 @@ pub fn run() {
             open_managed_path,
             open_mineru_token_page,
             save_settings,
+            remove_profile,
             set_mineru_token,
             set_paused,
             set_monitoring_paused,

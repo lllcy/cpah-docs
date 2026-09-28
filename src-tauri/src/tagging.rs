@@ -1,4 +1,5 @@
 use crate::models::{AgentSettings, CategoryLabel, TagSelectionMode, TaggingConfig};
+use crate::state::ProfileRuntimeControl;
 use crate::storage::Storage;
 use anyhow::{Context, Result};
 use rig::agent::{
@@ -237,6 +238,7 @@ pub async fn run_tag_agent(
     config: TaggingConfig,
     model: AgentSettings,
     api_key: String,
+    control: ProfileRuntimeControl,
 ) -> Result<TagRunResult> {
     let original =
         fs::read(&path).with_context(|| format!("无法读取 Markdown：{}", path.display()))?;
@@ -282,6 +284,7 @@ pub async fn run_tag_agent(
             remaining,
             storage.clone(),
             job_id.clone(),
+            control.clone(),
         )
         .await;
         if lock_session(&session).wrote {
@@ -333,6 +336,7 @@ async fn run_agent_once(
     max_turns: usize,
     storage: Storage,
     job_id: String,
+    control: ProfileRuntimeControl,
 ) -> Result<()> {
     let base_url = validate_agent_base_url(&model.base_url)?;
     let http_client = build_agent_http_client()?;
@@ -356,7 +360,7 @@ async fn run_agent_once(
         )
     };
     let read_tool = build_read_tool(session.clone());
-    let update_tool = build_update_tool(session.clone(), storage, job_id);
+    let update_tool = build_update_tool(session.clone(), storage, job_id, control);
     let (mode_instruction, label_instructions) = {
         let guard = lock_session(&session);
         let mode = match guard.selection_mode {
@@ -502,6 +506,7 @@ fn build_update_tool(
     session: Arc<Mutex<AgentSession>>,
     storage: Storage,
     job_id: String,
+    control: ProfileRuntimeControl,
 ) -> DynamicTool {
     let (selection_mode, labels) = {
         let guard = lock_session(&session);
@@ -535,6 +540,7 @@ fn build_update_tool(
             let session = session.clone();
             let storage = storage.clone();
             let job_id = job_id.clone();
+            let control = control.clone();
             Box::pin(async move {
                 let (path, original_hash, categories) = {
                     let guard = lock_session(&session);
@@ -552,6 +558,10 @@ fn build_update_tool(
                         validate_agent_categories(&guard.selection_mode, &guard.labels, arguments)?;
                     (guard.path.clone(), guard.original_hash.clone(), categories)
                 };
+                let _write_permit = control
+                    .write_permit()
+                    .await
+                    .map_err(|error| ToolExecutionError::other(error.to_string()))?;
                 storage
                     .set_tag_job_status(&job_id, crate::models::TagJobStatus::Writing, None)
                     .map_err(|error| ToolExecutionError::other(error.to_string()))?;
@@ -1247,6 +1257,7 @@ mod tests {
             config,
             settings,
             "test-key".to_string(),
+            ProfileRuntimeControl::new(),
         )
         .await
         .unwrap();
@@ -1308,9 +1319,17 @@ mod tests {
         };
         let key = std::env::var("CPAHDOCS_AGENT_API_KEY").unwrap();
         let started_at = std::time::Instant::now();
-        let result = run_tag_agent(storage, job.id, path.clone(), config, settings, key)
-            .await
-            .unwrap();
+        let result = run_tag_agent(
+            storage,
+            job.id,
+            path.clone(),
+            config,
+            settings,
+            key,
+            ProfileRuntimeControl::new(),
+        )
+        .await
+        .unwrap();
         eprintln!(
             "classification e2e: elapsed_ms={}, api_calls={}, input_tokens={}, output_tokens={}, total_tokens={}, read_bytes={}",
             started_at.elapsed().as_millis(),
