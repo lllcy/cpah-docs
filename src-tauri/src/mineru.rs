@@ -1,16 +1,16 @@
 use crate::converter::asset_reference_variants;
 #[cfg(test)]
 use crate::converter::{ConversionArtifact, ConversionAsset};
+use crate::state::ProfileRuntimeControl;
 use anyhow::{Context, Result, bail};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 #[cfg(test)]
 use std::io::Cursor;
-use std::io::{Read, Seek};
+use std::io::{Read, Seek, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tokio::io::AsyncWriteExt;
 use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 use zip::ZipArchive;
@@ -242,26 +242,38 @@ impl MinerUClient {
         bail!("MinerU 结果缺少 ZIP 和 Markdown 下载地址")
     }
 
-    pub async fn download_to_stage(&self, result: &ExtractResult, stage_dir: &Path) -> Result<()> {
-        if stage_dir.exists() {
-            tokio::fs::remove_dir_all(stage_dir)
-                .await
-                .with_context(|| format!("无法清理 MinerU 暂存目录：{}", stage_dir.display()))?;
-        }
-        tokio::fs::create_dir_all(stage_dir)
-            .await
-            .with_context(|| format!("无法创建 MinerU 暂存目录：{}", stage_dir.display()))?;
+    pub async fn download_to_stage(
+        &self,
+        result: &ExtractResult,
+        stage_dir: &Path,
+        control: &ProfileRuntimeControl,
+    ) -> Result<()> {
+        let directory = stage_dir.to_path_buf();
+        control
+            .run_write(move || {
+                if directory.exists() {
+                    fs::remove_dir_all(&directory).with_context(|| {
+                        format!("无法清理 MinerU 暂存目录：{}", directory.display())
+                    })?;
+                }
+                fs::create_dir_all(&directory).with_context(|| {
+                    format!("无法创建 MinerU 暂存目录：{}", directory.display())
+                })?;
+                Ok(())
+            })
+            .await?;
         if let Some(zip_url) = result.full_zip_url.as_deref().filter(|url| !url.is_empty()) {
             let zip_path = stage_dir.join("result.zip");
-            self.download_limited_to_path(zip_url, MAX_DOWNLOAD_BYTES, "ZIP", &zip_path)
+            self.download_limited_to_path(zip_url, MAX_DOWNLOAD_BYTES, "ZIP", &zip_path, control)
                 .await?;
             let zip_path_for_extract = zip_path.clone();
             let stage_for_extract = stage_dir.to_path_buf();
-            tokio::task::spawn_blocking(move || {
-                extract_zip_file_to_stage(&zip_path_for_extract, &stage_for_extract)
-            })
-            .await
-            .context("MinerU 解压任务异常")??;
+            control
+                .run_write(move || {
+                    extract_zip_file_to_stage(&zip_path_for_extract, &stage_for_extract)
+                })
+                .await
+                .context("MinerU 解压任务异常")?;
             tokio::fs::remove_file(&zip_path).await.ok();
             return Ok(());
         }
@@ -275,6 +287,7 @@ impl MinerUClient {
                 MAX_MARKDOWN_BYTES,
                 "Markdown",
                 &stage_dir.join("full.md"),
+                control,
             )
             .await?;
             return Ok(());
@@ -288,6 +301,7 @@ impl MinerUClient {
         limit: u64,
         label: &str,
         destination: &Path,
+        control: &ProfileRuntimeControl,
     ) -> Result<()> {
         let mut response = self.http.get(url).send().await?.error_for_status()?;
         if response
@@ -296,10 +310,16 @@ impl MinerUClient {
         {
             bail!("MinerU {label} 超过下载安全上限");
         }
-        if let Some(parent) = destination.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-        let mut file = tokio::fs::File::create(destination)
+        let destination = destination.to_path_buf();
+        let create_path = destination.clone();
+        control
+            .run_write(move || {
+                if let Some(parent) = create_path.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                File::create(create_path)?;
+                Ok(())
+            })
             .await
             .with_context(|| format!("无法创建 MinerU {label} 暂存文件"))?;
         let mut total = 0_u64;
@@ -310,9 +330,23 @@ impl MinerUClient {
             if total > limit {
                 bail!("MinerU {label} 超过下载安全上限");
             }
-            file.write_all(&chunk).await?;
+            let chunk_path = destination.clone();
+            // Close the handle before releasing the permit, including when the
+            // async download is cancelled while blocking I/O is still running.
+            control
+                .run_write(move || {
+                    let mut file = fs::OpenOptions::new().append(true).open(chunk_path)?;
+                    file.write_all(&chunk)?;
+                    Ok(())
+                })
+                .await?;
         }
-        file.sync_all().await?;
+        control
+            .run_write(move || {
+                let file = fs::OpenOptions::new().write(true).open(destination)?;
+                Ok(file.sync_all()?)
+            })
+            .await?;
         Ok(())
     }
 
@@ -933,7 +967,10 @@ mod tests {
             )
             .await
             .unwrap();
-        client.download_to_stage(&result, stage_dir).await.unwrap();
+        client
+            .download_to_stage(&result, stage_dir, &ProfileRuntimeControl::new())
+            .await
+            .unwrap();
         let markdown = fs::read_to_string(stage_dir.join("full.md")).unwrap();
         eprintln!(
             "mineru e2e download complete: label={} markdown_bytes={}",

@@ -535,6 +535,7 @@ mod tests {
             config.clone(),
             settings,
             "test-key".into(),
+            crate::state::ProfileRuntimeControl::new(),
         )
         .await
         .unwrap();
@@ -590,7 +591,8 @@ mod tests {
                 path.clone(),
                 config,
                 settings,
-                "test-key".into()
+                "test-key".into(),
+                crate::state::ProfileRuntimeControl::new(),
             )
             .await
             .is_err()
@@ -631,12 +633,53 @@ mod tests {
             config,
             settings,
             "test-key".into(),
+            crate::state::ProfileRuntimeControl::new(),
         )
         .await
         .unwrap_err();
         server.join().unwrap();
         assert!(error.to_string().contains("已被修改"));
         assert_eq!(fs::read_to_string(path).unwrap(), "用户刚修改的内容");
+    }
+
+    #[tokio::test]
+    async fn cancelled_profile_cannot_write_a_late_decision_response() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("decision.md");
+        let original = "---\ncpah_categories:\n  - 原标签\n---\n测试文档";
+        fs::write(&path, original).unwrap();
+        let config = config(TagSelectionMode::Single, 2);
+        let storage = Storage::new(temporary.path().join("data")).unwrap();
+        let job = storage
+            .put_tag_job(
+                "profile",
+                &path,
+                Path::new("decision.md"),
+                &schema_hash(&config).unwrap(),
+                TagJobStatus::Queued,
+                true,
+            )
+            .unwrap();
+        let control = crate::state::ProfileRuntimeControl::new();
+        let cancellation = control.clone();
+        let (settings, server) =
+            mock_server(vec![(200, choice_response("label_0"))], move |_, _| {
+                cancellation.cancel()
+            });
+        let error = run_tag_agent(
+            storage,
+            job.id,
+            path.clone(),
+            config,
+            settings,
+            "test-key".into(),
+            control,
+        )
+        .await
+        .unwrap_err();
+        server.join().unwrap();
+        assert!(crate::state::is_profile_cancelled(&error));
+        assert_eq!(fs::read_to_string(path).unwrap(), original);
     }
 
     #[tokio::test]

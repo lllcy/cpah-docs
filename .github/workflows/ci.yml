@@ -48,6 +48,9 @@ jobs:
       - name: Test file browser
         run: npm run test:files
 
+      - name: Test category import
+        run: npm run test:tag-import
+
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --all-targets
 

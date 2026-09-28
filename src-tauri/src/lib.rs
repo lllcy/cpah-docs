@@ -23,8 +23,8 @@ use commands::{
     apply_tagging_config, classify_profile_file, convert_profile_file, get_dashboard,
     get_diagnostic_report, get_project_license, get_tag_jobs, get_third_party_licenses,
     list_profile_files, open_managed_path, open_mineru_token_page, preview_tagging_change,
-    rescan_all_profiles, retry_failed_tasks, retry_tag_job, retry_tag_jobs, retry_task,
-    run_health_check, save_agent_settings, save_settings, search_profile_files,
+    remove_profile, rescan_all_profiles, retry_failed_tasks, retry_tag_job, retry_tag_jobs,
+    retry_task, run_health_check, save_agent_settings, save_settings, search_profile_files,
     set_classification_paused, set_mineru_token, set_monitoring_paused, set_paused,
     test_agent_connection,
 };
@@ -92,6 +92,7 @@ pub fn run() {
             open_managed_path,
             open_mineru_token_page,
             save_settings,
+            remove_profile,
             set_mineru_token,
             set_paused,
             set_monitoring_paused,

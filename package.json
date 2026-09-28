@@ -20,6 +20,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "test:tag-import": "node --test tests/tag-import.test.mjs",
     "test:files": "node --test tests/file-browser-model.test.mjs",
     "preview": "vite preview",
     "release": "node scripts/release.mjs",
