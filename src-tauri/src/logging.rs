@@ -4,6 +4,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tracing_subscriber::fmt::MakeWriter;
+use tracing_subscriber::{filter::Targets, prelude::*};
 
 const MAX_LOG_BYTES: u64 = 2 * 1024 * 1024;
 const LOG_BACKUPS: usize = 3;
@@ -40,11 +41,25 @@ pub fn initialize(data_dir: &Path) -> Result<()> {
             bytes,
         })),
     };
-    tracing_subscriber::fmt()
-        .with_ansi(false)
-        .with_target(true)
-        .with_thread_ids(false)
-        .with_writer(writer)
+    // Parser diagnostics may contain document text, worksheet names or URLs.
+    // Keep application status logs without persisting third-party parser output.
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(false)
+                .with_target(true)
+                .with_thread_ids(false)
+                .with_writer(writer)
+                .with_filter(
+                    Targets::new()
+                        .with_default(tracing::Level::INFO)
+                        .with_target("anydoc", tracing_subscriber::filter::LevelFilter::OFF)
+                        .with_target(
+                            "pdf_inspector",
+                            tracing_subscriber::filter::LevelFilter::OFF,
+                        ),
+                ),
+        )
         .try_init()
         .map_err(|error| anyhow::anyhow!("无法初始化应用日志：{error}"))?;
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "CPAH Docs started");

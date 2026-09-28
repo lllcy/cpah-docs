@@ -1,7 +1,7 @@
 use crate::converter::{
-    StagedMinerUPart, convert_locally, copy_markdown, default_engine, is_enabled, is_markdown,
-    is_supported, output_path, remove_generated_output, write_artifact, write_multipart_artifact,
-    write_staged_mineru_artifact,
+    LocalConversion, StagedMinerUPart, convert_locally, copy_markdown, default_engine, is_enabled,
+    is_markdown, is_pdf, is_supported, output_path, remove_generated_output, write_artifact,
+    write_multipart_artifact, write_staged_mineru_artifact,
 };
 use crate::mineru::MinerUClient;
 use crate::models::{
@@ -671,11 +671,7 @@ async fn schedule_path(
         }
     };
     let queued_task_id = queued_task.id;
-    let defer_pdf_mineru_permit = engine == ConversionEngine::Mineru
-        && path
-            .extension()
-            .and_then(|extension| extension.to_str())
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"));
+    let defer_pdf_permit = is_pdf(&path);
     if state.is_paused() || !state.conversion_priority.allows(&queued_task_id) {
         let pending = active.lock().await.finish(&key);
         dispatch_pending(state, key, pending);
@@ -688,7 +684,7 @@ async fn schedule_path(
     tauri::async_runtime::spawn(async move {
         let result = async {
             let part_semaphore = semaphore.clone();
-            let _permit = if defer_pdf_mineru_permit {
+            let _permit = if defer_pdf_permit {
                 None
             } else {
                 Some(semaphore.acquire_owned().await?)
@@ -717,6 +713,7 @@ async fn schedule_path(
                 &path,
                 request.is_force(),
                 &part_semaphore,
+                AppState::read_mineru_token,
             )
             .await
         }
@@ -753,8 +750,12 @@ async fn process_path(
     path: &Path,
     force: bool,
     semaphore: &Arc<Semaphore>,
+    read_mineru_token: fn() -> Result<String>,
 ) -> Result<()> {
     let metadata = wait_until_stable(path).await?;
+    if !is_markdown(path) && metadata.len() > crate::local_conversion::MAX_INPUT_BYTES {
+        anyhow::bail!("原文件超过 512 MiB 安全上限");
+    }
     let source = path.to_path_buf();
     let hash = tokio::task::spawn_blocking(move || sha256_file(&source)).await??;
     let modified_ms = metadata
@@ -766,7 +767,10 @@ async fn process_path(
     let relative = path
         .strip_prefix(&profile.input_dir)
         .with_context(|| format!("文件不在监控目录内：{}", path.display()))?;
-    let engine = default_engine(path).context("不支持的文档格式")?;
+    let mut engine = default_engine(path).context("不支持的文档格式")?;
+    if is_pdf(path) && state.storage.pdf_requires_ocr(path, &hash)? {
+        engine = ConversionEngine::Mineru;
+    }
     let output = output_path(profile, path)?;
     let previous_output = state
         .storage
@@ -774,7 +778,7 @@ async fn process_path(
         .and_then(|task| task.output_path)
         .map(PathBuf::from)
         .filter(|previous| previous != &output && previous.starts_with(&profile.output_dir));
-    let Some(task) = state.storage.prepare_task(
+    let Some(mut task) = state.storage.prepare_task(
         profile,
         path,
         relative,
@@ -790,8 +794,18 @@ async fn process_path(
     };
 
     let result: Result<bool> = match engine {
-        ConversionEngine::Anytomd => {
+        ConversionEngine::Anydoc | ConversionEngine::Copy | ConversionEngine::Anytomd => {
             async {
+                // Non-PDF tasks hold the scheduling permit; PDFs hold it only
+                // during local conversion, releasing it before cloud fan-out.
+                let pdf_permit = if is_pdf(path) {
+                    Some(semaphore.clone().acquire_owned().await?)
+                } else {
+                    None
+                };
+                if state.is_paused() || !state.conversion_priority.allows(&task.id) {
+                    return Ok(false);
+                }
                 state
                     .storage
                     .set_status(&task.id, JobStatus::Converting, None)?;
@@ -806,8 +820,41 @@ async fn process_path(
                     tokio::task::spawn_blocking(move || copy_markdown(&profile, &source, &output))
                         .await??;
                 } else {
-                    let artifact =
+                    let outcome =
                         tokio::task::spawn_blocking(move || convert_locally(&source)).await??;
+                    verify_source_version(path, &hash).await?;
+                    let artifact = match outcome {
+                        LocalConversion::Converted(artifact) => artifact,
+                        LocalConversion::NeedsOcr { pages, page_count } => {
+                            if !is_pdf(path) {
+                                anyhow::bail!("非 PDF 文档请求了 OCR");
+                            }
+                            state.storage.mark_pdf_requires_ocr(&task.id, &hash)?;
+                            engine = ConversionEngine::Mineru;
+                            task = state
+                                .storage
+                                .get_task(&task.id)?
+                                .context("OCR 任务不存在")?;
+                            tracing::info!(
+                                pages_needing_ocr = pages.len(),
+                                page_count,
+                                "PDF requires OCR"
+                            );
+                            drop(pdf_permit);
+                            if state.is_paused() || !state.conversion_priority.allows(&task.id) {
+                                return Ok(false);
+                            }
+                            return run_mineru(
+                                state,
+                                mineru,
+                                profile,
+                                &task,
+                                semaphore,
+                                read_mineru_token,
+                            )
+                            .await;
+                        }
+                    };
                     let profile = profile.clone();
                     let task_for_write = task.clone();
                     tokio::task::spawn_blocking(move || {
@@ -819,7 +866,9 @@ async fn process_path(
             }
             .await
         }
-        ConversionEngine::Mineru => run_mineru(state, mineru, profile, &task, semaphore).await,
+        ConversionEngine::Mineru => {
+            run_mineru(state, mineru, profile, &task, semaphore, read_mineru_token).await
+        }
     };
 
     match result {
@@ -862,8 +911,16 @@ async fn run_mineru(
     profile: &WatchProfile,
     task: &TaskRecord,
     semaphore: &Arc<Semaphore>,
+    read_mineru_token: fn() -> Result<String>,
 ) -> Result<bool> {
     let source = Path::new(&task.source_path);
+    if state.is_paused() || !state.conversion_priority.allows(&task.id) {
+        return Ok(false);
+    }
+    let token = read_mineru_token()?;
+    if let Some(expected_hash) = task.source_hash.as_deref() {
+        verify_source_version(source, expected_hash).await?;
+    }
     let is_pdf = source
         .extension()
         .and_then(|extension| extension.to_str())
@@ -941,7 +998,9 @@ async fn run_mineru(
     } else {
         None
     };
-    let token = AppState::read_mineru_token()?;
+    if state.is_paused() || !state.conversion_priority.allows(&task.id) {
+        return Ok(false);
+    }
     let base_url = state.settings.read().await.mineru_base_url.clone();
     let submission = mineru.submit(source, None, &base_url, &token).await?;
     state.storage.set_mineru_submission(
@@ -1938,6 +1997,15 @@ async fn wait_until_stable(path: &Path) -> Result<std::fs::Metadata> {
     anyhow::bail!("等待文件写入完成超时：{}", path.display())
 }
 
+async fn verify_source_version(path: &Path, expected_hash: &str) -> Result<()> {
+    let source = path.to_path_buf();
+    let actual = tokio::task::spawn_blocking(move || sha256_file(&source)).await??;
+    if actual != expected_hash {
+        anyhow::bail!("源文件已变化，当前转换结果已作废");
+    }
+    Ok(())
+}
+
 fn sha256_file(path: &Path) -> Result<String> {
     let mut file = File::open(path)?;
     let mut hasher = Sha256::new();
@@ -1971,6 +2039,295 @@ fn mineru_failure_status(error: &anyhow::Error) -> JobStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn no_cloud_token() -> Result<String> {
+        panic!("local conversion must not read cloud credentials");
+    }
+
+    fn missing_cloud_token() -> Result<String> {
+        anyhow::bail!("未配置 MinerU Token");
+    }
+
+    #[tokio::test]
+    async fn local_documents_write_assets_and_pdf_never_reads_cloud_credentials() {
+        use crate::local_conversion::tests::{write_docx, write_pdf};
+        let (_root, state, profile, _active, mineru, semaphore) = priority_fixture().await;
+        state.set_paused_flag(false);
+        let source = Path::new(&profile.input_dir).join("document.docx");
+        write_docx(&source);
+        process_path(
+            &state,
+            &mineru,
+            &profile,
+            &source,
+            false,
+            &semaphore,
+            no_cloud_token,
+        )
+        .await
+        .unwrap();
+        let task = state
+            .storage
+            .find_by_source(&source.to_string_lossy())
+            .unwrap()
+            .unwrap();
+        assert_eq!(task.status, JobStatus::Completed);
+        assert_eq!(task.engine, ConversionEngine::Anydoc);
+        let output = output_path(&profile, &source).unwrap();
+        let markdown = std::fs::read_to_string(&output).unwrap();
+        assert!(markdown.contains("converter: anydoc"));
+        assert!(
+            markdown.contains("document.assets/asset-0000.png"),
+            "{markdown}"
+        );
+        let assets = crate::converter::asset_path_for_output(&output).unwrap();
+        assert_eq!(
+            std::fs::read(assets.join("asset-0000.png")).unwrap(),
+            b"synthetic image payload preserved verbatim"
+        );
+
+        let pdf = Path::new(&profile.input_dir).join("text.pdf");
+        write_pdf(&pdf, &[false]);
+        process_path(
+            &state,
+            &mineru,
+            &profile,
+            &pdf,
+            false,
+            &semaphore,
+            no_cloud_token,
+        )
+        .await
+        .unwrap();
+        let task = state
+            .storage
+            .find_by_source(&pdf.to_string_lossy())
+            .unwrap()
+            .unwrap();
+        assert_eq!(task.status, JobStatus::Completed);
+        assert_eq!(task.engine, ConversionEngine::Anydoc);
+        std::fs::write(&pdf, b"%PDF-1.5 invalid document").unwrap();
+        process_path(
+            &state,
+            &mineru,
+            &profile,
+            &pdf,
+            true,
+            &semaphore,
+            no_cloud_token,
+        )
+        .await
+        .unwrap();
+        let task = state.storage.get_task(&task.id).unwrap().unwrap();
+        assert_eq!(task.status, JobStatus::Failed);
+        assert_eq!(task.engine, ConversionEngine::Anydoc);
+        assert!(task.mineru_batch_id.is_none());
+    }
+
+    #[tokio::test]
+    async fn pdf_ocr_decision_survives_restart_retry_and_clears_on_source_change() {
+        use crate::local_conversion::tests::write_pdf;
+        let (root, state, profile, _active, mineru, semaphore) = priority_fixture().await;
+        state.set_paused_flag(false);
+        let source = Path::new(&profile.input_dir).join("scan.pdf");
+        write_pdf(&source, &[false, true]);
+        process_path(
+            &state,
+            &mineru,
+            &profile,
+            &source,
+            false,
+            &semaphore,
+            missing_cloud_token,
+        )
+        .await
+        .unwrap();
+        let task = state
+            .storage
+            .find_by_source(&source.to_string_lossy())
+            .unwrap()
+            .unwrap();
+        assert_eq!(task.status, JobStatus::WaitingMineru);
+        assert_eq!(task.engine, ConversionEngine::Mineru);
+        let hash = task.source_hash.as_ref().unwrap();
+        assert!(state.storage.pdf_requires_ocr(&source, hash).unwrap());
+        assert!(!output_path(&profile, &source).unwrap().exists());
+        assert_eq!(semaphore.available_permits(), 2);
+        let reopened = crate::storage::Storage::new(root.path().join("data")).unwrap();
+        assert!(reopened.pdf_requires_ocr(&source, hash).unwrap());
+        assert!(
+            reopened
+                .mark_pdf_requires_ocr(&task.id, "stale-hash")
+                .is_err()
+        );
+
+        // Queueing before hashing must preserve the previous decision.
+        let metadata = std::fs::metadata(&source).unwrap();
+        reopened
+            .queue_task(
+                &profile,
+                &source,
+                Path::new("scan.pdf"),
+                metadata.len(),
+                0,
+                ConversionEngine::Anydoc,
+                &output_path(&profile, &source).unwrap(),
+                true,
+            )
+            .unwrap();
+        assert!(reopened.pdf_requires_ocr(&source, hash).unwrap());
+        process_path(
+            &state,
+            &mineru,
+            &profile,
+            &source,
+            true,
+            &semaphore,
+            missing_cloud_token,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            state.storage.get_task(&task.id).unwrap().unwrap().status,
+            JobStatus::WaitingMineru
+        );
+
+        write_pdf(&source, &[false]);
+        process_path(
+            &state,
+            &mineru,
+            &profile,
+            &source,
+            true,
+            &semaphore,
+            no_cloud_token,
+        )
+        .await
+        .unwrap();
+        let changed = state.storage.get_task(&task.id).unwrap().unwrap();
+        assert_eq!(changed.status, JobStatus::Completed);
+        assert_eq!(changed.engine, ConversionEngine::Anydoc);
+        assert!(!reopened.pdf_requires_ocr(&source, hash).unwrap());
+        assert!(
+            !reopened
+                .pdf_requires_ocr(&source, changed.source_hash.as_ref().unwrap())
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn mixed_pdf_fallback_uploads_whole_document_with_one_worker_permit() {
+        use crate::local_conversion::tests::write_pdf;
+        use std::io::Write as _;
+        use std::net::TcpListener;
+        let (_root, state, profile, _active, mineru, _semaphore) = priority_fixture().await;
+        state.set_paused_flag(false);
+        let semaphore = Arc::new(Semaphore::new(1));
+        let source = Path::new(&profile.input_dir).join("mixed.pdf");
+        write_pdf(&source, &[false, true]);
+        let expected_pdf = std::fs::read(&source).unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        state.settings.write().await.mineru_base_url = base.clone();
+        listener.set_nonblocking(true).unwrap();
+        let server = tokio::task::spawn_blocking(move || {
+            let mut data_id = String::new();
+            let deadline = std::time::Instant::now() + Duration::from_secs(20);
+            for step in 0..4 {
+                let mut stream = loop {
+                    match listener.accept() {
+                        Ok((stream, _)) => break stream,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            assert!(
+                                std::time::Instant::now() < deadline,
+                                "mock request timed out at step {step}"
+                            );
+                            std::thread::sleep(Duration::from_millis(10));
+                        }
+                        Err(error) => panic!("{error}"),
+                    }
+                };
+                stream.set_nonblocking(false).unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                let mut request = Vec::new();
+                let body_start = loop {
+                    let mut buf = [0; 4096];
+                    let n = stream.read(&mut buf).unwrap();
+                    assert!(n > 0);
+                    request.extend_from_slice(&buf[..n]);
+                    if let Some(pos) = request.windows(4).position(|v| v == b"\r\n\r\n") {
+                        break pos + 4;
+                    }
+                };
+                let headers = String::from_utf8_lossy(&request[..body_start]).to_lowercase();
+                let content_length: usize = headers
+                    .lines()
+                    .find_map(|line| line.strip_prefix("content-length:"))
+                    .map(|value| value.trim().parse().unwrap())
+                    .unwrap_or(0);
+                while request.len() < body_start + content_length {
+                    let mut buf = [0; 4096];
+                    let n = stream.read(&mut buf).unwrap();
+                    assert!(n > 0);
+                    request.extend_from_slice(&buf[..n]);
+                }
+                let body = &request[body_start..];
+                let response = match step {
+                    0 => {
+                        assert!(headers.starts_with("post /file-urls/batch "));
+                        let json: serde_json::Value = serde_json::from_slice(body).unwrap();
+                        assert_eq!(json["files"][0]["is_ocr"], true);
+                        assert!(json["files"][0].get("page_ranges").is_none());
+                        data_id = json["files"][0]["data_id"].as_str().unwrap().to_string();
+                        serde_json::json!({"code":0,"data":{"batch_id":"mock-batch","file_urls":[format!("{base}/upload")]}}).to_string()
+                    }
+                    1 => {
+                        assert!(headers.starts_with("put /upload "));
+                        assert_eq!(body, expected_pdf);
+                        "{}".into()
+                    }
+                    2 => {
+                        assert!(headers.starts_with("get /extract-results/batch/mock-batch "));
+                        serde_json::json!({"code":0,"data":{"extract_result":[{"data_id":data_id,"state":"done","full_markdown_url":format!("{base}/result")}]}}).to_string()
+                    }
+                    _ => {
+                        assert!(headers.starts_with("get /result "));
+                        "# OCR fixture\nBoth pages converted.\n".into()
+                    }
+                };
+                write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", response.len(), response).unwrap();
+            }
+        });
+        tokio::time::timeout(
+            Duration::from_secs(15),
+            process_path(
+                &state,
+                &mineru,
+                &profile,
+                &source,
+                false,
+                &semaphore,
+                || Ok("synthetic-token".into()),
+            ),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        server.await.unwrap();
+        let task = state
+            .storage
+            .find_by_source(&source.to_string_lossy())
+            .unwrap()
+            .unwrap();
+        assert_eq!(task.status, JobStatus::Completed, "{:?}", task.error);
+        assert_eq!(task.engine, ConversionEngine::Mineru);
+        let markdown = std::fs::read_to_string(output_path(&profile, &source).unwrap()).unwrap();
+        assert!(markdown.contains("converter: mineru"));
+        assert!(markdown.contains("Both pages converted"));
+        assert_eq!(semaphore.available_permits(), 1);
+    }
 
     fn temporary_profile(input: &Path, output: &Path) -> WatchProfile {
         std::fs::create_dir_all(output).unwrap();

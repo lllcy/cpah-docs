@@ -108,7 +108,7 @@ export function SettingsView({ appVersion, theme, onThemeChange, mineruConfigure
               </div>
             </div>
             <div>
-              <p className="mb-2 text-[10px] leading-4 text-muted-foreground">PDF 优先使用 MinerU 解析。Token 只交给本机 Tauri 后端保存。</p>
+              <p className="mb-2 text-[10px] leading-4 text-muted-foreground">PDF 优先本地提取，仅需 OCR 时使用 MinerU；图片使用 MinerU。Token 由本机系统凭据库保存。</p>
               <div className="flex gap-2">
                 <Input type="password" aria-label="MinerU Token" aria-describedby={mineruConfigured ? "mineru-token-saved" : undefined} autoComplete="new-password" value={token} onChange={(event) => onTokenChange(event.target.value)} placeholder={mineruConfigured ? "••••••••（已保存）" : "输入 MinerU Token"} />
                 <Button disabled={!token.trim() || savingToken} onClick={onSaveToken}>{savingToken ? <LoaderCircle className="animate-spin" /> : <ShieldCheck />}{mineruConfigured ? "更新" : "保存"}</Button>

@@ -419,9 +419,13 @@ export default function App() {
     const classification = action === "classify";
     if (previewMode) {
       const profile = persistedSettings.profiles.find((item) => item.id === profileId)!;
+      const extension = entry.name.split(".").at(-1)?.toLowerCase();
+      const engine: TaskRecord["engine"] = extension === "md" ? "copy"
+        : ["html", "htm", "txt"].includes(extension ?? "") ? "anytomd"
+        : ["png", "jpg", "jpeg", "webp", "bmp"].includes(extension ?? "") ? "mineru" : "anydoc";
       const task: TaskRecord = entry.task ?? {
         id: crypto.randomUUID(), kind: "document", profileId, relativePath: entry.relativePath,
-        sourcePath: `${profile.inputDir}/${entry.relativePath}`, engine: "anytomd", status: "queued", updatedAt: new Date().toISOString(),
+        sourcePath: `${profile.inputDir}/${entry.relativePath}`, engine, status: "queued", updatedAt: new Date().toISOString(),
       };
       const updated: TaskRecord = classification ? { ...task, tagStatus: "queued" } : { ...task, status: "queued", error: undefined };
       setTasks((current) => [updated, ...current.filter((item) => item.id !== updated.id)]);

@@ -183,7 +183,7 @@ export function HelpView({ hasProfiles, onStartSetup, onOpenFormats, onOpenSetti
             <div className="divide-y border-y">
               <div className="grid min-h-[66px] grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-3 py-3">
                 <CloudUpload className="size-3.5 text-muted-foreground" />
-                <div><p className="text-[11px] font-medium">本地转换与 MinerU</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Office、文本优先在本地处理；PDF、图片和旧版 Office 使用 MinerU。</p></div>
+                <div><p className="text-[11px] font-medium">本地转换与 MinerU</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Office（含旧版）与文本在本地处理；PDF 先本地提取，仅需 OCR 时整份交给 MinerU；图片使用 MinerU。</p></div>
                 <Button variant="ghost" size="sm" onClick={onOpenSettings}><Settings2 />设置</Button>
               </div>
               <div className="grid min-h-[66px] grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-3 py-3">

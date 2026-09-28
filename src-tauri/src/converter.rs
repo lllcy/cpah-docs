@@ -1,19 +1,18 @@
+pub use crate::local_conversion::{LocalConversion, convert as convert_locally};
 use crate::models::{ConversionEngine, TaskRecord, WatchProfile};
 use anyhow::{Context, Result, bail};
-use anytomd::{ConversionOptions, convert_bytes, convert_file};
 use chrono::Utc;
 use std::ffi::OsString;
 use std::fs;
-use std::io::{BufRead, BufReader, Cursor, Read, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Component, Path, PathBuf};
 use uuid::Uuid;
-use zip::write::SimpleFileOptions;
-use zip::{ZipArchive, ZipWriter};
 
 const LOCAL_EXTENSIONS: &[&str] = &[
-    "md", "docx", "xlsx", "xls", "pptx", "html", "htm", "csv", "txt",
+    "md", "doc", "docx", "docm", "xls", "xlsx", "xlsm", "xlsb", "ppt", "pps", "pot", "pptx",
+    "pptm", "ppsx", "ppsm", "odt", "ods", "odp", "rtf", "epub", "pdf", "html", "htm", "csv", "txt",
 ];
-const MINERU_EXTENSIONS: &[&str] = &["pdf", "doc", "ppt", "png", "jpg", "jpeg", "webp", "bmp"];
+const MINERU_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "webp", "bmp"];
 
 #[derive(Debug, Clone)]
 pub struct ConversionAsset {
@@ -52,13 +51,19 @@ pub fn is_enabled(path: &Path, enabled_extensions: &[String]) -> bool {
 
 pub fn default_engine(path: &Path) -> Option<ConversionEngine> {
     let ext = extension(path)?;
-    if LOCAL_EXTENSIONS.contains(&ext) {
-        Some(ConversionEngine::Anytomd)
-    } else if MINERU_EXTENSIONS.contains(&ext) {
-        Some(ConversionEngine::Mineru)
-    } else {
-        None
+    match ext {
+        "md" => Some(ConversionEngine::Copy),
+        "txt" | "html" | "htm" => Some(ConversionEngine::Anytomd),
+        _ if LOCAL_EXTENSIONS.contains(&ext) => Some(ConversionEngine::Anydoc),
+        _ if MINERU_EXTENSIONS.contains(&ext) => Some(ConversionEngine::Mineru),
+        _ => None,
     }
+}
+
+pub fn is_pdf(path: &Path) -> bool {
+    path.extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case("pdf"))
 }
 
 pub fn is_markdown(path: &Path) -> bool {
@@ -157,104 +162,6 @@ fn has_stem_collision(source_path: &Path) -> Result<bool> {
         }
     }
     Ok(false)
-}
-
-pub fn convert_locally(source_path: &Path) -> Result<ConversionArtifact> {
-    let is_legacy_xls = source_path
-        .extension()
-        .and_then(|value| value.to_str())
-        .is_some_and(|value| value.eq_ignore_ascii_case("xls"));
-    let options = ConversionOptions {
-        // anytomd's image extraction opens spreadsheet bytes as an OOXML ZIP.
-        // Legacy BIFF .xls workbooks are compound binary files, so requesting
-        // image extraction makes an otherwise valid workbook fail before
-        // calamine can read it.
-        extract_images: !is_legacy_xls,
-        extract_comments: false,
-        max_total_image_bytes: 256 * 1024 * 1024,
-        max_input_bytes: 512 * 1024 * 1024,
-        max_uncompressed_zip_bytes: 2 * 1024 * 1024 * 1024,
-        strict: false,
-        image_describer: None,
-    };
-    let mut result = convert_file(source_path, &options)
-        .with_context(|| format!("anytomd 转换失败：{}", source_path.display()))?;
-    if result.markdown.trim().is_empty()
-        && source_path
-            .extension()
-            .and_then(|value| value.to_str())
-            .is_some_and(|value| value.eq_ignore_ascii_case("pptx"))
-        && let Some(normalized) = normalize_pptx_slide_relationships(source_path)?
-    {
-        result = convert_bytes(&normalized, "pptx", &options).with_context(|| {
-            format!(
-                "anytomd 转换规范化后的 PPTX 失败：{}",
-                source_path.display()
-            )
-        })?;
-    }
-    if result.markdown.trim().is_empty() {
-        bail!("anytomd 未产生 Markdown 内容");
-    }
-    Ok(ConversionArtifact {
-        markdown: result.markdown,
-        assets: result
-            .images
-            .into_iter()
-            .map(|(name, bytes)| ConversionAsset {
-                relative_path: PathBuf::from(name),
-                bytes,
-            })
-            .collect(),
-        warnings: result
-            .warnings
-            .into_iter()
-            .map(|warning| warning.message)
-            .collect(),
-    })
-}
-
-fn normalize_pptx_slide_relationships(source_path: &Path) -> Result<Option<Vec<u8>>> {
-    let source = fs::read(source_path)
-        .with_context(|| format!("无法读取 PPTX：{}", source_path.display()))?;
-    let mut archive = ZipArchive::new(Cursor::new(source)).context("PPTX ZIP 结构无效")?;
-    let relationship_path = "ppt/_rels/presentation.xml.rels";
-    let Some(relationship_index) = archive.index_for_name(relationship_path) else {
-        return Ok(None);
-    };
-    let relationship_xml = {
-        let mut entry = archive.by_index(relationship_index)?;
-        let mut content = String::new();
-        entry.read_to_string(&mut content)?;
-        content
-    };
-    let normalized_relationships = relationship_xml
-        .replace("Target=\"/ppt/slides/", "Target=\"ppt/slides/")
-        .replace("Target='/ppt/slides/", "Target='ppt/slides/");
-    if normalized_relationships == relationship_xml {
-        return Ok(None);
-    }
-
-    let cursor = Cursor::new(Vec::with_capacity(archive.offset() as usize));
-    let mut writer = ZipWriter::new(cursor);
-    for index in 0..archive.len() {
-        let mut entry = archive.by_index(index)?;
-        let options = SimpleFileOptions::default()
-            .compression_method(entry.compression())
-            .last_modified_time(entry.last_modified().unwrap_or_default());
-        let name = entry.name().to_string();
-        if entry.is_dir() {
-            writer.add_directory(name, options)?;
-            continue;
-        }
-        writer.start_file(&name, options)?;
-        if name == relationship_path {
-            writer.write_all(normalized_relationships.as_bytes())?;
-        } else {
-            std::io::copy(&mut entry, &mut writer)?;
-        }
-    }
-    Ok(Some(writer.finish()?.into_inner()))
 }
 
 pub fn write_artifact(
@@ -869,6 +776,9 @@ fn ensure_output_is_safe(profile: &WatchProfile, path: &Path) -> Result<()> {
 mod tests {
     use super::*;
     use crate::models::{JobStatus, TaskKind};
+    use std::io::Cursor;
+    use zip::ZipWriter;
+    use zip::write::SimpleFileOptions;
 
     fn profile() -> WatchProfile {
         WatchProfile {
@@ -926,17 +836,33 @@ mod tests {
 
     #[test]
     fn routes_core_formats() {
+        for extension in ["HTML", "HTM", "TXT"] {
+            assert_eq!(
+                default_engine(Path::new(&format!("a.{extension}"))),
+                Some(ConversionEngine::Anytomd)
+            );
+        }
+        for extension in ["doc", "ppt", "csv", "xlsb", "odt", "epub", "rtf"] {
+            assert_eq!(
+                default_engine(Path::new(&format!("a.{extension}"))),
+                Some(ConversionEngine::Anydoc)
+            );
+        }
         assert_eq!(
-            default_engine(Path::new("a.docx")),
-            Some(ConversionEngine::Anytomd)
-        );
-        assert_eq!(
-            default_engine(Path::new("a.pdf")),
+            default_engine(Path::new("a.PNG")),
             Some(ConversionEngine::Mineru)
         );
         assert_eq!(
+            default_engine(Path::new("a.docx")),
+            Some(ConversionEngine::Anydoc)
+        );
+        assert_eq!(
+            default_engine(Path::new("a.pdf")),
+            Some(ConversionEngine::Anydoc)
+        );
+        assert_eq!(
             default_engine(Path::new("a.MD")),
-            Some(ConversionEngine::Anytomd)
+            Some(ConversionEngine::Copy)
         );
         assert_eq!(default_engine(Path::new("a.exe")), None);
     }
@@ -981,7 +907,9 @@ mod tests {
             .unwrap();
         fs::write(&source, archive.finish().unwrap().into_inner()).unwrap();
 
-        let artifact = convert_locally(&source).unwrap();
+        let LocalConversion::Converted(artifact) = convert_locally(&source).unwrap() else {
+            panic!("unexpected OCR request")
+        };
 
         assert!(artifact.markdown.contains("Absolute slide target"));
     }
@@ -990,7 +918,9 @@ mod tests {
     fn converts_legacy_xls_without_treating_it_as_an_ooxml_zip() {
         let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy.xls");
 
-        let artifact = convert_locally(&source).unwrap();
+        let LocalConversion::Converted(artifact) = convert_locally(&source).unwrap() else {
+            panic!("unexpected OCR request")
+        };
 
         assert!(artifact.markdown.contains("XLS 回归重试"));
         assert!(artifact.assets.is_empty());
@@ -1001,7 +931,10 @@ mod tests {
     fn converts_external_pptx_regression_file() {
         let source = std::env::var("CPAHDOCS_PPTX_E2E")
             .expect("CPAHDOCS_PPTX_E2E must point to a PPTX file");
-        let artifact = convert_locally(Path::new(&source)).unwrap();
+        let LocalConversion::Converted(artifact) = convert_locally(Path::new(&source)).unwrap()
+        else {
+            panic!("unexpected OCR request")
+        };
         eprintln!(
             "converted markdown_bytes={} assets={} warnings={}",
             artifact.markdown.len(),

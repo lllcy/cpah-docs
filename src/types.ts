@@ -73,7 +73,7 @@ export interface TaskRecord {
   sourceHash?: string;
   sourceSize?: number;
   sourceModifiedMs?: number;
-  engine: "anytomd" | "mineru";
+  engine: "anydoc" | "copy" | "anytomd" | "mineru";
   status: JobStatus;
   outputPath?: string;
   error?: string;

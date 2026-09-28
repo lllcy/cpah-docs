@@ -7,6 +7,7 @@ mod file_actions;
 mod file_browser;
 mod index_runtime;
 mod knowledge_index;
+mod local_conversion;
 mod logging;
 mod mineru;
 mod models;

@@ -2,6 +2,13 @@
 
 本项目的重要变更会记录在这里，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [未发布]
+
+- Office 转换内核改为 anydoc 0.2.4，旧版 DOC / PPT 改为本地处理，并增加宏启用 Office、OpenDocument、EPUB、RTF 等格式；保留图片附件输出。
+- HTML、HTM、TXT 继续使用 anytomd，Markdown 继续原样同步。
+- PDF 优先本地提取，仅在明确需要 OCR 时整份转交 MinerU；保留大型 PDF 分片、断点恢复与重试，OCR 判断随源文件版本持久化。
+- 更新格式设置、任务引擎显示和帮助说明；已有任务记录继续兼容。
+
 ## [1.2.0] - 2026-09-28
 
 ### 新增

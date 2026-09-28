@@ -10,11 +10,12 @@
 
 - 多组“监控目录 → 输出目录”，新增、修改和删除会持续同步。
 - 目录监听、格式转换和 Agent 分类分别控制：监听只发现文件并放入待执行，转换和分类分别消费自己的队列。
-- 本地转换：Markdown 原样同步；DOCX、XLS、XLSX、PPTX、HTML、HTM、CSV、TXT 使用纯 Rust / anytomd。
-- 云端解析：PDF、PNG、JPG、JPEG、WEBP、BMP、旧版 DOC、旧版 PPT 使用 MinerU。
-- 大型 PDF 会自动预检：超过 200 页时按页段提交，超过 MinerU 200 MB 限制时在本地无损拆分；原文件最大支持 512 MiB，最终仍只生成一份 Markdown。
+- 本地转换：Office（含旧版 DOC / XLS / PPT、宏启用文档）、OpenDocument、EPUB、RTF、CSV 使用 anydoc 0.2.4；HTML、HTM、TXT 保留 anytomd；Markdown 原样同步。
+- PDF 优先使用 anydoc 本地提取；只有解析器明确返回需要 OCR 时，才将整份 PDF 交给 MinerU。损坏、加密或超限等错误不会触发上传。PNG、JPG、JPEG、WEBP、BMP 继续使用 MinerU。
+- 需要 OCR 的大型 PDF 会自动预检：超过 200 页时按页段提交，超过 MinerU 200 MB 限制时在本地无损拆分；原文件最大支持 512 MiB，最终仍只生成一份 Markdown。
 - 可按目录配置单分类或多分类候选类别；在“分类任务”页独立开始、停止、重试并查看 Token 用量。
 - SQLite 保存任务状态，程序重启后恢复队列和 MinerU 轮询；帮助页提供离线运行诊断和脱敏报告。
+- 本地 PDF 保留解析器输出的文字、表格和图片占位，不导出 PDF 图片附件；Office 等格式的可读取内嵌图片仍写入 `.assets`。anydoc 使用固定版本源码，补充渲染器导出与 Excel 图片提取，详见 [来源与补丁记录](src-tauri/vendor/anydoc/UPSTREAM.md)。
 - Token 与 API Key 保存到系统凭据库（Windows 凭据管理器或 macOS 钥匙串）；关闭窗口后驻留 Windows 系统托盘或 macOS 菜单栏。
 
 输出目录会镜像输入目录的子文件夹（包括空文件夹）：
@@ -80,7 +81,7 @@ cpah_categories:
 2. 再创建一个独立的“Markdown 输出”文件夹，用来接收转换结果和附件资源。两个目录不能相同或互相包含。
 3. 打开“监控目录”，分别选择这两个文件夹并保存；监听会扫描文件并放入“待执行”，不会立刻转换。
 4. 在“格式说明”选择需要处理的扩展名。
-5. PDF、图片或旧版 Office 需要在“设置”保存 MinerU Token。
+5. 图片和需要 OCR 的 PDF 需要在“设置”保存 MinerU Token；普通文本 PDF 与 Office 无需 Token。
 6. 如需分类，在“设置 → 分类模型”选择“大语言模型”或“决策模型”，填写对应服务的地址、模型名称及 API Key 并测试连接，再为目录添加候选类别。
 7. 确认待执行数量后，在“转换任务”点击“开始转换”；需要分类时，再在“分类任务”点击“开始分类”。
 

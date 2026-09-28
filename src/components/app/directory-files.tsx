@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { invoke } from "@tauri-apps/api/core";
 import { AlertCircle, ArrowUpRight, ChevronDown, ChevronRight, FileText, Folder, FolderOpen, FoldVertical, Link2, LoaderCircle, RefreshCw, Play, Tags, Search, X } from "lucide-react";
 
-import { activeStatuses, errorMessage, formatUpdatedAt, previewMode, tagStatusMeta } from "@/app-model";
+import { activeStatuses, conversionEngineLabel, errorMessage, formatUpdatedAt, previewMode, tagStatusMeta } from "@/app-model";
 import { absoluteFilePath, expandedDirectories, fileFilters, flattenEntries, parentPath, previewFileEntries, previewSearch, readableSize } from "@/file-browser-model";
 import { IconAction } from "@/components/app/icon-action";
 import { TaskStatus } from "@/components/app/task-status";
@@ -82,7 +82,7 @@ function FileDetails({ entry, profile, conversionPaused, classificationPaused, a
         <dl className="mt-5 space-y-3.5 text-[11px]">
           <div><dt className="mb-1 text-muted-foreground">源文件</dt><dd className="break-all leading-5">{path}</dd></div>
           <div><dt className="mb-1 text-muted-foreground">大小 / 修改时间</dt><dd>{readableSize(entry.size)} · {entry.modifiedMs ? new Date(entry.modifiedMs).toLocaleString("zh-CN", { hour12: false }) : "—"}</dd></div>
-          {task && <><div><dt className="mb-1 text-muted-foreground">转换方式</dt><dd>{entry.name.toLowerCase().endsWith(".md") ? "Markdown 直通同步" : task.engine === "mineru" ? "MinerU 文档解析" : "AnyToMD 本地转换"}</dd></div><div><dt className="mb-1 text-muted-foreground">任务更新</dt><dd>{formatUpdatedAt(task.updatedAt)}</dd></div></>}
+          {task && <><div><dt className="mb-1 text-muted-foreground">转换方式</dt><dd>{conversionEngineLabel(task)}</dd></div><div><dt className="mb-1 text-muted-foreground">任务更新</dt><dd>{formatUpdatedAt(task.updatedAt)}</dd></div></>}
           <div><dt className="mb-1 text-muted-foreground">分类状态</dt><dd>{task?.tagStatus ? tagStatusMeta[task.tagStatus].label : "尚未分类"}</dd></div>
           <div><dt className="mb-1 text-muted-foreground">输出文件</dt><dd className="break-all leading-5">{task?.outputPath ?? (entry.availability === "eligible" ? "转换完成后生成 Markdown" : "—")}</dd></div>
           {task?.mineruTotalPages != null && <div><dt className="mb-1 text-muted-foreground">解析进度</dt><dd>{task.mineruExtractedPages ?? 0} / {task.mineruTotalPages} 页</dd></div>}

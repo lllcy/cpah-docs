@@ -125,8 +125,9 @@ impl Default for AppSettings {
 
 pub fn default_enabled_extensions() -> Vec<String> {
     [
-        "md", "docx", "xlsx", "xls", "pptx", "html", "htm", "csv", "txt", "pdf", "doc", "ppt",
-        "png", "jpg", "jpeg", "webp", "bmp",
+        "md", "doc", "docx", "docm", "xlsx", "xls", "xlsm", "xlsb", "ppt", "pps", "pot", "pptx",
+        "pptm", "ppsx", "ppsm", "odt", "ods", "odp", "rtf", "epub", "html", "htm", "csv", "txt",
+        "pdf", "png", "jpg", "jpeg", "webp", "bmp",
     ]
     .into_iter()
     .map(str::to_string)
@@ -148,6 +149,8 @@ fn default_tag_concurrency() -> u8 {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ConversionEngine {
+    Anydoc,
+    Copy,
     Anytomd,
     Mineru,
 }
@@ -155,6 +158,8 @@ pub enum ConversionEngine {
 impl ConversionEngine {
     pub fn as_str(&self) -> &'static str {
         match self {
+            Self::Anydoc => "anydoc",
+            Self::Copy => "copy",
             Self::Anytomd => "anytomd",
             Self::Mineru => "mineru",
         }
@@ -166,6 +171,8 @@ impl TryFrom<&str> for ConversionEngine {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
+            "anydoc" => Ok(Self::Anydoc),
+            "copy" => Ok(Self::Copy),
             "anytomd" => Ok(Self::Anytomd),
             "mineru" => Ok(Self::Mineru),
             _ => anyhow::bail!("未知转换引擎：{value}"),

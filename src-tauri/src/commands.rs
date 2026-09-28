@@ -610,9 +610,7 @@ pub async fn retry_task(
     force_local: bool,
 ) -> CommandResult<()> {
     if force_local {
-        return Err(
-            "当前纯 Rust 本地转换器不支持 PDF、图片、DOC 或 PPT，请使用 MinerU 重试".to_string(),
-        );
+        return Err("转换引擎由文件格式和 PDF OCR 检测自动选择，请使用普通重试".to_string());
     }
     state
         .send_runtime(RuntimeMessage::Retry { task_id })
