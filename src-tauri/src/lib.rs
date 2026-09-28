@@ -1,13 +1,18 @@
 mod atomic_file;
 mod commands;
 mod converter;
+mod decision_model;
 mod diagnostics;
+mod file_actions;
+mod file_browser;
 mod index_runtime;
 mod knowledge_index;
+mod local_conversion;
 mod logging;
 mod mineru;
 mod models;
 mod pdf_split;
+mod priority_queue;
 mod runtime;
 mod state;
 mod storage;
@@ -15,11 +20,13 @@ mod tag_runtime;
 mod tagging;
 
 use commands::{
-    apply_tagging_config, get_dashboard, get_diagnostic_report, get_project_license, get_tag_jobs,
-    get_third_party_licenses, open_managed_path, open_mineru_token_page, preview_tagging_change,
+    apply_tagging_config, classify_profile_file, convert_profile_file, get_dashboard,
+    get_diagnostic_report, get_project_license, get_tag_jobs, get_third_party_licenses,
+    list_profile_files, open_managed_path, open_mineru_token_page, preview_tagging_change,
     remove_profile, rescan_all_profiles, retry_failed_tasks, retry_tag_job, retry_tag_jobs,
-    retry_task, run_health_check, save_agent_settings, save_settings, set_classification_paused,
-    set_mineru_token, set_monitoring_paused, set_paused, test_agent_connection,
+    retry_task, run_health_check, save_agent_settings, save_settings, search_profile_files,
+    set_classification_paused, set_mineru_token, set_monitoring_paused, set_paused,
+    test_agent_connection,
 };
 use state::AppState;
 use tauri::Manager;
@@ -72,6 +79,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_dashboard,
+            list_profile_files,
+            convert_profile_file,
+            classify_profile_file,
+            search_profile_files,
             run_health_check,
             get_diagnostic_report,
             get_project_license,

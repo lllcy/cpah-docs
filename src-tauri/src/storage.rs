@@ -155,6 +155,7 @@ impl Storage {
             ("mineru_extracted_pages", "INTEGER"),
             ("mineru_total_pages", "INTEGER"),
             ("mineru_started_at", "TEXT"),
+            ("ocr_required_hash", "TEXT"),
         ] {
             ensure_column(&connection, "tasks", name, declaration)?;
         }
@@ -269,6 +270,8 @@ impl Storage {
                profile_id=excluded.profile_id,
                relative_path=excluded.relative_path,
                source_hash=excluded.source_hash,
+               ocr_required_hash=CASE WHEN tasks.ocr_required_hash=excluded.source_hash
+                                     THEN tasks.ocr_required_hash ELSE NULL END,
                source_size=excluded.source_size,
                source_modified_ms=excluded.source_modified_ms,
                engine=excluded.engine,
@@ -410,6 +413,26 @@ impl Storage {
             ],
         )?;
         self.get_task(&id)
+    }
+
+    pub fn pdf_requires_ocr(&self, source_path: &Path, source_hash: &str) -> Result<bool> {
+        Ok(self.open()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM tasks WHERE source_path=?1 AND ocr_required_hash=?2)",
+            params![source_path.to_string_lossy(), source_hash],
+            |row| row.get(0),
+        )?)
+    }
+
+    pub fn mark_pdf_requires_ocr(&self, id: &str, source_hash: &str) -> Result<()> {
+        let changed = self.open()?.execute(
+            "UPDATE tasks SET ocr_required_hash=?2, engine='mineru', status='waiting_mineru',
+             error='PDF 需要 OCR，等待 MinerU 解析', updated_at=?3 WHERE id=?1 AND source_hash=?2",
+            params![id, source_hash, Utc::now().to_rfc3339()],
+        )?;
+        if changed != 1 {
+            anyhow::bail!("源文件已变化，不能保存旧版本的 OCR 判断");
+        }
+        Ok(())
     }
 
     pub fn set_status(&self, id: &str, status: JobStatus, error: Option<&str>) -> Result<()> {
@@ -1081,6 +1104,19 @@ impl Storage {
             .map_err(Into::into)
     }
 
+    pub fn list_profile_tag_jobs(&self, profile_id: &str) -> Result<Vec<TagJobRecord>> {
+        let connection = self.open()?;
+        let mut statement = connection.prepare(
+            "SELECT id, profile_id, markdown_path, relative_path, status,
+                    content_hash, schema_hash, result_json, error, read_bytes,
+                    total_bytes, api_calls, input_tokens, output_tokens, updated_at
+             FROM tag_jobs WHERE profile_id=?1",
+        )?;
+        let rows = statement.query_map([profile_id], map_tag_job)?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
     pub fn list_tag_jobs_with_statuses(
         &self,
         statuses: &[TagJobStatus],
@@ -1481,6 +1517,9 @@ mod tests {
             classification_paused: true,
             ..Default::default()
         };
+        settings.agent.model_type = crate::models::ClassificationModelType::Decision;
+        settings.agent.base_url = "https://api.typesafe.ai/v1".into();
+        settings.agent.model = "jev-latest".into();
         settings.profiles.push(WatchProfile {
             id: "wiki".into(),
             name: "wiki".into(),
@@ -1503,6 +1542,12 @@ mod tests {
         let loaded = storage.load_settings().unwrap();
         assert_eq!(loaded.profiles[0].tagging, settings.profiles[0].tagging);
         assert!(loaded.classification_paused);
+        assert_eq!(
+            loaded.agent.model_type,
+            crate::models::ClassificationModelType::Decision
+        );
+        assert_eq!(loaded.agent.base_url, settings.agent.base_url);
+        assert_eq!(loaded.agent.model, settings.agent.model);
     }
 
     #[test]
@@ -1578,6 +1623,7 @@ mod tests {
             .unwrap();
 
         for expected in [
+            "ocr_required_hash",
             "source_size",
             "source_modified_ms",
             "mineru_state",
@@ -1758,7 +1804,7 @@ mod tests {
                 Path::new("legacy.docx"),
                 6,
                 100,
-                ConversionEngine::Anytomd,
+                ConversionEngine::Anydoc,
                 &result,
                 false,
             )
@@ -1768,6 +1814,7 @@ mod tests {
         assert_eq!(backfilled.source_size, Some(6));
         assert_eq!(backfilled.source_modified_ms, Some(100));
         assert_eq!(backfilled.status, JobStatus::Completed);
+        assert_eq!(backfilled.engine, ConversionEngine::Anytomd);
     }
 
     #[test]

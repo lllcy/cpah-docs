@@ -48,6 +48,12 @@ pub fn classify_error(message: Option<&str>) -> Option<ErrorGuidance> {
             title: "云端服务暂时不可用",
             suggestion: "这通常是服务端临时故障，请稍后重试。",
         }
+    } else if contains_any(&message, &["决策模型", "system one"]) {
+        ErrorGuidance {
+            code: "decision_model_error",
+            title: "决策模型分类失败",
+            suggestion: "请检查 System One 接口地址、模型名称和 API Key，并在设置中测试决策模型；若结果格式异常，请检查候选类别或更换模型。",
+        }
     } else if contains_any(
         &message,
         &["tool calling", "tool_call", "未调用分类工具", "不支持工具"],
@@ -167,7 +173,7 @@ pub fn classify_error(message: Option<&str>) -> Option<ErrorGuidance> {
         ErrorGuidance {
             code: "unsupported_format",
             title: "当前转换方式不支持该文档",
-            suggestion: "请检查格式开关；旧版 Office、PDF 和图片应使用 MinerU。",
+            suggestion: "请检查格式开关；Office 和文本在本地转换，图片及需要 OCR 的 PDF 使用 MinerU。",
         }
     } else if contains_any(
         &message,
@@ -176,7 +182,7 @@ pub fn classify_error(message: Option<&str>) -> Option<ErrorGuidance> {
         ErrorGuidance {
             code: "empty_output",
             title: "转换器没有产生 Markdown 内容",
-            suggestion: "请确认源文档包含可读取内容；扫描件可改用 MinerU 后重试。",
+            suggestion: "请确认源文档包含可读取内容；PDF 仅在解析器判定需要 OCR 时自动转交 MinerU。",
         }
     } else if contains_any(&message, &["yaml", "frontmatter"]) {
         ErrorGuidance {
@@ -236,21 +242,28 @@ pub async fn run_health_check(state: &AppState) -> HealthReport {
         checks.extend(check_profile_overlaps(&settings.profiles));
     }
 
-    let needs_mineru = settings.enabled_extensions.iter().any(|extension| {
-        matches!(
-            extension.as_str(),
-            "pdf" | "doc" | "ppt" | "png" | "jpg" | "jpeg" | "webp" | "bmp"
-        )
-    });
+    let has_waiting_mineru = state
+        .storage
+        .count_visible_tasks_with_statuses(&[JobStatus::WaitingMineru])
+        .is_ok_and(|count| count > 0);
+    let needs_mineru = has_waiting_mineru
+        || settings
+            .enabled_extensions
+            .iter()
+            .any(|extension| matches!(extension.as_str(), "png" | "jpg" | "jpeg" | "webp" | "bmp"));
     checks.push(if !needs_mineru {
-        check_ok("mineru", "MinerU", "当前启用格式不需要 MinerU。")
+        check_ok(
+            "mineru",
+            "MinerU",
+            "当前可在本地转换；若 PDF 被判定需要 OCR，再配置 MinerU Token。",
+        )
     } else if settings.mineru_configured && AppState::read_mineru_token().is_ok() {
-        check_ok("mineru", "MinerU", "Token 已保存在 Windows 凭据管理器中。")
+        check_ok("mineru", "MinerU", "Token 已保存在系统凭据库中。")
     } else {
         check_warning(
             "mineru",
             "MinerU",
-            "需要云端解析的格式已启用，但尚未保存 Token。",
+            "已启用图片格式或有等待 OCR 的任务，但尚未保存 Token。",
             "请在设置中申请并保存 MinerU Token。",
         )
     });

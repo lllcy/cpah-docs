@@ -59,6 +59,9 @@ try {
     npm.cmd run build
     if ($LASTEXITCODE -ne 0) { throw "Frontend production build failed" }
 
+    npm.cmd run test:files
+    if ($LASTEXITCODE -ne 0) { throw "File browser tests failed" }
+
     cargo test --manifest-path src-tauri/Cargo.toml --all-targets
     if ($LASTEXITCODE -ne 0) { throw "Rust tests failed" }
 

@@ -16,8 +16,8 @@ export const emptySettings: AppSettings = {
   classificationPaused: true,
   mineruBaseUrl: "https://mineru.net/api/v4",
   mineruConfigured: false,
-  enabledExtensions: ["md", "docx", "xlsx", "xls", "pptx", "html", "htm", "csv", "txt", "pdf", "doc", "ppt", "png", "jpg", "jpeg", "webp", "bmp"],
-  agent: { baseUrl: "https://api.openai.com/v1", model: "", configured: false, concurrency: 1 },
+  enabledExtensions: ["md", "doc", "docx", "docm", "xlsx", "xls", "xlsm", "xlsb", "ppt", "pps", "pot", "pptx", "pptm", "ppsx", "ppsm", "odt", "ods", "odp", "rtf", "epub", "html", "htm", "csv", "txt", "pdf", "png", "jpg", "jpeg", "webp", "bmp"],
+  agent: { modelType: "llm", baseUrl: "https://api.openai.com/v1", model: "", configured: false, concurrency: 1 },
 };
 
 export const activeStatuses: JobStatus[] = [
@@ -45,7 +45,7 @@ export const statusMeta: Record<JobStatus, { label: string; tone: "neutral" | "a
 
 export const tagStatusMeta: Record<TagJobStatus, { label: string; tone: "neutral" | "active" | "success" | "danger" }> = {
   queued: { label: "待执行", tone: "neutral" },
-  reading: { label: "Agent 读取", tone: "active" },
+  reading: { label: "模型分类", tone: "active" },
   writing: { label: "写入 YAML", tone: "active" },
   completed: { label: "分类完成", tone: "success" },
   failed: { label: "分类失败", tone: "danger" },
@@ -62,8 +62,8 @@ export const previewDashboard: Dashboard = {
     classificationPaused: false,
     mineruBaseUrl: "https://mineru.net/api/v4",
     mineruConfigured: true,
-    enabledExtensions: ["md", "docx", "xlsx", "xls", "pptx", "html", "htm", "csv", "txt", "pdf", "doc", "ppt", "png", "jpg", "jpeg", "webp", "bmp"],
-    agent: { baseUrl: "https://api.openai.com/v1", model: "gpt-4.1-mini", configured: true, concurrency: 1 },
+    enabledExtensions: ["md", "doc", "docx", "docm", "xlsx", "xls", "xlsm", "xlsb", "ppt", "pps", "pot", "pptx", "pptm", "ppsx", "ppsm", "odt", "ods", "odp", "rtf", "epub", "html", "htm", "csv", "txt", "pdf", "png", "jpg", "jpeg", "webp", "bmp"],
+    agent: { modelType: "llm", baseUrl: "https://api.openai.com/v1", model: "gpt-4.1-mini", configured: true, concurrency: 1 },
     profiles: [
       {
         id: "profile-finance",
@@ -112,7 +112,7 @@ export const previewDashboard: Dashboard = {
       profileId: "profile-projects",
       sourcePath: "D:\\Projects\\共享项目资料\\2026年度重点项目\\实施方案终稿.docx",
       relativePath: "实施方案终稿.docx",
-      engine: "anytomd",
+      engine: "anydoc",
       status: "converting",
       updatedAt: "2026-08-11T09:40:00+08:00",
     },
@@ -122,7 +122,7 @@ export const previewDashboard: Dashboard = {
       profileId: "profile-finance",
       sourcePath: "C:\\Users\\Demo\\Documents\\公司资料\\财务与公告\\经营分析数据.xlsx",
       relativePath: "经营分析数据.xlsx",
-      engine: "anytomd",
+      engine: "anydoc",
       status: "failed",
       error: "工作簿已加密，无法读取内容。请移除密码后重试。",
       updatedAt: "2026-08-11T09:36:00+08:00",
@@ -133,7 +133,7 @@ export const previewDashboard: Dashboard = {
       profileId: "profile-projects",
       sourcePath: "D:\\Projects\\共享项目资料\\2026年度重点项目\\产品路线图.pptx",
       relativePath: "产品路线图.pptx",
-      engine: "anytomd",
+      engine: "anydoc",
       status: "queued",
       updatedAt: "2026-08-11T09:33:00+08:00",
     },
@@ -156,7 +156,7 @@ export const previewDashboard: Dashboard = {
       profileId: "profile-finance",
       sourcePath: "C:\\Users\\Demo\\Documents\\公司资料\\财务与公告\\季度经营简报.docx",
       relativePath: "季度经营简报.docx",
-      engine: "anytomd",
+      engine: "anydoc",
       status: "completed",
       outputPath: "D:\\KnowledgeBase\\财务与公告\\季度经营简报.md",
       updatedAt: "2026-08-11T09:12:00+08:00",
@@ -260,6 +260,18 @@ export function taskDirectory(task: TaskRecord) {
 
 export function isMarkdownTask(task: TaskRecord) {
   return task.relativePath.toLocaleLowerCase().endsWith(".md");
+}
+
+export function conversionEngineLabel(task: TaskRecord) {
+  if (task.kind === "mineru_part") return "MinerU PDF 分片";
+  if (isMarkdownTask(task) || task.engine === "copy") return "Markdown 直通同步";
+  const labels: Record<TaskRecord["engine"], string> = {
+    anydoc: "anydoc 本地转换",
+    anytomd: "AnyToMD 本地转换",
+    mineru: "MinerU 文档解析",
+    copy: "Markdown 直通同步",
+  };
+  return labels[task.engine];
 }
 
 export function useThemeMode() {

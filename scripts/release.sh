@@ -28,6 +28,7 @@ fi
 rustup target add aarch64-apple-darwin x86_64-apple-darwin
 cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 npm run build
+npm run test:files
 cargo test --manifest-path src-tauri/Cargo.toml --all-targets
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 # The DMG builder otherwise asks Finder to arrange the bundle window. That

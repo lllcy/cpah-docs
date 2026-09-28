@@ -1,15 +1,16 @@
 use crate::converter::is_supported;
 use crate::diagnostics;
+use crate::file_browser::{self, FileBrowserResult, FileFilter};
 use crate::index_runtime::IndexRuntimeMessage;
 use crate::models::{
-    AgentSettings, AppSettings, Dashboard, HealthReport, JobStatus, TagJobRecord, TagJobStatus,
-    TaggingConfig, TaggingImpact,
+    AgentSettings, AppSettings, ClassificationModelType, Dashboard, HealthReport, JobStatus,
+    TagJobRecord, TagJobStatus, TaggingConfig, TaggingImpact,
 };
 use crate::runtime::RuntimeMessage;
 use crate::state::{AppState, ProfileRuntimeControl};
 use crate::tag_runtime::{self, TagRuntimeMessage};
 use crate::tagging::{
-    schema_hash, test_tool_calling, validate_agent_base_url, validate_tagging_config,
+    schema_hash, test_classification_connection, validate_agent_base_url, validate_tagging_config,
 };
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -21,6 +22,74 @@ use uuid::Uuid;
 type CommandResult<T> = std::result::Result<T, String>;
 
 const MINERU_TOKEN_PAGE_URL: &str = "https://mineru.net/apiManage/token";
+
+#[tauri::command]
+pub async fn convert_profile_file(
+    state: State<'_, AppState>,
+    profile_id: String,
+    relative_path: String,
+) -> CommandResult<()> {
+    let (reply, response) = tokio::sync::oneshot::channel();
+    state
+        .send_runtime(RuntimeMessage::PriorityFile {
+            profile_id,
+            relative_path,
+            reply,
+        })
+        .map_err(display_error)?;
+    response.await.map_err(|_| "转换后台未能响应".to_string())?
+}
+
+#[tauri::command]
+pub async fn classify_profile_file(
+    state: State<'_, AppState>,
+    profile_id: String,
+    relative_path: String,
+) -> CommandResult<()> {
+    let (reply, response) = tokio::sync::oneshot::channel();
+    state
+        .send_tag_runtime(TagRuntimeMessage::PriorityFile {
+            profile_id,
+            relative_path,
+            reply,
+        })
+        .map_err(display_error)?;
+    response.await.map_err(|_| "分类后台未能响应".to_string())?
+}
+
+#[tauri::command]
+pub async fn list_profile_files(
+    state: State<'_, AppState>,
+    profile_id: String,
+    directories: Vec<String>,
+    files: Vec<String>,
+) -> CommandResult<FileBrowserResult> {
+    let settings = state.settings.read().await.clone();
+    let storage = state.storage.clone();
+    tokio::task::spawn_blocking(move || {
+        file_browser::list_files(&storage, &settings, &profile_id, directories, files)
+    })
+    .await
+    .map_err(display_error)?
+    .map_err(display_error)
+}
+
+#[tauri::command]
+pub async fn search_profile_files(
+    state: State<'_, AppState>,
+    profile_id: String,
+    query: String,
+    filter: FileFilter,
+) -> CommandResult<FileBrowserResult> {
+    let settings = state.settings.read().await.clone();
+    let storage = state.storage.clone();
+    tokio::task::spawn_blocking(move || {
+        file_browser::search_files(&storage, &settings, &profile_id, &query, filter)
+    })
+    .await
+    .map_err(display_error)?
+    .map_err(display_error)
+}
 
 #[tauri::command]
 pub async fn get_dashboard(state: State<'_, AppState>) -> CommandResult<Dashboard> {
@@ -440,6 +509,7 @@ pub async fn set_classification_paused(
 #[tauri::command]
 pub async fn save_agent_settings(
     state: State<'_, AppState>,
+    model_type: ClassificationModelType,
     base_url: String,
     model: String,
     api_key: Option<String>,
@@ -460,6 +530,7 @@ pub async fn save_agent_settings(
     }
     let configured = AppState::read_agent_api_key().is_ok_and(|key| !key.trim().is_empty());
     let agent = AgentSettings {
+        model_type,
         base_url,
         model,
         configured,
@@ -482,11 +553,13 @@ pub async fn save_agent_settings(
 #[tauri::command]
 pub async fn test_agent_connection(
     _state: State<'_, AppState>,
+    model_type: ClassificationModelType,
     base_url: String,
     model: String,
     api_key: Option<String>,
 ) -> CommandResult<()> {
     let settings = AgentSettings {
+        model_type,
         base_url: validate_agent_base_url(&base_url).map_err(display_error)?,
         model: model.trim().to_string(),
         configured: true,
@@ -499,7 +572,7 @@ pub async fn test_agent_connection(
         Some(key) if !key.is_empty() => key.to_string(),
         _ => AppState::read_agent_api_key().map_err(display_error)?,
     };
-    test_tool_calling(&settings, &api_key)
+    test_classification_connection(&settings, &api_key)
         .await
         .map_err(display_error)
 }
@@ -624,9 +697,7 @@ pub async fn retry_task(
     force_local: bool,
 ) -> CommandResult<()> {
     if force_local {
-        return Err(
-            "当前纯 Rust 本地转换器不支持 PDF、图片、DOC 或 PPT，请使用 MinerU 重试".to_string(),
-        );
+        return Err("转换引擎由文件格式和 PDF OCR 检测自动选择，请使用普通重试".to_string());
     }
     state
         .send_runtime(RuntimeMessage::Retry { task_id })
@@ -842,7 +913,7 @@ mod tests {
         state.ensure_profile_controls([profile.id.as_str()]);
 
         remove_profile_core(&state, &profile.id).await.unwrap();
-        let error = save_settings_core(&state, stale_settings, &[profile.id.clone()])
+        let error = save_settings_core(&state, stale_settings, std::slice::from_ref(&profile.id))
             .await
             .err()
             .unwrap();

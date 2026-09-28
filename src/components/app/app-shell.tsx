@@ -1,12 +1,12 @@
-import { type RefObject, type ReactNode } from "react";
+import { useState, type RefObject, type ReactNode } from "react";
 import {
-  AppWindow,
   BookOpenText,
-  Command,
   CircleHelp,
   Folders,
   LayoutDashboard,
   ListTodo,
+  PanelLeftClose,
+  PanelLeftOpen,
   Tags,
   RefreshCw,
   Search,
@@ -15,6 +15,7 @@ import {
 
 import type { View } from "@/app-model";
 import { IconAction } from "@/components/app/icon-action";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -38,6 +39,8 @@ type AppShellProps = {
   monitoringPaused: boolean;
   loading: boolean;
   loadError: string;
+  connectionFailed: boolean;
+  onShowError: () => void;
   refreshing: boolean;
   onRefresh: () => void;
   query: string;
@@ -58,6 +61,8 @@ export function AppShell({
   monitoringPaused,
   loading,
   loadError,
+  connectionFailed,
+  onShowError,
   refreshing,
   onRefresh,
   query,
@@ -66,13 +71,23 @@ export function AppShell({
   previewNativeBar,
   children,
 }: AppShellProps) {
-  const stateLabel = loadError ? "连接异常" : loading ? "正在连接" : monitoringPaused ? "监听已停止" : `正在监听 ${enabledDirectories} 个目录`;
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem("cpah-sidebar-collapsed") === "true"; }
+    catch { return false; }
+  });
+  function toggleSidebar() {
+    const collapsed = !sidebarCollapsed;
+    setSidebarCollapsed(collapsed);
+    try { localStorage.setItem("cpah-sidebar-collapsed", String(collapsed)); }
+    catch { /* Keep the toggle usable when browser storage is unavailable. */ }
+  }
+  const stateLabel = loadError ? connectionFailed ? "连接异常" : "运行异常" : loading ? "正在连接" : monitoringPaused ? "监听已停止" : `正在监听 ${enabledDirectories} 个目录`;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
       {previewNativeBar && (
         <div className="flex h-8 shrink-0 items-center border-b border-border/70 bg-[var(--native)] px-3 text-[11px] text-muted-foreground">
-          <AppWindow className="mr-2 size-3.5 text-primary" />
+          <img src="/app-icon.png" alt="" className="mr-2 size-3.5 object-contain" />
           <span>CPAH Docs</span>
           <div className="ml-auto flex h-full items-stretch text-foreground/70" aria-hidden="true">
             <span className="flex w-11 items-center justify-center">—</span>
@@ -82,12 +97,15 @@ export function AppShell({
         </div>
       )}
 
-      <header className="app-toolbar grid h-11 shrink-0 grid-cols-[184px_minmax(220px,1fr)_230px] items-center border-b bg-[var(--native)] max-[900px]:grid-cols-[152px_minmax(180px,1fr)_176px]">
-        <div className="flex min-w-0 items-center gap-2 px-3.5">
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-xs">
-            <Command className="size-3.5" />
-          </span>
-          <span className="truncate text-[13px] font-semibold tracking-[-0.01em] max-[900px]:hidden">CPAH Docs</span>
+      <header className={cn("app-toolbar grid h-11 shrink-0 items-center border-b bg-[var(--native)]", sidebarCollapsed ? "grid-cols-[56px_minmax(220px,1fr)_230px] max-[900px]:grid-cols-[56px_minmax(180px,1fr)_176px]" : "grid-cols-[184px_minmax(220px,1fr)_230px] max-[900px]:grid-cols-[152px_minmax(180px,1fr)_176px]")}>
+        <div className={cn("flex min-w-0 items-center gap-2", sidebarCollapsed ? "justify-center" : "px-3")}>
+          {!sidebarCollapsed && <>
+            <img src="/app-icon.png" alt="" className="size-6 shrink-0 object-contain" />
+            <span className="truncate text-[13px] font-semibold tracking-[-0.01em] max-[900px]:hidden">CPAH Docs</span>
+          </>}
+          <IconAction label={sidebarCollapsed ? "展开导航" : "收起导航"} size="icon-sm" className="shrink-0" aria-expanded={!sidebarCollapsed} aria-controls="main-navigation" onClick={toggleSidebar}>
+            {sidebarCollapsed ? <PanelLeftOpen className="size-3.5" /> : <PanelLeftClose className="size-3.5" />}
+          </IconAction>
         </div>
 
         <label className="group mx-auto flex h-7 w-full max-w-[430px] items-center gap-2 rounded-md border border-input bg-card px-2.5 shadow-xs transition focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15">
@@ -104,46 +122,57 @@ export function AppShell({
         </label>
 
         <div className="flex items-center justify-end gap-1.5 px-3 max-[900px]:px-2">
-          <div className="mr-1 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+          {loadError ? (
+            <button type="button" aria-label={`查看${stateLabel}`} onClick={onShowError} className="mr-1 flex min-w-0 items-center gap-1.5 rounded px-1 py-1 text-[11px] text-destructive outline-none hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring">
+              <span className="size-1.5 shrink-0 rounded-full bg-destructive" />
+              <span className="truncate">{stateLabel}</span>
+            </button>
+          ) : <div className="mr-1 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
             <span className={cn("size-1.5 shrink-0 rounded-full", loadError ? "bg-destructive" : monitoringPaused ? "bg-muted-foreground" : "bg-success", !monitoringPaused && !loadError && "status-pulse")} />
             <span className="truncate max-[900px]:hidden">{stateLabel}</span>
-          </div>
+          </div>}
           <IconAction label="刷新状态" size="icon-sm" disabled={refreshing} onClick={onRefresh}>
             <RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />
           </IconAction>
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[184px_minmax(0,1fr)] max-[900px]:grid-cols-[152px_minmax(0,1fr)]">
+      <div className={cn("grid min-h-0 flex-1", sidebarCollapsed ? "grid-cols-[56px_minmax(0,1fr)]" : "grid-cols-[184px_minmax(0,1fr)] max-[900px]:grid-cols-[152px_minmax(0,1fr)]")}>
         <aside className="flex min-h-0 flex-col border-r bg-[var(--sidebar)] px-2 py-3">
-          <nav aria-label="主导航" className="space-y-0.5">
+          <nav id="main-navigation" aria-label="主导航" className="space-y-0.5">
             {navigation.map(({ id, label, icon: Icon }) => {
               const active = activeView === id;
+              const count = id === "tasks" ? taskCount : id === "tagging" ? tagJobCount : 0;
               return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => onViewChange(id)}
-                  className={cn(
-                    "flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-                    active ? "bg-[var(--selection)] font-medium text-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border)_65%,transparent)]" : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                  )}
-                  aria-current={active ? "page" : undefined}
-                >
-                  <Icon className="size-3.5 shrink-0" />
-                  <span className="truncate">{label}</span>
-                  {id === "tasks" && taskCount > 0 && <span className="ml-auto rounded px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">{taskCount}</span>}
-                  {id === "tagging" && tagJobCount > 0 && <span className="ml-auto rounded px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">{tagJobCount}</span>}
-                </button>
+                <Tooltip key={id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={label}
+                      onClick={() => onViewChange(id)}
+                      className={cn(
+                        "flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+                        sidebarCollapsed && "justify-center px-0",
+                        active ? "bg-[var(--selection)] font-medium text-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border)_65%,transparent)]" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      )}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      <Icon className="size-3.5 shrink-0" />
+                      {!sidebarCollapsed && <span className="truncate">{label}</span>}
+                      {!sidebarCollapsed && count > 0 && <span className="ml-auto rounded px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">{count}</span>}
+                    </button>
+                  </TooltipTrigger>
+                  {sidebarCollapsed && <TooltipContent side="right">{label}{count > 0 ? `（${count}）` : ""}</TooltipContent>}
+                </Tooltip>
               );
             })}
           </nav>
 
-          <div className="mt-auto border-t px-2 pt-3 text-[10px] leading-5 text-muted-foreground">
+          {!sidebarCollapsed && <div className="mt-auto border-t px-2 pt-3 text-[10px] leading-5 text-muted-foreground">
             <div className="flex items-center justify-between gap-2"><span>待执行</span><span className="tabular-nums text-foreground">{pendingCount}</span></div>
             <div className="flex items-center justify-between gap-2"><span>进行中</span><span className="tabular-nums text-foreground">{activeCount}</span></div>
             <div className="flex items-center justify-between gap-2"><span>监控目录</span><span className="tabular-nums text-foreground">{enabledDirectories}</span></div>
-          </div>
+          </div>}
         </aside>
 
         <main className="min-h-0 min-w-0 overflow-hidden bg-background">{children}</main>

@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 
-import { activeStatuses, formatUpdatedAt, isMarkdownTask, pendingStatuses, statusMeta, tagStatusMeta, taskDirectory, taskFileName, type TaskFilter } from "@/app-model";
+import { activeStatuses, conversionEngineLabel, formatUpdatedAt, pendingStatuses, statusMeta, tagStatusMeta, taskDirectory, taskFileName, type TaskFilter } from "@/app-model";
 import { IconAction } from "@/components/app/icon-action";
 import { TaskProgress, TaskStatus } from "@/components/app/task-status";
 import { Button } from "@/components/ui/button";
@@ -123,7 +123,7 @@ function TaskInspector({
         <dl className="space-y-3.5 text-[11px]">
           <div>
             <dt className="mb-1 text-muted-foreground">转换引擎</dt>
-            <dd className="text-foreground">{task.kind === "mineru_part" ? "MinerU PDF 分片" : isMarkdownTask(task) ? "Markdown 直通同步" : task.engine === "mineru" ? "MinerU 文档解析" : "AnyToMD 本地转换"}</dd>
+            <dd className="text-foreground">{conversionEngineLabel(task)}</dd>
           </div>
           {task.kind === "mineru_part" && (
             <>

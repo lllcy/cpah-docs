@@ -33,7 +33,7 @@ import { TagTasksView } from "@/components/app/tag-tasks-view";
 import { IconAction } from "@/components/app/icon-action";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { AppSettings, Dashboard, HealthReport, TagJobRecord, TaggingConfig, TaggingImpact, TaskRecord, WatchProfile } from "./types";
+import type { AppSettings, ClassificationModelType, Dashboard, FileAction, FileEntry, HealthReport, TagJobRecord, TaggingConfig, TaggingImpact, TaskRecord, WatchProfile } from "./types";
 
 export default function App() {
   const [settings, setSettings] = useState<AppSettings>(emptySettings);
@@ -69,6 +69,8 @@ export default function App() {
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
   const [retryingTagIds, setRetryingTagIds] = useState<Set<string>>(new Set());
   const [loadError, setLoadError] = useState("");
+  const [connectionFailed, setConnectionFailed] = useState(false);
+  const [dismissedLoadError, setDismissedLoadError] = useState("");
   const [notice, setNotice] = useState<Notice | null>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
   const failedAutoSaveSignatureRef = useRef<string | null>(null);
@@ -95,8 +97,10 @@ export default function App() {
       setTaskTotal(dashboard.taskTotal);
       setTagJobTotal(dashboard.tagJobTotal);
       setLoadError([dashboard.runtimeError, dashboard.tagRuntimeError, dashboard.indexRuntimeError].filter(Boolean).join("；"));
+      setConnectionFailed(false);
     } catch (error) {
       setLoadError(errorMessage(error));
+      setConnectionFailed(true);
     } finally {
       setLoading(false);
     }
@@ -105,6 +109,11 @@ export default function App() {
   useEffect(() => {
     void refresh(true);
   }, [refresh]);
+
+  useEffect(() => {
+    // Identical polling responses stay dismissed; changed or recovered errors reset it.
+    setDismissedLoadError("");
+  }, [loadError]);
 
   useEffect(() => {
     if (!previewMode) void getVersion().then(setAppVersion).catch(() => {});
@@ -397,24 +406,24 @@ export default function App() {
     }
   }
 
-  async function saveAgent(value: { baseUrl: string; model: string; apiKey: string; concurrency: number }) {
+  async function saveAgent(value: { modelType: ClassificationModelType; baseUrl: string; model: string; apiKey: string; concurrency: number }) {
     try {
       const agent = previewMode
-        ? { baseUrl: value.baseUrl, model: value.model, concurrency: value.concurrency, configured: true }
-        : await invoke<AppSettings["agent"]>("save_agent_settings", { baseUrl: value.baseUrl, model: value.model, apiKey: value.apiKey || null, concurrency: value.concurrency });
+        ? { modelType: value.modelType, baseUrl: value.baseUrl, model: value.model, concurrency: value.concurrency, configured: true }
+        : await invoke<AppSettings["agent"]>("save_agent_settings", { ...value, apiKey: value.apiKey || null });
       setSettings((current) => ({ ...current, agent }));
       setPersistedSettings((current) => ({ ...current, agent }));
-      setNotice({ kind: "success", message: "Agent 模型设置已安全保存。" });
+      setNotice({ kind: "success", message: "分类模型设置已安全保存。" });
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
       throw error;
     }
   }
 
-  async function testAgent(value: { baseUrl: string; model: string; apiKey: string }) {
+  async function testAgent(value: { modelType: ClassificationModelType; baseUrl: string; model: string; apiKey: string }) {
     try {
-      if (!previewMode) await invoke("test_agent_connection", { baseUrl: value.baseUrl, model: value.model, apiKey: value.apiKey || null });
-      setNotice({ kind: "success", message: "连接成功，模型已完成 Tool Calling 测试。" });
+      if (!previewMode) await invoke("test_agent_connection", { ...value, apiKey: value.apiKey || null });
+      setNotice({ kind: "success", message: value.modelType === "decision" ? "连接成功，模型已完成单分类和多标签判断测试。" : "连接成功，模型已完成 Tool Calling 测试。" });
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
       throw error;
@@ -469,6 +478,30 @@ export default function App() {
         return next;
       });
     }
+  }
+
+  async function runFileAction(profileId: string, entry: FileEntry, action: FileAction) {
+    const classification = action === "classify";
+    if (previewMode) {
+      const profile = persistedSettings.profiles.find((item) => item.id === profileId)!;
+      const extension = entry.name.split(".").at(-1)?.toLowerCase();
+      const engine: TaskRecord["engine"] = extension === "md" ? "copy"
+        : ["html", "htm", "txt"].includes(extension ?? "") ? "anytomd"
+        : ["png", "jpg", "jpeg", "webp", "bmp"].includes(extension ?? "") ? "mineru" : "anydoc";
+      const task: TaskRecord = entry.task ?? {
+        id: crypto.randomUUID(), kind: "document", profileId, relativePath: entry.relativePath,
+        sourcePath: `${profile.inputDir}/${entry.relativePath}`, engine, status: "queued", updatedAt: new Date().toISOString(),
+      };
+      const updated: TaskRecord = classification ? { ...task, tagStatus: "queued" } : { ...task, status: "queued", error: undefined };
+      setTasks((current) => [updated, ...current.filter((item) => item.id !== updated.id)]);
+    } else {
+      await invoke(classification ? "classify_profile_file" : "convert_profile_file", { profileId, relativePath: entry.relativePath });
+      await refresh();
+    }
+    const patch = classification ? { classificationPaused: false } : { paused: false };
+    setSettings((current) => ({ ...current, ...patch }));
+    setPersistedSettings((current) => ({ ...current, ...patch }));
+    setNotice({ kind: "success", message: `已优先安排「${entry.name}」${classification ? "分类" : "转换"}，结束后继续其他${classification ? "分类" : "转换"}任务。` });
   }
 
   async function retryTask(task: TaskRecord) {
@@ -699,6 +732,11 @@ export default function App() {
       onApplyTagging={applyTagging}
       onOpenTagTasks={() => setActiveView("tagging")}
       onOpenSettings={() => setActiveView("settings")}
+      enabledExtensions={persistedSettings.enabledExtensions}
+      tasks={tasks}
+      conversionPaused={settings.paused}
+      classificationPaused={settings.classificationPaused}
+      onFileAction={runFileAction}
     />
   ) : activeView === "settings" ? (
     <SettingsView
@@ -806,6 +844,8 @@ export default function App() {
         monitoringPaused={settings.monitoringPaused}
         loading={loading}
         loadError={loadError}
+        connectionFailed={connectionFailed}
+        onShowError={() => setDismissedLoadError("")}
         refreshing={refreshing}
         onRefresh={() => void manualRefresh()}
         query={query}
@@ -816,9 +856,11 @@ export default function App() {
         {viewContent}
       </AppShell>
 
-      {loadError && (
-        <div className="fixed bottom-4 left-1/2 z-50 flex max-w-[520px] -translate-x-1/2 items-center gap-2 rounded-md border border-destructive/30 bg-card px-3 py-2 text-[11px] text-destructive shadow-lg">
-          <AlertCircle className="size-3.5 shrink-0" /><span className="truncate">{loadError}</span>
+      {loadError && loadError !== dismissedLoadError && (
+        <div role="alert" className="fixed bottom-4 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 items-start gap-2 rounded-md border border-destructive/30 bg-card px-3 py-2 text-[11px] text-destructive shadow-lg">
+          <AlertCircle className="mt-1.5 size-3.5 shrink-0" />
+          <span className="max-h-36 min-w-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words py-1 leading-5">{loadError}</span>
+          <IconAction label="关闭错误提示" size="icon-sm" className="shrink-0" onClick={() => setDismissedLoadError(loadError)}><X /></IconAction>
         </div>
       )}
 

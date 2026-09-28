@@ -1,5 +1,6 @@
 use crate::index_runtime::IndexRuntimeMessage;
 use crate::models::AppSettings;
+use crate::priority_queue::PriorityQueue;
 use crate::runtime::RuntimeMessage;
 use crate::storage::Storage;
 use crate::tag_runtime::TagRuntimeMessage;
@@ -54,7 +55,13 @@ impl ProfileRuntimeControl {
     pub async fn write_permit(
         &self,
     ) -> std::result::Result<OwnedRwLockReadGuard<()>, ProfileCancelled> {
-        let permit = self.write_barrier.clone().read_owned().await;
+        // A removal may be waiting for an outer permit held by this task.
+        // Cancellation must win over a nested read queued behind that writer.
+        let permit = tokio::select! {
+            biased;
+            _ = self.cancelled() => return Err(ProfileCancelled),
+            permit = self.write_barrier.clone().read_owned() => permit,
+        };
         if self.is_cancelled() {
             Err(ProfileCancelled)
         } else {
@@ -64,6 +71,19 @@ impl ProfileRuntimeControl {
 
     pub fn cancel(&self) {
         self.cancellation.cancel();
+    }
+
+    pub async fn run_write<T: Send + 'static>(
+        &self,
+        operation: impl FnOnce() -> Result<T> + Send + 'static,
+    ) -> Result<T> {
+        let permit = self.write_permit().await?;
+        tokio::task::spawn_blocking(move || {
+            // Blocking filesystem work survives cancellation of its async caller.
+            let _permit = permit;
+            operation()
+        })
+        .await?
     }
 
     pub async fn wait_for_writers(&self) {
@@ -84,6 +104,8 @@ pub fn is_profile_cancelled(error: &anyhow::Error) -> bool {
 #[derive(Clone)]
 pub struct AppState {
     pub storage: Storage,
+    pub conversion_priority: Arc<PriorityQueue>,
+    pub classification_priority: Arc<PriorityQueue>,
     pub settings: Arc<RwLock<AppSettings>>,
     monitoring_paused: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
@@ -113,6 +135,8 @@ impl AppState {
             .collect();
         Ok(Self {
             storage,
+            conversion_priority: Arc::new(PriorityQueue::default()),
+            classification_priority: Arc::new(PriorityQueue::default()),
             settings: Arc::new(RwLock::new(settings)),
             monitoring_paused: Arc::new(AtomicBool::new(monitoring_paused)),
             paused: Arc::new(AtomicBool::new(paused)),
@@ -125,6 +149,24 @@ impl AppState {
             tag_runtime_error: Arc::new(Mutex::new(None)),
             index_runtime_error: Arc::new(Mutex::new(None)),
         })
+    }
+
+    pub async fn resume_file_queue(&self, classification: bool) -> Result<()> {
+        let mut current = self.settings.write().await;
+        let mut updated = current.clone();
+        if classification {
+            updated.classification_paused = false;
+        } else {
+            updated.paused = false;
+        }
+        self.storage.save_settings(&updated)?;
+        *current = updated;
+        if classification {
+            self.set_classification_paused_flag(false);
+        } else {
+            self.set_paused_flag(false);
+        }
+        Ok(())
     }
 
     pub fn set_runtime_sender(&self, sender: mpsc::UnboundedSender<RuntimeMessage>) {
@@ -404,8 +446,52 @@ mod tests {
         assert!(control.is_cancelled());
         assert!(!cancellation.is_finished());
 
+        // A nested writer must not queue behind removal while holding the
+        // outer permit that removal is waiting for.
+        let nested =
+            tokio::time::timeout(std::time::Duration::from_secs(1), control.write_permit()).await;
         drop(write_permit);
         cancellation.await.unwrap();
+        assert!(nested.unwrap().is_err());
         assert!(control.write_permit().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn cancellation_waits_for_blocking_write_after_async_caller_is_aborted() {
+        let temporary = tempfile::tempdir().unwrap();
+        let output = temporary.path().join("late-write.md");
+        let write_path = output.clone();
+        let control = ProfileRuntimeControl::new();
+        let writing = control.clone();
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let worker = tokio::spawn(async move {
+            writing
+                .run_write(move || {
+                    started_tx.send(()).unwrap();
+                    release_rx.recv().unwrap();
+                    fs::write(write_path, b"finished")?;
+                    Ok(())
+                })
+                .await
+        });
+        started_rx.await.unwrap();
+        worker.abort();
+        assert!(worker.await.unwrap_err().is_cancelled());
+        control.cancel();
+        let waited = tokio::time::timeout(
+            std::time::Duration::from_millis(20),
+            control.wait_for_writers(),
+        )
+        .await;
+        release_tx.send(()).unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            control.wait_for_writers(),
+        )
+        .await
+        .unwrap();
+        assert!(waited.is_err());
+        assert_eq!(fs::read(output).unwrap(), b"finished");
     }
 }

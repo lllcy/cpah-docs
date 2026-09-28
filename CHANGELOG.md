@@ -2,6 +2,29 @@
 
 本项目的重要变更会记录在这里，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [未发布]
+
+- Office 转换内核改为 anydoc 0.2.4，旧版 DOC / PPT 改为本地处理，并增加宏启用 Office、OpenDocument、EPUB、RTF 等格式；保留图片附件输出。
+- HTML、HTM、TXT 继续使用 anytomd，Markdown 继续原样同步。
+- PDF 优先本地提取，仅在明确需要 OCR 时整份转交 MinerU；保留大型 PDF 分片、断点恢复与重试，OCR 判断随源文件版本持久化。
+- 更新格式设置、任务引擎显示和帮助说明；已有任务记录继续兼容。
+
+## [1.2.0] - 2026-09-28
+
+### 新增
+
+- 分类模型支持“大语言模型”和 System One 兼容的“决策模型”；决策模式最多提交前 32 KiB Markdown，并提供简短的模型说明。
+- 监控目录增加完整文件树、文件名搜索、转换状态筛选和文件详情，支持未加入任务的文件与空文件夹。
+- 文件详情新增单独转换与分类按钮：优先处理选中文件，结束后继续对应队列，支持恢复暂停中的队列。
+
+### 改进与修复
+
+- 主导航可收起为图标栏并记住状态；更换为透明背景的紫蓝色应用图标。
+- 已保存的 Token / API Key 显示密码占位提示。
+- 运行错误提示可关闭，同一错误不会随刷新反复弹出，顶部异常状态可重新查看。
+- 单文件优先任务在失败、源文件移走或目录改变后释放队列；分类前检查转换结果与源文件状态。
+- 更新 TLS 依赖 rustls，修复 RUSTSEC-2026-0285。
+
 ## [1.1.3] - 2026-08-16
 
 ### 修复
@@ -53,3 +76,5 @@
 [1.1.1]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.1
 [1.1.2]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.2
 [1.1.3]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.3
+
+[1.2.0]: https://github.com/lllcy/cpah-docs/releases/tag/v1.2.0

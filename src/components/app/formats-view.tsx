@@ -27,18 +27,18 @@ type FormatRow = {
 
 const localFormats: FormatRow[] = [
   { name: "Markdown", extensions: ["md"], icon: FileText, note: "原样同步，不改写内容或添加元数据" },
-  { name: "Word 文档", extensions: ["docx"], icon: FileText, note: "提取正文、表格和内嵌图片" },
-  { name: "Excel 工作簿", extensions: ["xlsx", "xls"], icon: FileSpreadsheet, note: "按工作表转换为 Markdown" },
-  { name: "PowerPoint 演示文稿", extensions: ["pptx"], icon: Presentation, note: "按幻灯片顺序提取内容" },
+  { name: "Word 文档", extensions: ["doc", "docx", "docm"], icon: FileText, note: "本地提取正文、表格和内嵌图片" },
+  { name: "Excel 工作簿", extensions: ["xlsx", "xls", "xlsm", "xlsb"], icon: FileSpreadsheet, note: "按工作表转换为 Markdown" },
+  { name: "PowerPoint 演示文稿", extensions: ["ppt", "pps", "pot", "pptx", "pptm", "ppsx", "ppsm"], icon: Presentation, note: "按幻灯片顺序提取内容" },
+  { name: "OpenDocument", extensions: ["odt", "ods", "odp"], icon: FileText, note: "文本文档、电子表格和演示文稿" },
+  { name: "电子书与富文本", extensions: ["epub", "rtf"], icon: FileText, note: "保留正文结构和图片引用" },
+  { name: "PDF 文档", extensions: ["pdf"], icon: FileArchive, note: "本地提取；需 OCR 时整份交给 MinerU" },
   { name: "网页文档", extensions: ["html", "htm"], icon: FileType2, note: "保留正文结构和链接" },
   { name: "表格数据", extensions: ["csv"], icon: FileSpreadsheet, note: "转换为 Markdown 表格" },
   { name: "纯文本", extensions: ["txt"], icon: FileText, note: "直接生成 Markdown 文本" },
 ];
 
 const cloudFormats: FormatRow[] = [
-  { name: "PDF 文档", extensions: ["pdf"], icon: FileArchive, note: "自动处理 200 页或 200 MB 以上的大文件" },
-  { name: "旧版 Word", extensions: ["doc"], icon: FileText, note: "上传 MinerU 解析" },
-  { name: "旧版 PowerPoint", extensions: ["ppt"], icon: Presentation, note: "上传 MinerU 解析" },
   { name: "图片与扫描件", extensions: ["png", "jpg", "jpeg", "webp", "bmp"], icon: FileImage, note: "通过 OCR 识别文字与版面" },
 ];
 
@@ -100,7 +100,7 @@ export function FormatsView({ mineruConfigured, enabledExtensions, saveState, on
         <section className="grid grid-cols-3 divide-x border-b bg-[var(--table-head)]">
           <div className="flex h-[52px] items-center gap-2.5 px-5 max-[900px]:px-3">
             <FileType2 className="size-3.5 text-muted-foreground" />
-            <div><p className="text-[10px] text-muted-foreground">已启用扩展名</p><p className="mt-0.5 text-sm font-semibold tabular-nums">{enabledExtensions.length} / 17</p></div>
+            <div><p className="text-[10px] text-muted-foreground">已启用扩展名</p><p className="mt-0.5 text-sm font-semibold tabular-nums">{enabledExtensions.length} / {localExtensions.length + cloudExtensions.length}</p></div>
           </div>
           <div className="flex h-[52px] items-center gap-2.5 px-5 max-[900px]:px-3">
             <HardDrive className="size-3.5 text-foreground" />
@@ -118,7 +118,7 @@ export function FormatsView({ mineruConfigured, enabledExtensions, saveState, on
               <HardDrive className="size-4 text-foreground" />
               <div className="min-w-0">
                 <h2 className="text-xs font-semibold">本地转换</h2>
-                <p className="mt-1 text-[10px] leading-4 text-muted-foreground">Office 与文本由 AnyToMD 处理，Markdown 原样同步；均不会上传。</p>
+                <p className="mt-1 text-[10px] leading-4 text-muted-foreground">Office 等文档使用 anydoc；HTML、HTM、TXT 使用 AnyToMD；Markdown 原样同步。PDF 先本地提取，需要 OCR 时上传 MinerU。</p>
               </div>
             </div>
             <FormatList rows={localFormats} enabledExtensions={enabledExtensions} onToggleExtensions={onToggleExtensions} />
@@ -129,7 +129,7 @@ export function FormatsView({ mineruConfigured, enabledExtensions, saveState, on
               <CloudUpload className="size-4 text-foreground" />
               <div className="min-w-0 flex-1">
                 <h2 className="text-xs font-semibold">MinerU 云端转换</h2>
-                <p className="mt-1 text-[10px] leading-4 text-muted-foreground">源文件会上传到 MinerU，需要网络和有效 Token；大型 PDF 会先在本地无损分片。</p>
+                <p className="mt-1 text-[10px] leading-4 text-muted-foreground">图片和需要 OCR 的 PDF 会上传到 MinerU，需要网络和有效 Token；大型 PDF 会自动分片。</p>
               </div>
               <span className={cn("inline-flex shrink-0 items-center gap-1.5 text-[10px]", mineruConfigured ? "text-success" : "text-muted-foreground")}>
                 {mineruConfigured ? <Check className="size-3" /> : <KeyRound className="size-3" />}

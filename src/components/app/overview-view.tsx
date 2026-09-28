@@ -1,6 +1,6 @@
 import { AlertCircle, Check, ChevronRight, CircleDashed, FileOutput, FileText, FolderOpen, RadioTower, Settings2, Tags } from "lucide-react";
 
-import { activeStatuses, formatUpdatedAt, isMarkdownTask, pendingStatuses, profileIsPersisted, taskFileName, type DirectorySaveState } from "@/app-model";
+import { activeStatuses, conversionEngineLabel, formatUpdatedAt, pendingStatuses, profileIsPersisted, taskFileName, type DirectorySaveState } from "@/app-model";
 import { TaskStatus } from "@/components/app/task-status";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -131,7 +131,7 @@ export function OverviewView({ tasks, tagJobs, taskTotal, profiles, persistedPro
               <button key={task.id} type="button" onClick={() => onOpenTasks(task.id)} className="grid h-[48px] w-full grid-cols-[minmax(0,1fr)_86px_98px] items-center border-b px-4 text-left outline-none last:border-b-0 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
                 <span className="min-w-0">
                   <span className="block truncate text-xs font-medium">{taskFileName(task)}</span>
-                  <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{isMarkdownTask(task) ? "Markdown 直通" : task.engine === "mineru" ? "MinerU" : "AnyToMD"}</span>
+                  <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{conversionEngineLabel(task)}</span>
                 </span>
                 <span className="text-[10px] tabular-nums text-muted-foreground">{formatUpdatedAt(task.updatedAt).split(" ").at(-1)}</span>
                 <TaskStatus status={task.status} />

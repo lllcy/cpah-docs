@@ -1,4 +1,6 @@
-use crate::models::{AgentSettings, CategoryLabel, TagSelectionMode, TaggingConfig};
+use crate::models::{
+    AgentSettings, CategoryLabel, ClassificationModelType, TagSelectionMode, TaggingConfig,
+};
 use crate::state::ProfileRuntimeControl;
 use crate::storage::Storage;
 use anyhow::{Context, Result};
@@ -26,6 +28,7 @@ use yaml_edit::Document;
 const CHUNK_BYTES: usize = 8 * 1024;
 const INITIAL_CONTEXT_BYTES: usize = 4 * 1024;
 const MAX_READ_BYTES: usize = 64 * 1024;
+const DECISION_MAX_READ_BYTES: usize = 32 * 1024;
 const MAX_MODEL_CALLS: usize = 10;
 const UNCLASSIFIED: &str = "未分类";
 const AGENT_CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
@@ -240,6 +243,9 @@ pub async fn run_tag_agent(
     api_key: String,
     control: ProfileRuntimeControl,
 ) -> Result<TagRunResult> {
+    if model.model_type == ClassificationModelType::Decision {
+        return run_decision_tagging(storage, job_id, path, config, model, api_key, control).await;
+    }
     let original =
         fs::read(&path).with_context(|| format!("无法读取 Markdown：{}", path.display()))?;
     let original_hash = hash_bytes(&original);
@@ -326,6 +332,68 @@ pub async fn run_tag_agent(
         api_calls: guard.api_calls as i64,
         input_tokens: guard.input_tokens as i64,
         output_tokens: guard.output_tokens as i64,
+    })
+}
+
+async fn run_decision_tagging(
+    storage: Storage,
+    job_id: String,
+    path: PathBuf,
+    config: TaggingConfig,
+    model: AgentSettings,
+    api_key: String,
+    control: ProfileRuntimeControl,
+) -> Result<TagRunResult> {
+    let original =
+        fs::read(&path).with_context(|| format!("无法读取 Markdown：{}", path.display()))?;
+    let original_hash = hash_bytes(&original);
+    let markdown = markdown_without_cpah_categories(&original)?;
+    if markdown.trim().is_empty() {
+        anyhow::bail!("Markdown 正文为空，无法分类");
+    }
+    let mut end = markdown.len().min(DECISION_MAX_READ_BYTES);
+    while !markdown.is_char_boundary(end) {
+        end -= 1;
+    }
+    let mut usage = crate::decision_model::DecisionUsage::default();
+    let result = tokio::time::timeout(
+        AGENT_RUN_TIMEOUT,
+        crate::decision_model::classify(
+            &model,
+            &api_key,
+            &config,
+            &markdown[..end],
+            end < markdown.len(),
+            &mut usage,
+        ),
+    )
+    .await
+    .context("决策模型分类运行超时");
+    storage.update_tag_job_usage(
+        &job_id,
+        end as i64,
+        markdown.len() as i64,
+        usage.api_calls,
+        usage.input_tokens,
+        usage.output_tokens,
+    )?;
+    let categories = validate_agent_categories(
+        &config.selection_mode,
+        &config.labels,
+        json!({"categories": result??}),
+    )
+    .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    let _write_permit = control.write_permit().await?;
+    storage.set_tag_job_status(&job_id, crate::models::TagJobStatus::Writing, None)?;
+    let content_hash = write_cpah_categories_checked(&path, &original_hash, &categories)?;
+    Ok(TagRunResult {
+        categories,
+        content_hash,
+        read_bytes: end as i64,
+        total_bytes: markdown.len() as i64,
+        api_calls: usage.api_calls,
+        input_tokens: usage.input_tokens,
+        output_tokens: usage.output_tokens,
     })
 }
 
@@ -420,7 +488,7 @@ async fn run_agent_once(
         .map_err(|error| anyhow::anyhow!(error.to_string()))
 }
 
-fn build_agent_http_client() -> Result<reqwest::Client> {
+pub(crate) fn build_agent_http_client() -> Result<reqwest::Client> {
     reqwest::Client::builder()
         .connect_timeout(AGENT_CONNECT_TIMEOUT)
         .timeout(AGENT_REQUEST_TIMEOUT)
@@ -807,6 +875,18 @@ fn is_retryable_error(error: &str) -> bool {
 
 fn lock_session(session: &Arc<Mutex<AgentSession>>) -> std::sync::MutexGuard<'_, AgentSession> {
     session.lock().unwrap_or_else(|error| error.into_inner())
+}
+
+pub async fn test_classification_connection(settings: &AgentSettings, api_key: &str) -> Result<()> {
+    match settings.model_type {
+        ClassificationModelType::Llm => test_tool_calling(settings, api_key).await,
+        ClassificationModelType::Decision => tokio::time::timeout(
+            AGENT_PROBE_TIMEOUT,
+            crate::decision_model::test_connection(settings, api_key),
+        )
+        .await
+        .context("决策模型连接测试超时")?,
+    }
 }
 
 pub async fn test_tool_calling(settings: &AgentSettings, api_key: &str) -> Result<()> {
@@ -1246,6 +1326,7 @@ mod tests {
             .unwrap();
         let settings = AgentSettings {
             base_url: format!("http://{address}/v1"),
+            model_type: ClassificationModelType::Llm,
             model: "cpah-mock".to_string(),
             configured: true,
             concurrency: 1,
@@ -1277,6 +1358,7 @@ mod tests {
     async fn compatible_provider_performs_real_tool_calling() {
         let settings = AgentSettings {
             base_url: std::env::var("CPAHDOCS_AGENT_BASE_URL").unwrap(),
+            model_type: ClassificationModelType::Llm,
             model: std::env::var("CPAHDOCS_AGENT_MODEL").unwrap(),
             configured: true,
             concurrency: 1,
@@ -1313,6 +1395,7 @@ mod tests {
             .unwrap();
         let settings = AgentSettings {
             base_url: std::env::var("CPAHDOCS_AGENT_BASE_URL").unwrap(),
+            model_type: ClassificationModelType::Llm,
             model: std::env::var("CPAHDOCS_AGENT_MODEL").unwrap(),
             configured: true,
             concurrency: 1,

@@ -4,6 +4,9 @@
 /coverage/
 /release/
 
+# Local promotional materials, screenshots, and publishing exports
+/output/
+
 # Rust / Tauri build output
 /src-tauri/target/
 /src-tauri/target-*/
