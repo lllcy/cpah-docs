@@ -1542,7 +1542,7 @@ dependencies = [
  "keyring",
  "lopdf 0.44.0",
  "notify",
- "reqwest 0.13.4",
+ "reqwest 0.13.5",
  "rig",
  "rusqlite",
  "serde",
@@ -7401,11 +7401,11 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.13.4"
+version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "219c5811de6525e5416c7d5d53bb656d3afdbc6c5af816e0802bcfa42dbdc1c3"
+checksum = "16a1cfa75cc186dd73d5818e510e042e40927bccc9c236b061cea97e1eb08029"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "futures-core",
  "futures-util",
@@ -7528,7 +7528,7 @@ dependencies = [
  "mime_guess",
  "ordered-float",
  "pin-project-lite",
- "reqwest 0.13.4",
+ "reqwest 0.13.5",
  "rig-derive",
  "schemars 1.2.2",
  "serde",
@@ -7575,7 +7575,7 @@ version = "0.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5fa2b188a1e9e65d29c34738c97465f0822c57540d6d45fd4f04dad906c966a"
 dependencies = [
- "reqwest 0.13.4",
+ "reqwest 0.13.5",
  "rig-core",
  "serde",
  "serde_json",
@@ -7602,7 +7602,7 @@ version = "0.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af9c7b7ff7ed9c16da983a21f1e81f425c9805355427a92f4d2d97ba1fe2aa12"
 dependencies = [
- "reqwest 0.13.4",
+ "reqwest 0.13.5",
  "rig-core",
  "serde",
  "serde_json",
@@ -8817,7 +8817,7 @@ dependencies = [
  "percent-encoding",
  "plist",
  "raw-window-handle",
- "reqwest 0.13.4",
+ "reqwest 0.13.5",
  "serde",
  "serde_json",
  "serde_repr",
