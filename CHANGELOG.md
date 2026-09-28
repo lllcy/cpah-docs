@@ -4,10 +4,21 @@
 
 ## [未发布]
 
+## [1.3.0] - 2026-09-29
+
+### 新增与改进
+
 - Office 转换内核改为 anydoc 0.2.4，旧版 DOC / PPT 改为本地处理，并增加宏启用 Office、OpenDocument、EPUB、RTF 等格式；保留图片附件输出。
 - HTML、HTM、TXT 继续使用 anytomd，Markdown 继续原样同步。
 - PDF 优先本地提取，仅在明确需要 OCR 时整份转交 MinerU；保留大型 PDF 分片、断点恢复与重试，OCR 判断随源文件版本持久化。
 - 更新格式设置、任务引擎显示和帮助说明；已有任务记录继续兼容。
+- 候选类别支持粘贴 JSON 批量导入，整批校验并预览同名说明冲突，可统一保留、覆盖或取消；导入后自动保存，不启动历史分类。
+
+### 修复
+
+- 删除监控目录时取消转换、分类和索引任务，等待活动写入结束后清理任务记录与 MinerU 缓存，保留源文件和已生成文件。
+- 防止旧窗口恢复已删除目录，或通过旧文件操作重新入队；决策模型迟到响应和 MinerU 解压写入同样受取消控制。
+- 发布脚本支持自定义 Cargo 构建目录，并纳入 JSON 导入测试。
 
 ## [1.2.0] - 2026-09-28
 
@@ -78,3 +89,4 @@
 [1.1.3]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.3
 
 [1.2.0]: https://github.com/lllcy/cpah-docs/releases/tag/v1.2.0
+[1.3.0]: https://github.com/lllcy/cpah-docs/releases/tag/v1.3.0

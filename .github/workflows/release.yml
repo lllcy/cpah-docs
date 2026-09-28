@@ -101,6 +101,9 @@ jobs:
     needs: [windows, macos]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout release notes
+        uses: actions/checkout@v7
+
       - name: Download Windows artifact
         uses: actions/download-artifact@v8
         with:
@@ -139,4 +142,4 @@ jobs:
             release/SHA256SUMS.txt \
             --repo "${{ github.repository }}" \
             --title "CPAH Docs ${{ github.ref_name }}" \
-            --generate-notes
+            --notes-file "docs/releases/${{ github.ref_name }}.md"

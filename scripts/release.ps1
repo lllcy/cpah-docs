@@ -62,6 +62,9 @@ try {
     npm.cmd run test:files
     if ($LASTEXITCODE -ne 0) { throw "File browser tests failed" }
 
+    npm.cmd run test:tag-import
+    if ($LASTEXITCODE -ne 0) { throw "Category import tests failed" }
+
     cargo test --manifest-path src-tauri/Cargo.toml --all-targets
     if ($LASTEXITCODE -ne 0) { throw "Rust tests failed" }
 
@@ -71,7 +74,10 @@ try {
     npx.cmd tauri build --no-bundle
     if ($LASTEXITCODE -ne 0) { throw "Tauri release build failed" }
 
-    $sourceExe = Join-Path $projectRoot "src-tauri\target\release\cpah-docs.exe"
+    $cargoMetadataJson = cargo metadata --manifest-path src-tauri/Cargo.toml --format-version 1 --no-deps
+    if ($LASTEXITCODE -ne 0) { throw "Cannot resolve Cargo build directory" }
+    $cargoTargetDirectory = ($cargoMetadataJson | ConvertFrom-Json).target_directory
+    $sourceExe = Join-Path $cargoTargetDirectory "release\cpah-docs.exe"
     if (-not (Test-Path -LiteralPath $sourceExe -PathType Leaf)) {
         throw "Release EXE not found: $sourceExe"
     }

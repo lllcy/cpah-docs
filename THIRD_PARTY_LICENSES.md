@@ -1,6 +1,6 @@
 # 第三方软件许可与声明
 
-本清单适用于 CPAH Docs v1.2.0。CPAH Docs 的原创代码以 MIT License 授权；下列第三方组件继续适用其各自的许可证。
+本清单适用于 CPAH Docs v1.3.0。CPAH Docs 的原创代码以 MIT License 授权；下列第三方组件继续适用其各自的许可证。
 
 本清单根据本版本锁定的依赖自动生成。组件名称后的 crates.io 精确版本页面提供对应源码包；其中 MPL-2.0 组件的源码继续以 MPL-2.0 提供。
 
@@ -10527,7 +10527,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [cpah-docs 1.2.0](https://crates.io/crates/cpah-docs/1.2.0)（[上游仓库](https://github.com/lllcy/cpah-docs)）
+- [cpah-docs 1.3.0](https://crates.io/crates/cpah-docs/1.3.0)（[上游仓库](https://github.com/lllcy/cpah-docs)）
 - [anydoc 0.2.4](https://crates.io/crates/anydoc/0.2.4)（[上游仓库](https://github.com/firecrawl/anydoc)）
 
 <details>

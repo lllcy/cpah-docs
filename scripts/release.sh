@@ -29,13 +29,15 @@ rustup target add aarch64-apple-darwin x86_64-apple-darwin
 cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 npm run build
 npm run test:files
+npm run test:tag-import
 cargo test --manifest-path src-tauri/Cargo.toml --all-targets
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 # The DMG builder otherwise asks Finder to arrange the bundle window. That
 # AppleScript step is unnecessary for releases and can hang on headless Macs.
 CI=true npx tauri build --target universal-apple-darwin --bundles dmg
 
-dmg_directory="src-tauri/target/universal-apple-darwin/release/bundle/dmg"
+cargo_target_directory="$(cargo metadata --manifest-path src-tauri/Cargo.toml --format-version 1 --no-deps | node -e 'let input = ""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => process.stdout.write(JSON.parse(input).target_directory));')"
+dmg_directory="$cargo_target_directory/universal-apple-darwin/release/bundle/dmg"
 mapfile_supported=false
 if command -v mapfile >/dev/null 2>&1; then
   mapfile_supported=true
