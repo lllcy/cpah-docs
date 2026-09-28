@@ -17,7 +17,7 @@ export const emptySettings: AppSettings = {
   mineruBaseUrl: "https://mineru.net/api/v4",
   mineruConfigured: false,
   enabledExtensions: ["md", "docx", "xlsx", "xls", "pptx", "html", "htm", "csv", "txt", "pdf", "doc", "ppt", "png", "jpg", "jpeg", "webp", "bmp"],
-  agent: { baseUrl: "https://api.openai.com/v1", model: "", configured: false, concurrency: 1 },
+  agent: { modelType: "llm", baseUrl: "https://api.openai.com/v1", model: "", configured: false, concurrency: 1 },
 };
 
 export const activeStatuses: JobStatus[] = [
@@ -45,7 +45,7 @@ export const statusMeta: Record<JobStatus, { label: string; tone: "neutral" | "a
 
 export const tagStatusMeta: Record<TagJobStatus, { label: string; tone: "neutral" | "active" | "success" | "danger" }> = {
   queued: { label: "待执行", tone: "neutral" },
-  reading: { label: "Agent 读取", tone: "active" },
+  reading: { label: "模型分类", tone: "active" },
   writing: { label: "写入 YAML", tone: "active" },
   completed: { label: "分类完成", tone: "success" },
   failed: { label: "分类失败", tone: "danger" },
@@ -63,7 +63,7 @@ export const previewDashboard: Dashboard = {
     mineruBaseUrl: "https://mineru.net/api/v4",
     mineruConfigured: true,
     enabledExtensions: ["md", "docx", "xlsx", "xls", "pptx", "html", "htm", "csv", "txt", "pdf", "doc", "ppt", "png", "jpg", "jpeg", "webp", "bmp"],
-    agent: { baseUrl: "https://api.openai.com/v1", model: "gpt-4.1-mini", configured: true, concurrency: 1 },
+    agent: { modelType: "llm", baseUrl: "https://api.openai.com/v1", model: "gpt-4.1-mini", configured: true, concurrency: 1 },
     profiles: [
       {
         id: "profile-finance",

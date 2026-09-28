@@ -1,5 +1,7 @@
+export type FileAction = "convert" | "classify";
 export type DeletePolicy = "trash" | "keep" | "delete";
 export type TagSelectionMode = "single" | "multiple";
+export type ClassificationModelType = "llm" | "decision";
 
 export interface CategoryLabel {
   id: string;
@@ -24,6 +26,7 @@ export interface WatchProfile {
 }
 
 export interface AgentSettings {
+  modelType: ClassificationModelType;
   baseUrl: string;
   model: string;
   configured: boolean;
@@ -124,6 +127,28 @@ export interface Dashboard {
   runtimeError: string | null;
   tagRuntimeError: string | null;
   indexRuntimeError: string | null;
+}
+
+export type FileFilter = "all" | "pending" | "active" | "completed" | "failed" | "untracked" | "disabled" | "unsupported" | "unreadable";
+
+export interface FileEntry {
+  relativePath: string;
+  name: string;
+  kind: "directory" | "file" | "link" | "other";
+  size: number | null;
+  modifiedMs: number | null;
+  availability: "eligible" | "disabled" | "unsupported" | "link" | "unreadable";
+  task: TaskRecord | null;
+  sourceChanged: boolean;
+  outputAvailable: boolean;
+  error: string | null;
+}
+
+export interface FileBrowserResult {
+  entries: FileEntry[];
+  directories: { relativePath: string; error: string | null }[];
+  missingPaths: string[];
+  matchedCount: number;
 }
 
 export type HealthLevel = "ok" | "warning" | "error";

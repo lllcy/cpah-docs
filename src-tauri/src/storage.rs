@@ -1081,6 +1081,19 @@ impl Storage {
             .map_err(Into::into)
     }
 
+    pub fn list_profile_tag_jobs(&self, profile_id: &str) -> Result<Vec<TagJobRecord>> {
+        let connection = self.open()?;
+        let mut statement = connection.prepare(
+            "SELECT id, profile_id, markdown_path, relative_path, status,
+                    content_hash, schema_hash, result_json, error, read_bytes,
+                    total_bytes, api_calls, input_tokens, output_tokens, updated_at
+             FROM tag_jobs WHERE profile_id=?1",
+        )?;
+        let rows = statement.query_map([profile_id], map_tag_job)?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
     pub fn list_tag_jobs_with_statuses(
         &self,
         statuses: &[TagJobStatus],
@@ -1481,6 +1494,9 @@ mod tests {
             classification_paused: true,
             ..Default::default()
         };
+        settings.agent.model_type = crate::models::ClassificationModelType::Decision;
+        settings.agent.base_url = "https://api.typesafe.ai/v1".into();
+        settings.agent.model = "jev-latest".into();
         settings.profiles.push(WatchProfile {
             id: "wiki".into(),
             name: "wiki".into(),
@@ -1503,6 +1519,12 @@ mod tests {
         let loaded = storage.load_settings().unwrap();
         assert_eq!(loaded.profiles[0].tagging, settings.profiles[0].tagging);
         assert!(loaded.classification_paused);
+        assert_eq!(
+            loaded.agent.model_type,
+            crate::models::ClassificationModelType::Decision
+        );
+        assert_eq!(loaded.agent.base_url, settings.agent.base_url);
+        assert_eq!(loaded.agent.model, settings.agent.model);
     }
 
     #[test]

@@ -26,12 +26,22 @@ use tokio::sync::{Mutex, Semaphore, mpsc};
 use uuid::Uuid;
 use walkdir::WalkDir;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum RuntimeMessage {
     Reload,
+    PriorityFile {
+        profile_id: String,
+        relative_path: String,
+        reply: tokio::sync::oneshot::Sender<Result<(), String>>,
+    },
     ProcessQueued,
-    Path { path: PathBuf, force: bool },
-    Retry { task_id: String },
+    Path {
+        path: PathBuf,
+        force: bool,
+    },
+    Retry {
+        task_id: String,
+    },
     RetryWaitingMineru,
     Reconcile,
 }
@@ -145,10 +155,18 @@ async fn run(
     interval.tick().await;
     let mut mineru_retry_interval = tokio::time::interval(Duration::from_secs(5 * 60));
     mineru_retry_interval.tick().await;
+    let mut priority_interval = tokio::time::interval(Duration::from_secs(1));
     loop {
         tokio::select! {
             Some(message) = receiver.recv() => {
                 match message {
+                    RuntimeMessage::PriorityFile { profile_id, relative_path, reply } => {
+                        let result = queue_priority_file(&state, &active, &profile_id, &relative_path).await;
+                        let _ = reply.send(result.map_err(|error| format!("{error:#}")));
+                        if let Err(error) = pump_priority_files(&state, &mineru, &active, &semaphore).await {
+                            tracing::error!(error = %format!("{error:#}"), "priority conversion failed");
+                        }
+                    }
                     RuntimeMessage::Reload => {
                         if let Err(error) = reload_watches(&state, &mut watcher, &mut watched_roots).await {
                             tracing::error!(error = %format!("{error:#}"), "watcher reload failed");
@@ -208,6 +226,11 @@ async fn run(
                     }
                 }
             }
+            _ = priority_interval.tick() => {
+                if let Err(error) = pump_priority_files(&state, &mineru, &active, &semaphore).await {
+                    tracing::error!(error = %format!("{error:#}"), "priority conversion failed");
+                }
+            }
             _ = interval.tick() => {
                 if !state.is_monitoring_paused()
                     && let Err(error) = reconcile_missing_sources(&state, &active).await
@@ -230,6 +253,178 @@ async fn run(
         }
     }
     Ok(())
+}
+
+async fn queue_priority_file(
+    state: &AppState,
+    active: &SharedActivePaths,
+    profile_id: &str,
+    relative: &str,
+) -> Result<()> {
+    let settings = state.settings.read().await.clone();
+    let (profile, source) = crate::file_actions::source_file(&settings, profile_id, relative)?;
+    let existing = state.storage.find_by_source(&source.to_string_lossy())?;
+    let output = output_path(&profile, &source)?;
+    if state
+        .storage
+        .find_tag_job_by_path(&output)?
+        .is_some_and(|job| {
+            matches!(
+                job.status,
+                crate::models::TagJobStatus::Reading | crate::models::TagJobStatus::Writing
+            )
+        })
+    {
+        anyhow::bail!("此文件正在分类，请等待完成后再转换");
+    }
+    if let Some(task) = &existing {
+        if state.conversion_priority.contains(&task.id) {
+            return state.resume_file_queue(false).await;
+        }
+        if matches!(
+            task.status,
+            JobStatus::Converting
+                | JobStatus::Uploading
+                | JobStatus::Processing
+                | JobStatus::Downloading
+        ) || (active.lock().await.running.contains(&source) && task.status != JobStatus::Queued)
+            || state
+                .storage
+                .list_mineru_parts_for_parent(&task.id)?
+                .iter()
+                .any(|part| {
+                    matches!(
+                        part.status,
+                        JobStatus::Uploading | JobStatus::Processing | JobStatus::Downloading
+                    )
+                })
+        {
+            anyhow::bail!("此文件正在转换，请等待完成");
+        }
+    }
+    let task = match existing {
+        Some(task) if task.status != JobStatus::Completed => task,
+        _ => {
+            let metadata = std::fs::metadata(&source)?;
+            let queued = state
+                .storage
+                .queue_task(
+                    &profile,
+                    &source,
+                    source.strip_prefix(&profile.input_dir)?,
+                    metadata.len(),
+                    metadata.modified()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
+                    default_engine(&source).context("此格式不支持转换")?,
+                    &output,
+                    true,
+                )?
+                .context("无法创建转换任务")?;
+            // An explicit reconversion must not merely merge an old completed PDF.
+            state.storage.delete_mineru_parts(&queued.id)?;
+            queued
+        }
+    };
+    if task.status == JobStatus::Failed {
+        state
+            .storage
+            .set_status(&task.id, JobStatus::Queued, None)?;
+    }
+    state.conversion_priority.push(task.id.clone());
+    if let Err(error) = state.resume_file_queue(false).await {
+        state.conversion_priority.remove(&task.id);
+        return Err(error);
+    }
+    Ok(())
+}
+
+async fn pump_priority_files(
+    state: &AppState,
+    mineru: &MinerUClient,
+    active: &SharedActivePaths,
+    semaphore: &Arc<Semaphore>,
+) -> Result<()> {
+    if state.is_paused() || state.conversion_priority.front().is_none() {
+        return Ok(());
+    }
+    while let Some((id, started)) = state.conversion_priority.front() {
+        let Some(task) = state.storage.get_task(&id)? else {
+            state.conversion_priority.remove(&id);
+            continue;
+        };
+        let source = PathBuf::from(&task.source_path);
+        let settings = state.settings.read().await.clone();
+        let valid = settings
+            .profiles
+            .iter()
+            .find(|profile| profile.id == task.profile_id)
+            .filter(|profile| profile.enabled)
+            .is_some_and(|profile| {
+                crate::file_browser::checked_file(
+                    Path::new(&profile.input_dir),
+                    &task.relative_path,
+                )
+                .is_ok_and(|checked| checked == source)
+            })
+            && is_enabled(&source, &settings.enabled_extensions);
+        if !valid {
+            state.storage.set_status(
+                &id,
+                JobStatus::Failed,
+                Some("文件不可用、目录已停用或格式已关闭"),
+            )?;
+            state.conversion_priority.remove(&id);
+            continue;
+        }
+        if started
+            && matches!(
+                task.status,
+                JobStatus::Completed | JobStatus::Failed | JobStatus::WaitingMineru
+            )
+            && !active.lock().await.running.contains(&source)
+        {
+            state.conversion_priority.remove(&id);
+            continue;
+        }
+        if !active.lock().await.running.contains(&source) {
+            if !started || matches!(task.status, JobStatus::Queued | JobStatus::WaitingStable) {
+                state.conversion_priority.mark_started(&id);
+                if let Err(error) = retry_task(state, mineru, active, semaphore, &id).await {
+                    state.storage.set_status(
+                        &id,
+                        JobStatus::Failed,
+                        Some(&format!("{error:#}")),
+                    )?;
+                }
+            } else if task.status == JobStatus::WaitingParts {
+                let parts = state.storage.list_mineru_parts_for_parent(&id)?;
+                // Failed/offline parts leave the parent in WaitingParts. Do not let
+                // that indefinitely hold back unrelated documents.
+                if parts
+                    .iter()
+                    .any(|part| matches!(part.status, JobStatus::Failed | JobStatus::WaitingMineru))
+                    && parts.iter().all(|part| {
+                        matches!(
+                            part.status,
+                            JobStatus::Completed | JobStatus::Failed | JobStatus::WaitingMineru
+                        )
+                    })
+                {
+                    state.conversion_priority.remove(&id);
+                    continue;
+                }
+                for part in parts {
+                    if part.status == JobStatus::Queued {
+                        schedule_new_mineru_part(state, mineru, semaphore, part).await?;
+                    }
+                }
+            }
+        } else {
+            state.conversion_priority.mark_started(&id);
+        }
+        return Ok(());
+    }
+    // The selected file finished (or failed): continue the ordinary queue.
+    process_queued(state, mineru, active, semaphore).await
 }
 
 async fn reload_watches(
@@ -404,7 +599,7 @@ async fn schedule_path(
         return;
     };
     let settings = state.settings.read().await.clone();
-    if settings.monitoring_paused
+    if (settings.monitoring_paused && !request.is_force())
         || !is_supported(&path)
         || !is_enabled(&path, &settings.enabled_extensions)
     {
@@ -413,6 +608,12 @@ async fn schedule_path(
     let Some(profile) = matching_profile(&settings.profiles, &path) else {
         return;
     };
+    if let Ok(Some(task)) = state.storage.find_by_source(&path.to_string_lossy())
+        && state.conversion_priority.contains(&task.id)
+        && (request == ScheduleRequest::Normal || !state.conversion_priority.allows(&task.id))
+    {
+        return;
+    }
     let key = path.clone();
     if !active.lock().await.try_start(&key, request) {
         return;
@@ -475,7 +676,7 @@ async fn schedule_path(
             .extension()
             .and_then(|extension| extension.to_str())
             .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"));
-    if state.is_paused() {
+    if state.is_paused() || !state.conversion_priority.allows(&queued_task_id) {
         let pending = active.lock().await.finish(&key);
         dispatch_pending(state, key, pending);
         return;
@@ -492,7 +693,7 @@ async fn schedule_path(
             } else {
                 Some(semaphore.acquire_owned().await?)
             };
-            if state.is_paused() {
+            if state.is_paused() || !state.conversion_priority.allows(&queued_task_id) {
                 return Ok(());
             }
             let settings = state.settings.read().await.clone();
@@ -826,7 +1027,10 @@ async fn schedule_new_mineru_part(
     semaphore: &Arc<Semaphore>,
     part: MinerUPartRecord,
 ) -> Result<()> {
-    if state.is_paused() || !state.storage.claim_queued_mineru_part(&part.id)? {
+    if state.is_paused()
+        || !state.conversion_priority.allows(&part.parent_task_id)
+        || !state.storage.claim_queued_mineru_part(&part.id)?
+    {
         return Ok(());
     }
     spawn_mineru_part(state, mineru, semaphore, part, false);
@@ -839,6 +1043,9 @@ async fn schedule_resumed_mineru_part(
     semaphore: &Arc<Semaphore>,
     part: MinerUPartRecord,
 ) -> Result<()> {
+    if !state.conversion_priority.allows(&part.parent_task_id) {
+        return Ok(());
+    }
     state
         .storage
         .set_mineru_part_status(&part.id, JobStatus::Processing, None)?;
@@ -859,7 +1066,9 @@ fn spawn_mineru_part(
     tauri::async_runtime::spawn(async move {
         let result = async {
             let _permit = semaphore.acquire_owned().await?;
-            if state.is_paused() && !resume_existing {
+            if (state.is_paused() || !state.conversion_priority.allows(&part.parent_task_id))
+                && !resume_existing
+            {
                 state.storage.reset_mineru_part_for_retry(&part.id)?;
                 return Ok(());
             }
@@ -1233,7 +1442,10 @@ async fn resume_mineru(
     request: ScheduleRequest,
 ) {
     let path = PathBuf::from(&task.source_path);
-    if !path.is_file() || !active.lock().await.try_start(&path, request) {
+    if !state.conversion_priority.allows(&task.id)
+        || !path.is_file()
+        || !active.lock().await.try_start(&path, request)
+    {
         return;
     }
     let settings = state.settings.read().await.clone();
@@ -1253,6 +1465,7 @@ async fn resume_mineru(
     tauri::async_runtime::spawn(async move {
         let result = async {
             let _permit = semaphore.acquire_owned().await?;
+            if !state.conversion_priority.allows(&task.id) { return Ok(()); }
             let token = AppState::read_mineru_token()?;
             let base_url = state.settings.read().await.mineru_base_url.clone();
             let batch_id = task
@@ -1522,7 +1735,10 @@ async fn process_queued(
     ])?;
     for task in tasks {
         let source = PathBuf::from(task.source_path);
-        if source.is_file() {
+        if source.is_file()
+            && state.conversion_priority.allows(&task.id)
+            && !active.lock().await.running.contains(&source)
+        {
             schedule_path(
                 state,
                 mineru,
@@ -1799,6 +2015,258 @@ mod tests {
             .set_status(&task.id, JobStatus::Completed, None)
             .unwrap();
         (source, output, task)
+    }
+
+    async fn priority_fixture() -> (
+        tempfile::TempDir,
+        AppState,
+        WatchProfile,
+        SharedActivePaths,
+        MinerUClient,
+        Arc<Semaphore>,
+    ) {
+        let root = tempfile::tempdir().unwrap();
+        let input = root.path().join("input");
+        std::fs::create_dir_all(&input).unwrap();
+        let profile = temporary_profile(&input, &root.path().join("output"));
+        let state = AppState::new(root.path().join("data")).unwrap();
+        {
+            let mut settings = state.settings.write().await;
+            settings.profiles = vec![profile.clone()];
+            settings.paused = true;
+            settings.monitoring_paused = true;
+            settings.classification_paused = true;
+        }
+        state.set_paused_flag(true);
+        state.set_monitoring_paused_flag(true);
+        state.set_classification_paused_flag(true);
+        (
+            root,
+            state,
+            profile,
+            Arc::new(Mutex::new(ActivePaths::default())),
+            MinerUClient::new().unwrap(),
+            Arc::new(Semaphore::new(2)),
+        )
+    }
+
+    async fn wait_for_completion(state: &AppState, source: &Path) {
+        tokio::time::timeout(Duration::from_secs(15), async {
+            loop {
+                if state
+                    .storage
+                    .find_by_source(&source.to_string_lossy())
+                    .unwrap()
+                    .is_some_and(|task| task.status == JobStatus::Completed)
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(30)).await;
+            }
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn selected_file_runs_first_then_resumes_queue_without_resuming_classification() {
+        let (_root, state, profile, active, mineru, semaphore) = priority_fixture().await;
+        let other = Path::new(&profile.input_dir).join("other.md");
+        let selected = Path::new(&profile.input_dir).join("selected.md");
+        std::fs::write(&other, "# other").unwrap();
+        std::fs::write(&selected, "# selected").unwrap();
+        schedule_path(
+            &state,
+            &mineru,
+            &active,
+            &semaphore,
+            other.clone(),
+            ScheduleRequest::Force,
+        )
+        .await;
+        queue_priority_file(&state, &active, &profile.id, "selected.md")
+            .await
+            .unwrap();
+        // A second click is coalesced, including while the file waits for a worker.
+        queue_priority_file(&state, &active, &profile.id, "selected.md")
+            .await
+            .unwrap();
+        assert!(!state.is_paused());
+        assert!(state.is_classification_paused());
+        assert!(state.is_monitoring_paused());
+        assert!(!state.storage.load_settings().unwrap().paused);
+        process_queued(&state, &mineru, &active, &semaphore)
+            .await
+            .unwrap();
+        pump_priority_files(&state, &mineru, &active, &semaphore)
+            .await
+            .unwrap();
+        wait_for_completion(&state, &selected).await;
+        assert_eq!(
+            state
+                .storage
+                .find_by_source(&other.to_string_lossy())
+                .unwrap()
+                .unwrap()
+                .status,
+            JobStatus::Queued
+        );
+        // Allow the worker to release its active path before pumping completion.
+        tokio::time::timeout(Duration::from_secs(3), async {
+            while state.conversion_priority.front().is_some() {
+                pump_priority_files(&state, &mineru, &active, &semaphore)
+                    .await
+                    .unwrap();
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .unwrap();
+        wait_for_completion(&state, &other).await;
+        assert_eq!(
+            std::fs::read_to_string(output_path(&profile, &selected).unwrap()).unwrap(),
+            "# selected"
+        );
+    }
+
+    #[tokio::test]
+    async fn missing_priority_file_does_not_block_later_tasks() {
+        let (_root, state, profile, active, mineru, semaphore) = priority_fixture().await;
+        let missing = Path::new(&profile.input_dir).join("missing.md");
+        let next = Path::new(&profile.input_dir).join("next.md");
+        std::fs::write(&missing, "# missing").unwrap();
+        std::fs::write(&next, "# next").unwrap();
+        queue_priority_file(&state, &active, &profile.id, "missing.md")
+            .await
+            .unwrap();
+        queue_priority_file(&state, &active, &profile.id, "next.md")
+            .await
+            .unwrap();
+        std::fs::remove_file(&missing).unwrap();
+        pump_priority_files(&state, &mineru, &active, &semaphore)
+            .await
+            .unwrap();
+        wait_for_completion(&state, &next).await;
+        assert_eq!(
+            state
+                .storage
+                .find_by_source(&missing.to_string_lossy())
+                .unwrap()
+                .unwrap()
+                .status,
+            JobStatus::Failed
+        );
+    }
+
+    #[tokio::test]
+    async fn stalled_pdf_parts_release_priority_and_completed_pdf_reconversion_discards_old_parts()
+    {
+        let (_root, state, profile, active, mineru, semaphore) = priority_fixture().await;
+        let source = Path::new(&profile.input_dir).join("large.pdf");
+        std::fs::write(&source, "test pdf record").unwrap();
+        queue_priority_file(&state, &active, &profile.id, "large.pdf")
+            .await
+            .unwrap();
+        let task = state
+            .storage
+            .find_by_source(&source.to_string_lossy())
+            .unwrap()
+            .unwrap();
+        let plans = vec![crate::pdf_split::PdfPartPlan {
+            index: 1,
+            count: 1,
+            page_start: 1,
+            page_end: 200,
+            mode: MinerUPartMode::PageRanges,
+            input_path: None,
+        }];
+        let parts = state
+            .storage
+            .replace_mineru_parts(&task.id, "hash", 200, &plans)
+            .unwrap();
+        state.conversion_priority.mark_started(&task.id);
+        state
+            .storage
+            .set_mineru_part_status(&parts[0].id, JobStatus::WaitingMineru, Some("offline"))
+            .unwrap();
+        pump_priority_files(&state, &mineru, &active, &semaphore)
+            .await
+            .unwrap();
+        assert!(state.conversion_priority.front().is_none());
+        assert_eq!(
+            state.storage.get_task(&task.id).unwrap().unwrap().status,
+            JobStatus::WaitingParts
+        );
+        // No provider is contacted; this checks that an explicit reconversion
+        // queues a fresh conversion instead of reusing old successful fragments.
+        state.storage.complete_mineru_part(&parts[0].id).unwrap();
+        state
+            .storage
+            .set_status(&task.id, JobStatus::Completed, None)
+            .unwrap();
+        queue_priority_file(&state, &active, &profile.id, "large.pdf")
+            .await
+            .unwrap();
+        assert!(
+            state
+                .storage
+                .list_mineru_parts_for_parent(&task.id)
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            state.storage.get_task(&task.id).unwrap().unwrap().status,
+            JobStatus::Queued
+        );
+    }
+
+    #[tokio::test]
+    async fn changing_profile_root_releases_old_priority_file() {
+        let (root, state, profile, active, mineru, semaphore) = priority_fixture().await;
+        let old_source = Path::new(&profile.input_dir).join("file.md");
+        std::fs::write(&old_source, "old").unwrap();
+        queue_priority_file(&state, &active, &profile.id, "file.md")
+            .await
+            .unwrap();
+        let replacement = root.path().join("replacement");
+        std::fs::create_dir_all(&replacement).unwrap();
+        std::fs::write(replacement.join("file.md"), "different file").unwrap();
+        state.settings.write().await.profiles[0].input_dir = dunce::canonicalize(replacement)
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        pump_priority_files(&state, &mineru, &active, &semaphore)
+            .await
+            .unwrap();
+        assert!(state.conversion_priority.front().is_none());
+        assert_eq!(
+            state
+                .storage
+                .find_by_source(&old_source.to_string_lossy())
+                .unwrap()
+                .unwrap()
+                .status,
+            JobStatus::Failed
+        );
+    }
+
+    #[tokio::test]
+    async fn priority_rejects_traversal_and_disabled_profiles_without_resuming() {
+        let (_root, state, profile, active, _mineru, _semaphore) = priority_fixture().await;
+        assert!(
+            queue_priority_file(&state, &active, &profile.id, "../outside.md")
+                .await
+                .is_err()
+        );
+        std::fs::write(Path::new(&profile.input_dir).join("file.md"), "# file").unwrap();
+        state.settings.write().await.profiles[0].enabled = false;
+        assert!(
+            queue_priority_file(&state, &active, &profile.id, "file.md")
+                .await
+                .is_err()
+        );
+        assert!(state.is_paused());
+        assert!(state.conversion_priority.front().is_none());
     }
 
     #[test]

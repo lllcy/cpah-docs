@@ -1,6 +1,6 @@
 # 第三方软件许可与声明
 
-本清单适用于 CPAH Docs v1.1.4。CPAH Docs 的原创代码以 MIT License 授权；下列第三方组件继续适用其各自的许可证。
+本清单适用于 CPAH Docs v1.2.0。CPAH Docs 的原创代码以 MIT License 授权；下列第三方组件继续适用其各自的许可证。
 
 本清单根据本版本锁定的依赖自动生成。组件名称后的 crates.io 精确版本页面提供对应源码包；其中 MPL-2.0 组件的源码继续以 MPL-2.0 提供。
 
@@ -5882,7 +5882,7 @@ limitations under the License.</pre>
 - [ring 0.17.14](https://crates.io/crates/ring/0.17.14)（[上游仓库](https://github.com/briansmith/ring)）
 - [rowan 0.16.1](https://crates.io/crates/rowan/0.16.1)（[上游仓库](https://github.com/rust-analyzer/rowan)）
 - [rustc-hash 1.1.0](https://crates.io/crates/rustc-hash/1.1.0)（[上游仓库](https://github.com/rust-lang-nursery/rustc-hash)）
-- [rustls 0.23.43](https://crates.io/crates/rustls/0.23.43)（[上游仓库](https://github.com/rustls/rustls)）
+- [rustls 0.23.45](https://crates.io/crates/rustls/0.23.45)（[上游仓库](https://github.com/rustls/rustls)）
 - [scopeguard 1.2.0](https://crates.io/crates/scopeguard/1.2.0)（[上游仓库](https://github.com/bluss/scopeguard)）
 - [security-framework-sys 2.17.0](https://crates.io/crates/security-framework-sys/2.17.0)（[上游仓库](https://github.com/kornelski/rust-security-framework)）
 - [security-framework 3.7.0](https://crates.io/crates/security-framework/3.7.0)（[上游仓库](https://github.com/kornelski/rust-security-framework)）
@@ -10278,7 +10278,7 @@ SOFTWARE.</pre>
 ### MIT License
 
 用于：
-- [cpah-docs 1.1.4](https://crates.io/crates/cpah-docs/1.1.4)（[上游仓库](https://github.com/lllcy/cpah-docs)）
+- [cpah-docs 1.2.0](https://crates.io/crates/cpah-docs/1.2.0)（[上游仓库](https://github.com/lllcy/cpah-docs)）
 - [async-stream-impl 0.3.6](https://crates.io/crates/async-stream-impl/0.3.6)（[上游仓库](https://github.com/tokio-rs/async-stream)）
 - [async-stream 0.3.6](https://crates.io/crates/async-stream/0.3.6)（[上游仓库](https://github.com/tokio-rs/async-stream)）
 - [block2 0.6.2](https://crates.io/crates/block2/0.6.2)（[上游仓库](https://github.com/madsmtm/objc2)）

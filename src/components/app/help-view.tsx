@@ -193,7 +193,7 @@ export function HelpView({ hasProfiles, onStartSetup, onOpenFormats, onOpenSetti
               </div>
               <div className="grid min-h-[66px] grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-3 py-3">
                 <ListTodo className="size-3.5 text-muted-foreground" />
-                <div><p className="text-[11px] font-medium">监听、转换与分类</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">监听只负责发现文件并加入待执行；转换和分类分别在各自任务页独立控制。新用户默认先监听、后手动开始转换。</p></div>
+                <div><p className="text-[11px] font-medium">监听、转换与分类</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">监听只负责发现文件并加入待执行；转换和分类分别在各自任务页独立控制。新用户默认先监听、后手动开始转换。在“监控目录 → 文件”可浏览完整文件树、搜索与筛选转换状态；点击文件可在详情底部单独转换或分类：所选文件优先处理，随后继续同类任务；暂停中的对应队列会恢复。浏览和刷新本身不会启动任务。</p></div>
                 <Button variant="ghost" size="sm" onClick={onOpenConversionTasks}>转换任务</Button>
               </div>
               <div className="grid min-h-[66px] grid-cols-[20px_minmax(0,1fr)] items-center gap-3 py-3">

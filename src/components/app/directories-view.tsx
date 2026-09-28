@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpRight, Bot, FolderInput, FolderOutput, LoaderCircle, Pause, Play, Plus, Save, Tags, Trash2 } from "lucide-react";
 
 import { IconAction } from "@/components/app/icon-action";
+import { DirectoryFiles } from "@/components/app/directory-files";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { profileIsPersisted, type DirectorySaveState } from "@/app-model";
 import { cn } from "@/lib/utils";
-import type { CategoryLabel, DeletePolicy, TaggingConfig, TaggingImpact, WatchProfile } from "@/types";
+import type { CategoryLabel, DeletePolicy, FileAction, FileEntry, TaggingConfig, TaggingImpact, TaskRecord, WatchProfile } from "@/types";
 
 type DirectoriesViewProps = {
   profiles: WatchProfile[];
@@ -31,9 +32,15 @@ type DirectoriesViewProps = {
   onApplyTagging: (profileId: string, tagging: TaggingConfig, processExisting: boolean) => Promise<void>;
   onOpenTagTasks: () => void;
   onOpenSettings: () => void;
+  enabledExtensions: string[];
+  tasks: TaskRecord[];
+  conversionPaused: boolean;
+  classificationPaused: boolean;
+  onFileAction: (profileId: string, entry: FileEntry, action: FileAction) => Promise<void>;
 };
 
-export function DirectoriesView({ profiles, persistedProfiles, selectedId, onSelectedIdChange, saving, saveState, saveError, monitoringPaused, changingMonitoringState, onToggleMonitoringPaused, onAdd, onPatch, onRemove, onChooseDirectory, onOpenDirectory, onSave, agentConfigured, onPreviewTagging, onApplyTagging, onOpenTagTasks, onOpenSettings }: DirectoriesViewProps) {
+export function DirectoriesView({ profiles, persistedProfiles, selectedId, onSelectedIdChange, saving, saveState, saveError, monitoringPaused, changingMonitoringState, onToggleMonitoringPaused, onAdd, onPatch, onRemove, onChooseDirectory, onOpenDirectory, onSave, agentConfigured, onPreviewTagging, onApplyTagging, onOpenTagTasks, onOpenSettings, enabledExtensions, tasks, conversionPaused, classificationPaused, onFileAction }: DirectoriesViewProps) {
+  const [tabs, setTabs] = useState<Record<string, "files" | "settings">>({});
   const [impact, setImpact] = useState<TaggingImpact | null>(null);
   const [checkingImpact, setCheckingImpact] = useState(false);
   const [applyingTags, setApplyingTags] = useState(false);
@@ -44,6 +51,11 @@ export function DirectoriesView({ profiles, persistedProfiles, selectedId, onSel
   }, [selectedId]);
   const selected = profiles.find((profile) => profile.id === selectedId) ?? null;
   const persistedSelected = persistedProfiles.find((profile) => profile.id === selectedId) ?? null;
+  const tab = selected ? tabs[selected.id] ?? (persistedSelected ? "files" : "settings") : "settings";
+  useEffect(() => {
+    if (!selectedId) return;
+    setTabs((current) => current[selectedId] ? current : { ...current, [selectedId]: persistedSelected ? "files" : "settings" });
+  }, [selectedId, Boolean(persistedSelected)]);
   const directoryPersisted = Boolean(selected && persistedSelected
     && selected.name === persistedSelected.name
     && selected.inputDir === persistedSelected.inputDir
@@ -67,6 +79,7 @@ export function DirectoriesView({ profiles, persistedProfiles, selectedId, onSel
 
   function addProfile() {
     const profile = onAdd();
+    setTabs((current) => ({ ...current, [profile.id]: "settings" }));
     onSelectedIdChange(profile.id);
   }
 
@@ -118,7 +131,7 @@ export function DirectoriesView({ profiles, persistedProfiles, selectedId, onSel
       <div className="flex min-h-[62px] shrink-0 items-center border-b px-5 max-[900px]:px-4">
         <div>
           <h1 className="text-[15px] font-semibold tracking-[-0.01em]">监控目录</h1>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">一个目录放原始文档，另一个独立目录接收 Markdown</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">浏览源文件，查看转换进度与目录设置</p>
         </div>
         <div className="ml-auto flex min-w-0 items-center gap-2">
           <span className={cn("max-w-40 truncate text-[10px] max-[980px]:hidden", saveState === "error" ? "text-destructive" : "text-muted-foreground")} title={saveError || saveLabel}>{saveLabel}</span>
@@ -131,7 +144,7 @@ export function DirectoriesView({ profiles, persistedProfiles, selectedId, onSel
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[260px_minmax(0,1fr)] max-[860px]:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)] max-[860px]:grid-cols-[190px_minmax(0,1fr)]">
         <aside className="min-h-0 overflow-y-auto border-r bg-[var(--sidebar)] p-2">
           {profiles.length === 0 ? (
             <div className="px-4 py-10 text-center">
@@ -153,7 +166,18 @@ export function DirectoriesView({ profiles, persistedProfiles, selectedId, onSel
           );})}
         </aside>
 
-        <section className="min-h-0 overflow-y-auto bg-[var(--inspector)]">
+        <section className="flex min-h-0 min-w-0 flex-col bg-[var(--inspector)]">
+          {selected && <div className="shrink-0 border-b bg-background px-4 pt-4">
+            <p className="flex items-center gap-2 truncate text-xs font-semibold"><FolderInput className="size-3.5 shrink-0 text-primary" />{selected.name}</p>
+            <p className="mt-1 truncate text-[11px] text-muted-foreground" title={tab === "files" ? persistedSelected?.inputDir : selected.inputDir}>{tab === "files" ? persistedSelected?.inputDir : selected.inputDir || "尚未选择输入目录"}</p>
+            <div role="tablist" aria-label="监控目录内容" className="mt-3 flex gap-6">
+              {([{ id: "files", label: "文件" }, { id: "settings", label: "目录设置" }] as const).map((item) => <button key={item.id} id={`directory-${item.id}-tab`} role="tab" aria-selected={tab === item.id} aria-controls={`directory-${item.id}-panel`} disabled={item.id === "files" && !persistedSelected} type="button" onClick={() => setTabs((current) => ({ ...current, [selected.id]: item.id }))} className={cn("border-b-2 border-transparent pb-2 text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40", tab === item.id ? "border-primary font-medium text-primary" : "text-muted-foreground")}>{item.label}</button>)}
+            </div>
+          </div>}
+          {selected && tab === "files" && persistedSelected ? <div role="tabpanel" id="directory-files-panel" aria-labelledby="directory-files-tab" className="flex min-h-0 flex-1 flex-col">
+            {selected.inputDir !== persistedSelected.inputDir && <p className="shrink-0 border-b px-4 py-2 text-[11px] text-muted-foreground">路径更改尚未保存，当前显示已保存目录中的文件。</p>}
+            <DirectoryFiles key={`${persistedSelected.id}:${persistedSelected.inputDir}:${persistedSelected.outputDir}`} profile={persistedSelected} enabledExtensions={enabledExtensions} tasks={tasks} conversionPaused={conversionPaused} monitoringPaused={monitoringPaused} classificationPaused={classificationPaused} agentConfigured={agentConfigured} onOpen={onOpenDirectory} onFileAction={onFileAction} />
+          </div> : <div role="tabpanel" id="directory-settings-panel" aria-labelledby="directory-settings-tab" className="min-h-0 flex-1 overflow-y-auto">
           {selected ? (
             <div className="mx-auto max-w-[720px] px-6 py-6 max-[900px]:px-4">
               <div className="mb-6 flex items-start gap-4 border-b pb-5">
@@ -265,6 +289,7 @@ export function DirectoriesView({ profiles, persistedProfiles, selectedId, onSel
               <p className="text-xs font-medium">选择或添加监控目录</p>
             </div>
           )}
+          </div>}
         </section>
       </div>
     </div>

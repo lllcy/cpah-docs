@@ -11,9 +11,14 @@ use std::time::Duration;
 use tokio::sync::{Mutex, mpsc};
 use walkdir::WalkDir;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum TagRuntimeMessage {
     Reload,
+    PriorityFile {
+        profile_id: String,
+        relative_path: String,
+        reply: tokio::sync::oneshot::Sender<Result<(), String>>,
+    },
     Start,
     Path {
         path: PathBuf,
@@ -82,6 +87,14 @@ async fn run(
         tokio::select! {
             Some(message) = receiver.recv() => {
                 match message {
+                    TagRuntimeMessage::PriorityFile { profile_id, relative_path, reply } => {
+                        let result = queue_priority_file(&state, &active, &profile_id, &relative_path).await;
+                        if result.is_ok()
+                            && let Err(error) = reload_watches(&state, &mut watcher, &mut watched_roots).await {
+                            tracing::error!(error = %format!("{error:#}"), "tag watcher reload failed");
+                        }
+                        let _ = reply.send(result.map_err(|error| format!("{error:#}")));
+                    }
                     TagRuntimeMessage::Reload => {
                         if let Err(error) = reload_watches(&state, &mut watcher, &mut watched_roots).await {
                             tracing::error!(error = %format!("{error:#}"), "tag watcher reload failed");
@@ -143,6 +156,64 @@ async fn run(
             }
             else => break,
         }
+    }
+    Ok(())
+}
+
+async fn queue_priority_file(
+    state: &AppState,
+    active: &SharedActive,
+    profile_id: &str,
+    relative: &str,
+) -> Result<()> {
+    let settings = state.settings.read().await.clone();
+    if !settings.agent.configured
+        || settings.agent.model.trim().is_empty()
+        || settings.agent.base_url.trim().is_empty()
+    {
+        anyhow::bail!("请先在设置中配置分类模型");
+    }
+    AppState::read_agent_api_key()?;
+    let (profile, source) = crate::file_actions::source_file(&settings, profile_id, relative)?;
+    let output = crate::file_actions::classification_output(&state.storage, &profile, &source)?;
+    if is_excluded_markdown(&output) || is_profile_index(&profile, &output) {
+        anyhow::bail!("此文件不参与文档分类");
+    }
+    if active.lock().await.paths.contains(&output) {
+        anyhow::bail!("此文件正在分类，请等待完成");
+    }
+    if let Some(job) = state.storage.find_tag_job_by_path(&output)?
+        && state.classification_priority.contains(&job.id)
+    {
+        return state.resume_file_queue(true).await;
+    }
+    enqueue_path(state, active, output.clone(), true).await?;
+    let job = state
+        .storage
+        .find_tag_job_by_path(&output)?
+        .context("无法创建分类任务")?;
+    if job.status != TagJobStatus::Queued {
+        anyhow::bail!("此文件未能加入分类队列");
+    }
+    state.classification_priority.push(job.id.clone());
+    if let Err(error) = state.resume_file_queue(true).await {
+        state.classification_priority.remove(&job.id);
+        return Err(error);
+    }
+    Ok(())
+}
+
+fn prune_priority_jobs(state: &AppState) -> Result<()> {
+    while let Some((id, _)) = state.classification_priority.front() {
+        if state.storage.get_tag_job(&id)?.is_some_and(|job| {
+            matches!(
+                job.status,
+                TagJobStatus::Queued | TagJobStatus::Reading | TagJobStatus::Writing
+            )
+        }) {
+            break;
+        }
+        state.classification_priority.remove(&id);
     }
     Ok(())
 }
@@ -415,6 +486,7 @@ async fn pump_queue(
     if classification_is_blocked(state) {
         return Ok(());
     }
+    prune_priority_jobs(state)?;
     let settings = state.settings.read().await.clone();
     if !settings.agent.configured
         || settings.agent.model.trim().is_empty()
@@ -433,6 +505,9 @@ async fn pump_queue(
         .list_tag_jobs_with_statuses(&[TagJobStatus::Queued])?;
     let mut started = 0;
     for job in queued {
+        if !state.classification_priority.allows(&job.id) {
+            continue;
+        }
         if started >= available {
             break;
         }
@@ -645,6 +720,54 @@ fn is_excluded_markdown(path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn classification_priority_holds_until_terminal_and_only_resumes_its_queue() {
+        let temporary = tempfile::tempdir().unwrap();
+        let state = AppState::new(temporary.path().join("data")).unwrap();
+        let ordinary = state
+            .storage
+            .put_tag_job(
+                "p",
+                &temporary.path().join("ordinary.md"),
+                Path::new("ordinary.md"),
+                "schema",
+                TagJobStatus::Queued,
+                true,
+            )
+            .unwrap();
+        let selected = state
+            .storage
+            .put_tag_job(
+                "p",
+                &temporary.path().join("selected.md"),
+                Path::new("selected.md"),
+                "schema",
+                TagJobStatus::Queued,
+                true,
+            )
+            .unwrap();
+        state.conversion_priority.push("conversion".into());
+        state.classification_priority.push(selected.id.clone());
+        state.resume_file_queue(true).await.unwrap();
+        assert!(state.is_paused());
+        assert!(!state.is_classification_paused());
+        assert!(!state.storage.load_settings().unwrap().classification_paused);
+        assert!(!state.classification_priority.allows(&ordinary.id));
+        state
+            .storage
+            .set_tag_job_status(&selected.id, TagJobStatus::Reading, None)
+            .unwrap();
+        prune_priority_jobs(&state).unwrap();
+        assert!(!state.classification_priority.allows(&ordinary.id));
+        state
+            .storage
+            .set_tag_job_status(&selected.id, TagJobStatus::Failed, Some("test failure"))
+            .unwrap();
+        prune_priority_jobs(&state).unwrap();
+        assert!(state.classification_priority.allows(&ordinary.id));
+        assert!(state.conversion_priority.contains("conversion"));
+    }
 
     #[test]
     fn discovery_excludes_trash_temporary_and_symlink_targets() {

@@ -50,9 +50,19 @@ pub struct TaggingConfig {
     pub labels: Vec<CategoryLabel>,
 }
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ClassificationModelType {
+    #[default]
+    Llm,
+    Decision,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentSettings {
+    #[serde(default)]
+    pub model_type: ClassificationModelType,
     #[serde(default = "default_agent_base_url")]
     pub base_url: String,
     #[serde(default)]
@@ -66,6 +76,7 @@ pub struct AgentSettings {
 impl Default for AgentSettings {
     fn default() -> Self {
         Self {
+            model_type: ClassificationModelType::default(),
             base_url: default_agent_base_url(),
             model: String::new(),
             configured: false,
@@ -436,4 +447,30 @@ pub struct HealthReport {
     pub overall: HealthLevel,
     pub checks: Vec<HealthCheck>,
     pub counts: HealthCounts,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn existing_agent_settings_default_to_llm_and_preserve_connection() {
+        let agent: AgentSettings = serde_json::from_value(serde_json::json!({
+            "baseUrl": "https://example.com/v1", "model": "existing-model",
+            "configured": true, "concurrency": 3
+        }))
+        .unwrap();
+        assert_eq!(agent.model_type, ClassificationModelType::Llm);
+        assert_eq!(agent.model, "existing-model");
+        assert_eq!(agent.concurrency, 3);
+        let decision = AgentSettings {
+            model_type: ClassificationModelType::Decision,
+            ..agent
+        };
+        let serialized = serde_json::to_value(&decision).unwrap();
+        assert_eq!(serialized["modelType"], "decision");
+        let restored: AgentSettings = serde_json::from_value(serialized).unwrap();
+        assert_eq!(restored.model_type, ClassificationModelType::Decision);
+        assert_eq!(restored.base_url, "https://example.com/v1");
+    }
 }

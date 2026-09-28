@@ -45,6 +45,9 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Test file browser
+        run: npm run test:files
+
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --all-targets
 

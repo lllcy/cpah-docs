@@ -1,5 +1,6 @@
 use crate::index_runtime::IndexRuntimeMessage;
 use crate::models::AppSettings;
+use crate::priority_queue::PriorityQueue;
 use crate::runtime::RuntimeMessage;
 use crate::storage::Storage;
 use crate::tag_runtime::TagRuntimeMessage;
@@ -19,6 +20,8 @@ const AGENT_KEYRING_USER: &str = "agent-api-key";
 #[derive(Clone)]
 pub struct AppState {
     pub storage: Storage,
+    pub conversion_priority: Arc<PriorityQueue>,
+    pub classification_priority: Arc<PriorityQueue>,
     pub settings: Arc<RwLock<AppSettings>>,
     monitoring_paused: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
@@ -42,6 +45,8 @@ impl AppState {
         let classification_paused = settings.classification_paused;
         Ok(Self {
             storage,
+            conversion_priority: Arc::new(PriorityQueue::default()),
+            classification_priority: Arc::new(PriorityQueue::default()),
             settings: Arc::new(RwLock::new(settings)),
             monitoring_paused: Arc::new(AtomicBool::new(monitoring_paused)),
             paused: Arc::new(AtomicBool::new(paused)),
@@ -53,6 +58,24 @@ impl AppState {
             tag_runtime_error: Arc::new(Mutex::new(None)),
             index_runtime_error: Arc::new(Mutex::new(None)),
         })
+    }
+
+    pub async fn resume_file_queue(&self, classification: bool) -> Result<()> {
+        let mut current = self.settings.write().await;
+        let mut updated = current.clone();
+        if classification {
+            updated.classification_paused = false;
+        } else {
+            updated.paused = false;
+        }
+        self.storage.save_settings(&updated)?;
+        *current = updated;
+        if classification {
+            self.set_classification_paused_flag(false);
+        } else {
+            self.set_paused_flag(false);
+        }
+        Ok(())
     }
 
     pub fn set_runtime_sender(&self, sender: mpsc::UnboundedSender<RuntimeMessage>) {

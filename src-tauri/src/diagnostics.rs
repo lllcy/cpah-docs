@@ -48,6 +48,12 @@ pub fn classify_error(message: Option<&str>) -> Option<ErrorGuidance> {
             title: "云端服务暂时不可用",
             suggestion: "这通常是服务端临时故障，请稍后重试。",
         }
+    } else if contains_any(&message, &["决策模型", "system one"]) {
+        ErrorGuidance {
+            code: "decision_model_error",
+            title: "决策模型分类失败",
+            suggestion: "请检查 System One 接口地址、模型名称和 API Key，并在设置中测试决策模型；若结果格式异常，请检查候选类别或更换模型。",
+        }
     } else if contains_any(
         &message,
         &["tool calling", "tool_call", "未调用分类工具", "不支持工具"],
