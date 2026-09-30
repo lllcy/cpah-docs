@@ -51,6 +51,9 @@ jobs:
       - name: Test category import
         run: npm run test:tag-import
 
+      - name: Test internationalization
+        run: npm run test:i18n
+
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --all-targets
 

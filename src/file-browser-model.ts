@@ -1,3 +1,4 @@
+import { t, getLocale } from "./i18n.ts";
 import type { FileBrowserResult, FileEntry, FileFilter, TaskRecord, WatchProfile } from "./types";
 
 export const fileFilters: { value: FileFilter; label: string }[] = [
@@ -43,10 +44,10 @@ export function entryFilter(entry: FileEntry): FileFilter {
   }
 }
 
-const collator = new Intl.Collator("zh-CN", { numeric: true, sensitivity: "base" });
+const collators = { en: new Intl.Collator("en", { numeric: true, sensitivity: "base" }), "zh-CN": new Intl.Collator("zh-CN", { numeric: true, sensitivity: "base" }) };
 export function compareEntries(a: FileEntry, b: FileEntry) {
   return Number(b.kind === "directory") - Number(a.kind === "directory")
-    || collator.compare(a.name, b.name) || a.relativePath.localeCompare(b.relativePath);
+    || collators[getLocale()].compare(a.name, b.name) || a.relativePath.localeCompare(b.relativePath);
 }
 
 export function expandedDirectories(expanded: Set<string>) {
@@ -81,7 +82,7 @@ export function flattenEntries(entries: FileEntry[], expanded: Set<string>, dire
     if (loaded.get(entry.relativePath)) {
       result.push({ key: `${entry.relativePath}/:error`, path: entry.relativePath, depth: depth + 1, message: loaded.get(entry.relativePath)!, error: true });
     } else if (!nested.length) {
-      result.push({ key: `${entry.relativePath}/:empty`, path: entry.relativePath, depth: depth + 1, message: searching || loaded.has(entry.relativePath) ? "空文件夹" : "正在读取…" });
+      result.push({ key: `${entry.relativePath}/:empty`, path: entry.relativePath, depth: depth + 1, message: searching || loaded.has(entry.relativePath) ? t("空文件夹") : t("正在读取…") });
     }
     for (let index = nested.length - 1; index >= 0; index--) stack.push({ entry: nested[index], depth: depth + 1 });
   }
@@ -122,7 +123,7 @@ export function previewFileEntries(profile: WatchProfile, tasks: TaskRecord[], e
 }
 
 export function previewSearch(entries: FileEntry[], query: string, filter: FileFilter): FileBrowserResult {
-  const matched = entries.filter((entry) => entry.kind !== "directory" && entry.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()) && (filter === "all" || entryFilter(entry) === filter));
+  const matched = entries.filter((entry) => entry.kind !== "directory" && entry.name.toLowerCase().includes(query.trim().toLowerCase()) && (filter === "all" || entryFilter(entry) === filter));
   const keep = new Set(matched.map((entry) => entry.relativePath));
   for (const entry of matched) {
     let parent = parentPath(entry.relativePath);

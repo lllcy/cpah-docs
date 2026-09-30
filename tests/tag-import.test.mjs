@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { setLanguagePreference } from "../src/i18n.ts";
+
+setLanguagePreference("zh-CN");
 
 import { mergeCategoryImport, parseCategoryJson, previewCategoryImport } from "../src/tag-import.ts";
 

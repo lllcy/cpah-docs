@@ -1,18 +1,20 @@
-# 安全策略
+# Security policy
 
-## 支持范围
+**English** | [简体中文](SECURITY.zh-CN.md)
 
-当前只为最新的 `1.1.x` 版本提供安全修复。请先确认问题可在最新 Release 中复现。
+## Supported versions
 
-## 私下报告漏洞
+Security fixes are provided for the latest released version. Please check whether the issue reproduces on the latest [GitHub Release](https://github.com/lllcy/cpah-docs/releases).
 
-请使用 GitHub 的[私有安全报告](https://github.com/lllcy/cpah-docs/security/advisories/new)，不要创建公开 Issue。
+## Report a vulnerability privately
 
-报告时请提供：
+Use [GitHub private vulnerability reporting](https://github.com/lllcy/cpah-docs/security/advisories/new), rather than opening a public issue.
 
-- 受影响版本、操作系统及系统版本；
-- 可复现的最小步骤及实际影响；
-- 已做脱敏的日志或诊断信息；
-- 如已知，建议的缓解方式。
+Include:
 
-请勿上传真实业务文档、Token、API Key、凭据文件或包含个人完整路径的截图。维护者会尽快确认报告，并在修复可用前避免公开利用细节。
+- Affected app version, operating system and OS version.
+- Minimal reproduction steps and the actual impact.
+- Redacted logs or diagnostic information.
+- Suggested mitigations, if known.
+
+Do not upload real business documents, tokens, API keys, credential files or screenshots containing full personal paths. Maintainers will acknowledge reports as soon as possible and avoid disclosing exploit details before a fix is available.

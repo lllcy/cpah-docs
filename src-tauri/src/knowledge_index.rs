@@ -1,4 +1,5 @@
 use crate::atomic_file::write_atomic;
+use crate::locale::Language;
 use crate::models::WatchProfile;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
@@ -24,16 +25,17 @@ struct IndexedDocument {
     modified: Option<SystemTime>,
 }
 
-pub fn rebuild_profile_index(profile: &WatchProfile) -> Result<()> {
+pub fn rebuild_profile_index(profile: &WatchProfile, language: Language) -> Result<()> {
     let root = dunce::canonicalize(&profile.output_dir)
         .with_context(|| format!("无法读取索引输出目录：{}", profile.output_dir))?;
-    let documents = discover_documents(&root)?;
+    let documents = discover_documents(&root, language)?;
     let directories = indexed_directories(&documents);
 
     let mut ordered = directories.iter().cloned().collect::<Vec<_>>();
     ordered.sort_by_key(|path| std::cmp::Reverse(path.components().count()));
     for directory in &ordered {
-        let managed = render_directory_index(profile, &documents, &directories, directory);
+        let managed =
+            render_directory_index(profile, &documents, &directories, directory, language);
         update_index_file(&root.join(directory).join(INDEX_FILE_NAME), &managed)?;
     }
     clean_stale_indexes(&root, &directories)?;
@@ -47,7 +49,7 @@ pub fn is_profile_index(profile: &WatchProfile, path: &Path) -> bool {
         && path.starts_with(Path::new(&profile.output_dir))
 }
 
-fn discover_documents(root: &Path) -> Result<Vec<IndexedDocument>> {
+fn discover_documents(root: &Path, language: Language) -> Result<Vec<IndexedDocument>> {
     let mut documents = Vec::new();
     for entry in WalkDir::new(root).follow_links(false) {
         let entry = entry?;
@@ -65,7 +67,7 @@ fn discover_documents(root: &Path) -> Result<Vec<IndexedDocument>> {
         let title = relative_path
             .file_stem()
             .and_then(|stem| stem.to_str())
-            .unwrap_or("未命名文档")
+            .unwrap_or(language.text("未命名文档", "Untitled document"))
             .to_string();
         documents.push(IndexedDocument {
             relative_path,
@@ -104,6 +106,7 @@ fn render_directory_index(
     documents: &[IndexedDocument],
     directories: &BTreeSet<PathBuf>,
     directory: &Path,
+    language: Language,
 ) -> String {
     let subtree = documents
         .iter()
@@ -118,22 +121,32 @@ fn render_directory_index(
     let pending = subtree.len().saturating_sub(classified);
     let mut output = String::new();
     let title = if directory.as_os_str().is_empty() {
-        "知识库索引".to_string()
+        language.text("知识库索引", "Knowledge index").to_string()
     } else {
         directory
             .file_name()
             .and_then(|name| name.to_str())
-            .unwrap_or("目录索引")
+            .unwrap_or(language.text("目录索引", "Folder index"))
             .to_string()
     };
     output.push_str(&format!("# {}\n\n", escape_markdown_text(&title)));
-    output.push_str(&format!(
-        "> {} · 共 {} 篇文档 · 已分类 {} 篇 · 待分类 {} 篇\n",
-        escape_markdown_text(&profile.name),
-        subtree.len(),
-        classified,
-        pending,
-    ));
+    let summary = match language {
+        Language::Chinese => format!(
+            "> {} · 共 {} 篇文档 · 已分类 {} 篇 · 待分类 {} 篇\n",
+            escape_markdown_text(&profile.name),
+            subtree.len(),
+            classified,
+            pending,
+        ),
+        Language::English => format!(
+            "> {} · {} documents · {} classified · {} pending\n",
+            escape_markdown_text(&profile.name),
+            subtree.len(),
+            classified,
+            pending,
+        ),
+    };
+    output.push_str(&summary);
     if let Some(modified) = subtree
         .iter()
         .filter_map(|index| documents[*index].modified)
@@ -141,16 +154,17 @@ fn render_directory_index(
     {
         let modified: DateTime<Local> = modified.into();
         output.push_str(&format!(
-            "> 最近文档更新：{}\n",
+            "> {}{}\n",
+            language.text("最近文档更新：", "Last document update: "),
             modified.format("%Y-%m-%d %H:%M")
         ));
     }
     if !directory.as_os_str().is_empty() {
         output.push('\n');
-        render_breadcrumbs(&mut output, directory);
+        render_breadcrumbs(&mut output, directory, language);
     }
 
-    output.push_str("\n## 按文件夹浏览\n\n");
+    output.push_str(language.text("\n## 按文件夹浏览\n\n", "\n## Browse by folder\n\n"));
     let child_directories = directories
         .iter()
         .filter(|candidate| {
@@ -166,13 +180,16 @@ fn render_directory_index(
         .map(|(index, _)| index)
         .collect::<Vec<_>>();
     if child_directories.is_empty() && direct_documents.is_empty() {
-        output.push_str("当前目录暂无 Markdown 文档。\n");
+        output.push_str(language.text(
+            "当前目录暂无 Markdown 文档。\n",
+            "No Markdown documents in this folder yet.\n",
+        ));
     } else {
         for child in child_directories {
             let name = child
                 .file_name()
                 .and_then(|value| value.to_str())
-                .unwrap_or("未命名目录");
+                .unwrap_or(language.text("未命名目录", "Unnamed folder"));
             let target = child.join(INDEX_FILE_NAME);
             output.push_str(&format!(
                 "- [**{}/**]({})\n",
@@ -185,10 +202,17 @@ fn render_directory_index(
         }
     }
 
-    output.push_str("\n## 按标签浏览\n\n");
-    render_categories(&mut output, profile, directory, &subtree, documents);
+    output.push_str(language.text("\n## 按标签浏览\n\n", "\n## Browse by category\n\n"));
+    render_categories(
+        &mut output,
+        profile,
+        directory,
+        &subtree,
+        documents,
+        language,
+    );
 
-    output.push_str("\n## 最近更新\n\n");
+    output.push_str(language.text("\n## 最近更新\n\n", "\n## Recently updated\n\n"));
     let mut recent = subtree.clone();
     recent.sort_by(|left, right| {
         documents[*right]
@@ -201,7 +225,7 @@ fn render_directory_index(
             })
     });
     if recent.is_empty() {
-        output.push_str("暂无 Markdown 文档。\n");
+        output.push_str(language.text("暂无 Markdown 文档。\n", "No Markdown documents yet.\n"));
     } else {
         for index in recent.into_iter().take(RECENT_DOCUMENT_LIMIT) {
             render_document_link(&mut output, directory, &documents[index], "- ");
@@ -210,9 +234,10 @@ fn render_directory_index(
     output
 }
 
-fn render_breadcrumbs(output: &mut String, directory: &Path) {
+fn render_breadcrumbs(output: &mut String, directory: &Path, language: Language) {
     let mut pieces = vec![format!(
-        "[知识库]({})",
+        "[{}]({})",
+        language.text("知识库", "Knowledge library"),
         relative_markdown_link(directory, Path::new(INDEX_FILE_NAME))
     )];
     let mut target = PathBuf::new();
@@ -238,6 +263,7 @@ fn render_categories(
     directory: &Path,
     indices: &[usize],
     documents: &[IndexedDocument],
+    language: Language,
 ) {
     let mut by_category = BTreeMap::<String, Vec<usize>>::new();
     let mut pending = Vec::new();
@@ -263,20 +289,35 @@ fn render_categories(
                 &label.name,
                 category_documents,
                 documents,
+                language,
             );
             rendered.insert(label.name.clone());
         }
     }
     for (category, category_documents) in &by_category {
         if rendered.insert(category.clone()) {
-            render_category(output, directory, category, category_documents, documents);
+            render_category(
+                output,
+                directory,
+                category,
+                category_documents,
+                documents,
+                language,
+            );
         }
     }
     if !pending.is_empty() {
-        render_category(output, directory, "待分类", &pending, documents);
+        render_category(
+            output,
+            directory,
+            language.text("待分类", "Pending classification"),
+            &pending,
+            documents,
+            language,
+        );
     }
     if by_category.is_empty() && pending.is_empty() {
-        output.push_str("暂无标签数据。\n");
+        output.push_str(language.text("暂无标签数据。\n", "No category data yet.\n"));
     }
 }
 
@@ -286,11 +327,19 @@ fn render_category(
     category: &str,
     indices: &[usize],
     documents: &[IndexedDocument],
+    language: Language,
 ) {
+    let category = if category == "未分类" {
+        language.text("未分类", "Unclassified")
+    } else {
+        category
+    };
     output.push_str(&format!(
-        "### {}（{}）\n\n",
+        "### {}{}{}{}\n\n",
         escape_markdown_text(category),
-        indices.len()
+        language.text("（", " ("),
+        indices.len(),
+        language.text("）", ")")
     ));
     for index in indices {
         render_document_link(output, directory, &documents[*index], "- ");
@@ -650,7 +699,7 @@ mod tests {
         .unwrap();
         fs::write(output.join("待办.md"), "# 待办\n").unwrap();
 
-        rebuild_profile_index(&profile).unwrap();
+        rebuild_profile_index(&profile, Language::Chinese).unwrap();
 
         let root = fs::read_to_string(output.join(INDEX_FILE_NAME)).unwrap();
         let nested = fs::read_to_string(output.join("项目 A/合同/index.md")).unwrap();
@@ -661,6 +710,37 @@ mod tests {
         assert!(nested.contains("[知识库](../../index.md)"));
         assert!(nested.contains("采购%20合同.md"));
         assert_eq!(nested.matches(MANAGED_START).count(), 1);
+    }
+
+    #[test]
+    fn language_switch_changes_managed_titles_and_preserves_user_data() {
+        let temporary = tempfile::tempdir().unwrap();
+        let profile = profile(temporary.path());
+        let output = Path::new(&profile.output_dir);
+        fs::create_dir_all(output.join("项目 A")).unwrap();
+        let document = "---\ncpah_categories:\n  - 审计资料\n---\n# 用户正文\n";
+        fs::write(output.join("项目 A/报告.md"), document).unwrap();
+        fs::write(output.join("待办.md"), "# Pending\n").unwrap();
+        fs::write(output.join(INDEX_FILE_NAME), "# 用户说明\n").unwrap();
+
+        rebuild_profile_index(&profile, Language::English).unwrap();
+        let english = fs::read_to_string(output.join(INDEX_FILE_NAME)).unwrap();
+        assert!(english.contains("# Knowledge index"));
+        assert!(english.contains("## Browse by category"));
+        assert!(english.contains("### Pending classification (1)"));
+        assert!(english.contains("### 审计资料 (1)"));
+        assert!(english.contains("# 用户说明"));
+        assert!(english.contains("测试知识库"));
+
+        rebuild_profile_index(&profile, Language::Chinese).unwrap();
+        let chinese = fs::read_to_string(output.join(INDEX_FILE_NAME)).unwrap();
+        assert!(chinese.contains("## 按文件夹浏览"));
+        assert!(!chinese.contains("## Browse by folder"));
+        assert_eq!(chinese.matches(MANAGED_START).count(), 1);
+        assert_eq!(
+            fs::read_to_string(output.join("项目 A/报告.md")).unwrap(),
+            document
+        );
     }
 
     #[test]
@@ -685,7 +765,7 @@ mod tests {
         fs::create_dir_all(output.join("指南")).unwrap();
         fs::write(output.join("指南/index.md"), "# 用户指南\n").unwrap();
         fs::write(output.join("指南/开始.md"), "# 开始\n").unwrap();
-        rebuild_profile_index(&profile).unwrap();
+        rebuild_profile_index(&profile, Language::Chinese).unwrap();
         let index = fs::read_to_string(output.join("指南/index.md")).unwrap();
         assert!(index.contains("# 用户指南"));
         assert!(index.contains(MANAGED_START));
@@ -699,17 +779,17 @@ mod tests {
         let output = Path::new(&profile.output_dir);
         fs::create_dir_all(output.join("临时")).unwrap();
         fs::write(output.join("临时/文档.md"), "# 文档\n").unwrap();
-        rebuild_profile_index(&profile).unwrap();
+        rebuild_profile_index(&profile, Language::Chinese).unwrap();
         fs::remove_file(output.join("临时/文档.md")).unwrap();
-        rebuild_profile_index(&profile).unwrap();
+        rebuild_profile_index(&profile, Language::Chinese).unwrap();
         assert!(!output.join("临时/index.md").exists());
 
         fs::create_dir_all(output.join("说明")).unwrap();
         fs::write(output.join("说明/文档.md"), "# 文档\n").unwrap();
         fs::write(output.join("说明/index.md"), "# 用户内容\n").unwrap();
-        rebuild_profile_index(&profile).unwrap();
+        rebuild_profile_index(&profile, Language::Chinese).unwrap();
         fs::remove_file(output.join("说明/文档.md")).unwrap();
-        rebuild_profile_index(&profile).unwrap();
+        rebuild_profile_index(&profile, Language::Chinese).unwrap();
         let preserved = fs::read_to_string(output.join("说明/index.md")).unwrap();
         assert!(preserved.contains("# 用户内容"));
         assert!(!preserved.contains(MANAGED_START));
@@ -731,9 +811,9 @@ mod tests {
         for index in 0..5_000 {
             fs::write(output.join(format!("文档-{index:04}.md")), "# test\n").unwrap();
         }
-        rebuild_profile_index(&profile).unwrap();
+        rebuild_profile_index(&profile, Language::Chinese).unwrap();
         let first = fs::read(output.join(INDEX_FILE_NAME)).unwrap();
-        rebuild_profile_index(&profile).unwrap();
+        rebuild_profile_index(&profile, Language::Chinese).unwrap();
         let second = fs::read(output.join(INDEX_FILE_NAME)).unwrap();
         assert_eq!(first, second);
     }

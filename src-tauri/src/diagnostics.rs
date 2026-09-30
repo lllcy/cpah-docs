@@ -366,47 +366,69 @@ fn health_counts(state: &AppState) -> Result<HealthCounts> {
 }
 
 pub async fn diagnostic_report(state: &AppState) -> Result<String> {
+    let language = state.language();
     let report = run_health_check(state).await;
     let settings = state.settings.read().await.clone();
     let mut output = String::new();
-    output.push_str("CPAH Docs 诊断信息\n");
-    output.push_str(&format!("版本: {}\n", report.app_version));
-    output.push_str(&format!("检查时间: {}\n", report.checked_at));
+    output.push_str(language.text("CPAH Docs 诊断信息\n", "CPAH Docs diagnostics\n"));
     output.push_str(&format!(
-        "系统: {} {}\n",
+        "{}{}\n",
+        language.text("版本: ", "Version: "),
+        report.app_version
+    ));
+    output.push_str(&format!(
+        "{}{}\n",
+        language.text("检查时间: ", "Checked at: "),
+        report.checked_at
+    ));
+    output.push_str(&format!(
+        "{}{} {}\n",
+        language.text("系统: ", "System: "),
         std::env::consts::OS,
         std::env::consts::ARCH
     ));
     output.push_str(&format!(
-        "转换状态: 待执行 {} / 进行中 {} / 等待 MinerU {} / 失败 {}\n",
+        "{} {} / {} {} / {} {} / {} {}\n",
+        language.text("转换状态: 待执行", "Conversion: queued"),
         report.counts.conversion_pending,
+        language.text("进行中", "active"),
         report.counts.conversion_active,
+        language.text("等待 MinerU", "waiting for MinerU"),
         report.counts.conversion_waiting_mineru,
+        language.text("失败", "failed"),
         report.counts.conversion_failed
     ));
     output.push_str(&format!(
-        "分类状态: 待执行 {} / 进行中 {} / 失败 {} / 过期 {}\n",
+        "{} {} / {} {} / {} {} / {} {}\n",
+        language.text("分类状态: 待执行", "Classification: queued"),
         report.counts.classification_pending,
+        language.text("进行中", "active"),
         report.counts.classification_active,
+        language.text("失败", "failed"),
         report.counts.classification_failed,
+        language.text("过期", "outdated"),
         report.counts.classification_outdated
     ));
-    output.push_str("\n检查项目:\n");
+    output.push_str(language.text("\n检查项目:\n", "\nChecks:\n"));
     for check in report.checks {
         output.push_str(&format!(
             "- [{}] {}: {}\n",
             level_text(&check.level),
-            check.title,
-            sanitize_text(&check.detail, &settings)
+            language.translate_health_title(&check.title),
+            sanitize_text(&language.translate(&check.detail), &settings)
         ));
         if let Some(suggestion) = check.suggestion {
             output.push_str(&format!(
-                "  建议: {}\n",
-                sanitize_text(&suggestion, &settings)
+                "  {}{}\n",
+                language.text("建议: ", "Suggestion: "),
+                sanitize_text(&language.translate(&suggestion), &settings)
             ));
         }
     }
-    output.push_str("\n隐私说明: 路径已替换为目录名称；报告不包含 Token、API Key 或文档正文。\n");
+    output.push_str(language.text(
+        "\n隐私说明: 路径已替换为目录名称；报告不包含 Token、API Key 或文档正文。\n",
+        "\nPrivacy: paths are replaced with folder names. This report contains no tokens, API keys or document content.\n",
+    ));
     Ok(output)
 }
 

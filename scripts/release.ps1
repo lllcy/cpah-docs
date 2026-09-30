@@ -65,6 +65,9 @@ try {
     npm.cmd run test:tag-import
     if ($LASTEXITCODE -ne 0) { throw "Category import tests failed" }
 
+    npm.cmd run test:i18n
+    if ($LASTEXITCODE -ne 0) { throw "Internationalization tests failed" }
+
     cargo test --manifest-path src-tauri/Cargo.toml --all-targets
     if ($LASTEXITCODE -ne 0) { throw "Rust tests failed" }
 

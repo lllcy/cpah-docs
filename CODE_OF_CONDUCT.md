@@ -1,19 +1,21 @@
-# 社区行为准则
+# Code of Conduct
 
-## 我们的承诺
+**English** | [简体中文](CODE_OF_CONDUCT.zh-CN.md)
 
-我们承诺让参与 CPAH Docs 的每个人都能获得友善、无骚扰的体验，不因年龄、身体状况、族裔、性别认同、经验水平、国籍、外貌、种族、宗教或性取向而受到区别对待。
+## Our commitment
 
-## 期望行为
+We are committed to a welcoming, harassment-free experience for everyone participating in CPAH Docs, regardless of age, disability, ethnicity, gender identity, experience level, nationality, appearance, race, religion or sexual orientation.
 
-- 尊重不同观点和经验，以建设性的方式讨论问题。
-- 接受反馈，关注对社区和用户最有帮助的结果。
-- 对他人表示同理心，不公开他人的私人信息。
+## Expected behavior
 
-不可接受的行为包括侮辱、威胁、骚扰、歧视、恶意披露隐私，以及其他在专业环境中不适当的行为。
+- Respect different views and experiences; discuss issues constructively.
+- Accept feedback and focus on outcomes that benefit the community and users.
+- Show empathy and protect other people’s private information.
 
-## 执行
+Insults, threats, harassment, discrimination, malicious disclosure of private information and other behavior inappropriate in a professional setting are unacceptable.
 
-如需报告行为问题，请通过 GitHub 的[私有安全报告](https://github.com/lllcy/cpah-docs/security/advisories/new)联系维护者。所有报告会被审慎处理；维护者可删除不当内容，或临时、永久限制违规者参与项目。
+## Enforcement
 
-本准则改编自 [Contributor Covenant 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/)。
+Report conduct concerns privately to the maintainers through [GitHub’s private reporting channel](https://github.com/lllcy/cpah-docs/security/advisories/new). Reports will be handled carefully. Maintainers may remove inappropriate content or temporarily or permanently restrict participation.
+
+This policy is adapted from [Contributor Covenant 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).

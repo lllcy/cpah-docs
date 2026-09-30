@@ -30,6 +30,7 @@ cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 npm run build
 npm run test:files
 npm run test:tag-import
+npm run test:i18n
 cargo test --manifest-path src-tauri/Cargo.toml --all-targets
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 # The DMG builder otherwise asks Finder to arrange the bundle window. That

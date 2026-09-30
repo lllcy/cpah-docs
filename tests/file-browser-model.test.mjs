@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { setLanguagePreference } from "../src/i18n.ts";
+
+setLanguagePreference("zh-CN");
 import { absoluteFilePath, expandedDirectories, flattenEntries, previewSearch } from "../src/file-browser-model.ts";
 
 const file = (relativePath, kind = "file", extra = {}) => ({ relativePath, name: relativePath.split("/").at(-1), kind, availability: "eligible", task: null, ...extra });

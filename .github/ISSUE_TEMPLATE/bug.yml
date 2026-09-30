@@ -1,56 +1,58 @@
-name: Bug 报告
-description: 报告可以稳定复现的问题
+name: Bug report / 问题报告
+description: Report a reproducible problem / 报告可以稳定复现的问题
 title: "[Bug] "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        感谢反馈。请勿上传真实业务文档、Token、API Key、数据库、完整日志或包含个人完整路径的截图。
+        Reports in English or Chinese are welcome. Do not upload real business documents, tokens, API keys, databases, full logs or screenshots containing personal paths.
+        欢迎使用中文或英文反馈。请勿上传真实业务文档、Token、API Key、数据库、完整日志或包含个人完整路径的截图。
   - type: input
     id: version
     attributes:
-      label: CPAH Docs 版本
-      placeholder: 例如 1.1.0
+      label: App version / 应用版本
+      placeholder: e.g. 1.3.0
     validations:
       required: true
   - type: input
     id: operating_system
     attributes:
-      label: 操作系统版本
-      placeholder: 例如 Windows 11 24H2 或 macOS 15.6
+      label: Operating system / 操作系统版本
+      placeholder: e.g. Windows 11 24H2 or macOS 15.6
     validations:
       required: true
   - type: dropdown
     id: area
     attributes:
-      label: 问题范围
+      label: Affected area / 问题范围
       options:
-        - 目录监听
-        - 格式转换
+        - Folder watching / 目录监听
+        - Conversion / 格式转换
         - MinerU
-        - Agent 分类
-        - Markdown 索引
-        - 界面或其他
+        - Classification / Agent 分类
+        - Markdown indexes / Markdown 索引
+        - Language or interface / 语言或界面
+        - Other / 其他
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: 复现步骤
-      description: 请使用不含敏感信息的最小示例。
+      label: Steps to reproduce / 复现步骤
+      description: Use a minimal example without sensitive data. / 请使用不含敏感信息的最小示例。
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: 预期结果
+      label: Expected behavior / 预期结果
     validations:
       required: true
   - type: textarea
     id: actual
     attributes:
-      label: 实际结果与脱敏诊断信息
-      description: 可从帮助页复制诊断信息；再次确认其中没有秘密或业务正文。
+      label: Actual behavior and redacted diagnostics / 实际结果与脱敏诊断信息
+      description: Copy diagnostics from Help and remove secrets or document content. / 可从帮助页复制诊断信息，请确认不包含秘密或业务正文。
     validations:
       required: true

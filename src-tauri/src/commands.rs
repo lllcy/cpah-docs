@@ -24,6 +24,38 @@ type CommandResult<T> = std::result::Result<T, String>;
 const MINERU_TOKEN_PAGE_URL: &str = "https://mineru.net/apiManage/token";
 
 #[tauri::command]
+pub fn set_ui_language(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    menu: State<'_, crate::locale::TrayMenu>,
+    language: crate::locale::Language,
+) -> CommandResult<()> {
+    use tauri::Manager;
+    let path = app
+        .path()
+        .app_data_dir()
+        .map_err(display_error)?
+        .join("ui-language.json");
+    crate::atomic_file::write_atomic(
+        &path,
+        &serde_json::to_vec(&language).map_err(display_error)?,
+    )
+    .map_err(display_error)?;
+    menu.show
+        .set_text(language.text("显示主窗口", "Show window"))
+        .map_err(display_error)?;
+    menu.quit
+        .set_text(language.text("退出", "Quit"))
+        .map_err(display_error)?;
+    if state.set_language(language) {
+        state
+            .send_index_runtime(IndexRuntimeMessage::Reload)
+            .map_err(display_error)?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn convert_profile_file(
     state: State<'_, AppState>,
     profile_id: String,

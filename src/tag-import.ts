@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 export type ImportedCategory = {
   name: string;
   description: string;
@@ -37,38 +38,38 @@ export function parseCategoryJson(text: string): ImportedCategory[] {
     const lineColumn = detail.match(/line\s+(\d+)\s+column\s+(\d+)/i);
     const offset = detail.match(/position\s+(\d+)/i);
     const location = lineColumn
-      ? `第 ${lineColumn[1]} 行第 ${lineColumn[2]} 列`
-      : offset ? `第 ${Number(offset[1]) + 1} 个字符` : "文件开头";
-    throw new Error(`JSON 格式无效（${location}），请提供纯 JSON 数组，不要包含 Markdown 代码围栏。`);
+      ? t("第 {p0} 行第 {p1} 列", { p0: lineColumn[1], p1: lineColumn[2] })
+      : offset ? t("第 {p0} 个字符", { p0: Number(offset[1]) + 1 }) : t("文件开头");
+    throw new Error(t("JSON 格式无效（{p0}），请提供纯 JSON 数组，不要包含 Markdown 代码围栏。", { p0: location }));
   }
   if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new Error("JSON 顶层必须是非空数组。");
+    throw new Error(t("JSON 顶层必须是非空数组。"));
   }
 
   const seen = new Set<string>();
   return parsed.map((entry: unknown, index: number) => {
     const position = index + 1;
     if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
-      throw new Error(`第 ${position} 项必须是包含 name 和 description 的对象。`);
+      throw new Error(t("第 {p0} 项必须是包含 name 和 description 的对象。", { p0: position }));
     }
     const fields = Object.keys(entry);
     if (fields.length !== 2 || !fields.includes("name") || !fields.includes("description")) {
-      throw new Error(`第 ${position} 项只能包含 name 和 description；旧字段 value 不受支持。`);
+      throw new Error(t("第 {p0} 项只能包含 name 和 description；旧字段 value 不受支持。", { p0: position }));
     }
     const { name, description } = entry as Record<string, unknown>;
     if (typeof name !== "string" || !name.trim()) {
-      throw new Error(`第 ${position} 项的 name 必须是非空字符串。`);
+      throw new Error(t("第 {p0} 项的 name 必须是非空字符串。", { p0: position }));
     }
     if (typeof description !== "string") {
-      throw new Error(`第 ${position} 项的 description 必须是字符串，可以为空。`);
+      throw new Error(t("第 {p0} 项的 description 必须是字符串，可以为空。", { p0: position }));
     }
     const trimmedName = name.trim();
     if (trimmedName === "未分类") {
-      throw new Error(`第 ${position} 项的“未分类”是系统保留类别。`);
+      throw new Error(t("第 {p0} 项的“未分类”是系统保留类别。", { p0: position }));
     }
     const key = normalizedName(trimmedName);
     if (seen.has(key)) {
-      throw new Error(`第 ${position} 项的类别名称“${trimmedName}”在文件中重复。`);
+      throw new Error(t("第 {p0} 项的类别名称“{p1}”在文件中重复。", { p0: position, p1: trimmedName }));
     }
     seen.add(key);
     return { name: trimmedName, description: description.trim() };
@@ -80,7 +81,7 @@ function existingByName(existing: readonly ExistingCategory[]): Map<string, Exis
   for (const label of existing) {
     const key = normalizedName(label.name);
     if (!key || label.name.trim() === "未分类" || result.has(key)) {
-      throw new Error("当前候选类别有空名称、重复名称或保留名称，请先修正后再导入。");
+      throw new Error(t("当前候选类别有空名称、重复名称或保留名称，请先修正后再导入。"));
     }
     result.set(key, label);
   }

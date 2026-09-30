@@ -1,3 +1,4 @@
+import { t, translate, getLocale } from "@/i18n";
 import { useMemo } from "react";
 import {
   ArrowUpRight,
@@ -20,13 +21,13 @@ import { cn } from "@/lib/utils";
 import type { TagJobStatus, TaskRecord, WatchProfile } from "@/types";
 
 function TagStatus({ status }: { status?: TagJobStatus }) {
-  if (!status) return <span className="text-[10px] text-muted-foreground">未启用</span>;
+  if (!status) return <span className="text-[10px] text-muted-foreground">{t("未启用")}</span>;
   const meta = tagStatusMeta[status];
-  return <span className={cn("inline-flex items-center gap-1 text-[10px]", meta.tone === "active" && "text-primary", meta.tone === "success" && "text-success", meta.tone === "danger" && "text-destructive", meta.tone === "neutral" && "text-muted-foreground")}><span className="size-1.5 rounded-full bg-current" />{meta.label}</span>;
+  return <span className={cn("inline-flex items-center gap-1 text-[10px]", meta.tone === "active" && "text-primary", meta.tone === "success" && "text-success", meta.tone === "danger" && "text-destructive", meta.tone === "neutral" && "text-muted-foreground")}><span className="size-1.5 rounded-full bg-current" />{translate(meta.label)}</span>;
 }
 
 function TaskTagStatus({ task }: { task: TaskRecord }) {
-  if (task.kind === "mineru_part") return <span className="text-[10px] text-muted-foreground">不适用</span>;
+  if (task.kind === "mineru_part") return <span className="text-[10px] text-muted-foreground">{t("不适用")}</span>;
   return <TagStatus status={task.tagStatus} />;
 }
 
@@ -91,8 +92,8 @@ function TaskInspector({
     return (
       <div className="flex h-full flex-col items-center justify-center px-7 text-center text-muted-foreground">
         <FileText className="mb-3 size-5 opacity-55" />
-        <p className="text-xs font-medium text-foreground">选择一项任务</p>
-        <p className="mt-1 text-[11px] leading-5">查看转换引擎、路径与输出结果。</p>
+        <p className="text-xs font-medium text-foreground">{t("选择一项任务")}</p>
+        <p className="mt-1 text-[11px] leading-5">{t("查看转换引擎、路径与输出结果。")}</p>
       </div>
     );
   }
@@ -101,10 +102,10 @@ function TaskInspector({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex min-h-11 items-center border-b px-4">
-        <span className="text-xs font-semibold">任务详情</span>
+        <span className="text-xs font-semibold">{t("任务详情")}</span>
         {onClose && (
           <div className="ml-auto">
-            <IconAction label="关闭详情" size="icon-sm" onClick={onClose}><X /></IconAction>
+            <IconAction label={t("关闭详情")} size="icon-sm" onClick={onClose}><X /></IconAction>
           </div>
         )}
       </div>
@@ -122,42 +123,42 @@ function TaskInspector({
 
         <dl className="space-y-3.5 text-[11px]">
           <div>
-            <dt className="mb-1 text-muted-foreground">转换引擎</dt>
+            <dt className="mb-1 text-muted-foreground">{t("转换引擎")}</dt>
             <dd className="text-foreground">{conversionEngineLabel(task)}</dd>
           </div>
           {task.kind === "mineru_part" && (
             <>
-              <div><dt className="mb-1 text-muted-foreground">父任务</dt><dd className="break-all text-foreground">{task.parentTaskId}</dd></div>
-              <div><dt className="mb-1 text-muted-foreground">页码范围</dt><dd className="text-foreground">第 {task.pageStart}–{task.pageEnd} 页（{task.partIndex}/{task.partCount}）</dd></div>
-              <div><dt className="mb-1 text-muted-foreground">分片方式</dt><dd className="text-foreground">{task.partMode === "page_ranges" ? "MinerU page_ranges" : "本地无损物理拆分"}</dd></div>
+              <div><dt className="mb-1 text-muted-foreground">{t("父任务")}</dt><dd className="break-all text-foreground">{task.parentTaskId}</dd></div>
+              <div><dt className="mb-1 text-muted-foreground">{t("页码范围")}</dt><dd className="text-foreground">{t("第 {p0}–{p1} 页（{p2}/{p3}）", { p0: task.pageStart ?? "—", p1: task.pageEnd ?? "—", p2: task.partIndex ?? "—", p3: task.partCount ?? "—" })}</dd></div>
+              <div><dt className="mb-1 text-muted-foreground">{t("分片方式")}</dt><dd className="text-foreground">{task.partMode === "page_ranges" ? "MinerU page_ranges" : t("本地无损物理拆分")}</dd></div>
             </>
           )}
           <div>
-            <dt className="mb-1 text-muted-foreground">所属目录</dt>
-            <dd className="truncate text-foreground" title={profile?.name}>{profile?.name ?? "未知目录"}</dd>
+            <dt className="mb-1 text-muted-foreground">{t("所属目录")}</dt>
+            <dd className="truncate text-foreground" title={profile?.name}>{profile?.name ?? t("未知目录")}</dd>
           </div>
           <div>
-            <dt className="mb-1 text-muted-foreground">源文件</dt>
+            <dt className="mb-1 text-muted-foreground">{t("源文件")}</dt>
             <dd className="break-all leading-4 text-foreground" title={task.sourcePath}>{task.sourcePath}</dd>
           </div>
           <div>
-            <dt className="mb-1 text-muted-foreground">更新时间</dt>
+            <dt className="mb-1 text-muted-foreground">{t("更新时间")}</dt>
             <dd className="text-foreground">{formatUpdatedAt(task.updatedAt)}</dd>
           </div>
           <div>
-            <dt className="mb-1 text-muted-foreground">输出文件</dt>
+            <dt className="mb-1 text-muted-foreground">{t("输出文件")}</dt>
             <dd className={cn("break-all leading-4", task.outputPath ? "text-foreground" : "text-muted-foreground")}>
-              {task.kind === "mineru_part" ? "不单独生成；由父任务合并" : task.outputPath ?? "转换完成后生成同名 .md 文件"}
+              {task.kind === "mineru_part" ? t("不单独生成；由父任务合并") : task.outputPath ?? t("转换完成后生成同名 .md 文件")}
             </dd>
           </div>
-          <div><dt className="mb-1 text-muted-foreground">分类状态</dt><dd><TaskTagStatus task={task} /></dd></div>
+          <div><dt className="mb-1 text-muted-foreground">{t("分类状态")}</dt><dd><TaskTagStatus task={task} /></dd></div>
         </dl>
 
         {task.error && (
           <div className="mt-5 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2.5 text-[11px] leading-5 text-destructive">
-            <p className="font-medium">{task.errorTitle ?? "任务执行失败"}</p>
-            <p className="mt-1 text-destructive/85">{task.errorSuggestion}</p>
-            <details className="mt-2"><summary className="cursor-pointer text-[10px]">技术详情</summary><p className="mt-1 break-all text-[10px] opacity-80">{task.error}</p></details>
+            <p className="font-medium">{(task.errorTitle ? translate(task.errorTitle) : undefined) ?? t("任务执行失败")}</p>
+            <p className="mt-1 text-destructive/85">{task.errorSuggestion && translate(task.errorSuggestion)}</p>
+            <details className="mt-2"><summary className="cursor-pointer text-[10px]">{t("技术详情")}</summary><p className="mt-1 break-all text-[10px] opacity-80">{task.error}</p></details>
           </div>
         )}
       </div>
@@ -166,10 +167,9 @@ function TaskInspector({
         {active && <TaskProgress task={task} />}
         <div className="flex gap-2">
           <Button className="min-w-0 flex-1" disabled={task.kind === "mineru_part" || !task.outputPath} onClick={() => task.outputPath && onOpenResult(task.outputPath)}>
-            <ArrowUpRight />打开结果
-          </Button>
+            <ArrowUpRight />{t("打开结果")}</Button>
           {task.status === "failed" && (
-            <IconAction label="重新转换" variant="outline" disabled={retrying} onClick={() => onRetry(task)}>
+            <IconAction label={t("重新转换")} variant="outline" disabled={retrying} onClick={() => onRetry(task)}>
               {retrying ? <LoaderCircle className="animate-spin" /> : <RotateCcw />}
             </IconAction>
           )}
@@ -212,13 +212,13 @@ export function TaskWorkspace({
     failed: tasks.filter((task) => task.status === "failed").length,
   }), [tasks, total]);
 
-  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const normalizedQuery = query.trim().toLowerCase();
   const visibleTasks = useMemo(() => tasks.filter((task) => {
     if (!filterTask(task, filter)) return false;
     if (!normalizedQuery) return true;
-    const haystack = [taskFileName(task), task.relativePath, task.sourcePath, task.engine, statusMeta[task.status].label, task.partMode].join(" ").toLocaleLowerCase();
+    const haystack = [taskFileName(task), task.relativePath, task.sourcePath, task.engine, translate(statusMeta[task.status].label), task.partMode].join(" ").toLowerCase();
     return haystack.includes(normalizedQuery);
-  }), [filter, normalizedQuery, tasks]);
+  }), [filter, normalizedQuery, tasks, getLocale()]);
 
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
   const selectedProfile = profiles.find((profile) => profile.id === selectedTask?.profileId);
@@ -229,12 +229,12 @@ export function TaskWorkspace({
       <section className="relative flex h-full w-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden bg-background">
         <div className="grid min-h-[98px] w-full min-w-0 shrink-0 grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto_auto] items-center gap-x-3 gap-y-1.5 border-b px-5 py-2.5 max-[900px]:px-4">
           <div className="shrink-0">
-            <h1 className="text-[15px] font-semibold tracking-[-0.01em]">转换任务</h1>
+            <h1 className="text-[15px] font-semibold tracking-[-0.01em]">{t("转换任务")}</h1>
             <div className="mt-0.5 flex items-center gap-2 whitespace-nowrap text-[11px] text-muted-foreground">
-              <span className="max-[1250px]:hidden">{total > tasks.length ? `显示最近 ${tasks.length.toLocaleString()} / 共 ${total.toLocaleString()} 条` : "文档转换队列、目录监控与输出状态"}</span>
+              <span className="max-[1250px]:hidden">{total > tasks.length ? t("显示最近 {p0} / 共 {p1} 条", { p0: tasks.length.toLocaleString(getLocale()), p1: total.toLocaleString(getLocale()) }) : t("文档转换队列、目录监控与输出状态")}</span>
               <span className={cn("inline-flex shrink-0 items-center gap-1 font-medium", !paused && "text-success")}>
                 <span className={cn("size-1.5 rounded-full bg-current", !paused && "status-pulse")} />
-                {paused ? "转换已停止" : "转换运行中"}
+                {paused ? t("转换已停止") : t("转换运行中")}
               </span>
             </div>
           </div>
@@ -249,42 +249,42 @@ export function TaskWorkspace({
                   filter === item.id ? "bg-[var(--selection)] font-medium text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
-                {item.label} <span className="ml-0.5 tabular-nums opacity-75">{taskCounts[item.id]}</span>
+                {translate(item.label)} <span className="ml-0.5 tabular-nums opacity-75">{taskCounts[item.id]}</span>
               </button>
             ))}
           </div>
           <div className="col-start-2 row-start-1 flex shrink-0 items-center justify-self-start gap-2">
             {taskCounts.failed > 0 && (
               <Button className="shrink-0 whitespace-nowrap" variant="outline" size="sm" disabled={retryingFailed} onClick={onRetryFailed}>
-                {retryingFailed ? <LoaderCircle className="animate-spin" /> : <RotateCcw />}重试失败 {taskCounts.failed}
+                {retryingFailed ? <LoaderCircle className="animate-spin" /> : <RotateCcw />}{t("重试失败")} ({taskCounts.failed})
               </Button>
             )}
             <Button className="shrink-0 whitespace-nowrap" variant={paused ? "default" : "outline"} size="sm" disabled={pausing || loading} onClick={onTogglePaused}>
               {pausing ? <LoaderCircle className="animate-spin" /> : paused ? <Play /> : <Pause />}
-              {paused ? "开始转换" : "停止转换"}
+              {paused ? t("开始转换") : t("停止转换")}
             </Button>
-            <IconAction label="重新扫描监控目录" size="icon-sm" disabled={rescanning || loading} onClick={onRescan}>
+            <IconAction label={t("重新扫描监控目录")} size="icon-sm" disabled={rescanning || loading} onClick={onRescan}>
               <ScanSearch className={cn(rescanning && "animate-pulse")} />
             </IconAction>
-            <IconAction label="刷新转换任务" size="icon-sm" disabled={refreshing} onClick={onRefresh}>
+            <IconAction label={t("刷新转换任务")} size="icon-sm" disabled={refreshing} onClick={onRefresh}>
               <RefreshCw className={cn(refreshing && "animate-spin")} />
             </IconAction>
           </div>
         </div>
 
         <div className="absolute inset-x-0 bottom-0 top-[98px] min-h-0 min-w-0 overflow-auto">
-          <div className="min-w-[540px]">
-            <div className="grid h-8 grid-cols-[minmax(210px,1fr)_116px_76px_96px_104px] items-center border-b bg-[var(--table-head)] px-4 text-[10px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
-              <span>文件名</span><span>来源</span><span>更新</span><span>转换状态</span><span>分类状态</span>
+          <div className="min-w-[684px]">
+            <div className="grid min-h-10 grid-cols-[minmax(210px,1fr)_108px_64px_132px_138px] items-center border-b bg-[var(--table-head)] px-4 text-[10px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+              <span>{t("文件名")}</span><span>{t("来源")}</span><span>{t("更新")}</span><span>{t("转换状态")}</span><span>{t("分类状态")}</span>
             </div>
 
             {loading ? (
-              <div className="flex h-40 items-center justify-center gap-2 text-xs text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />正在载入任务</div>
+              <div className="flex h-40 items-center justify-center gap-2 text-xs text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />{t("正在载入任务")}</div>
             ) : visibleTasks.length === 0 ? (
               <div className="flex h-48 flex-col items-center justify-center px-6 text-center">
                 <FileText className="mb-3 size-5 text-muted-foreground/55" />
-                <p className="text-xs font-medium">{query ? "没有匹配的任务" : "这里还没有任务"}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">{query ? "尝试更换关键词或状态筛选。" : "把支持的文档放入监控目录后会自动出现。"}</p>
+                <p className="text-xs font-medium">{query ? t("没有匹配的任务") : t("这里还没有任务")}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{query ? t("尝试更换关键词或状态筛选。") : t("把支持的文档放入监控目录后会自动出现。")}</p>
               </div>
             ) : visibleTasks.map((task) => {
               const profile = profiles.find((item) => item.id === task.profileId);
@@ -295,7 +295,7 @@ export function TaskWorkspace({
                   type="button"
                   onClick={() => onSelectTask(task.id)}
                   className={cn(
-                    "grid h-[50px] w-full grid-cols-[minmax(210px,1fr)_116px_76px_96px_104px] items-center border-b px-4 text-left text-xs outline-none transition-colors focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                    "grid h-[50px] w-full grid-cols-[minmax(210px,1fr)_108px_64px_132px_138px] items-center border-b px-4 text-left text-xs outline-none transition-colors focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                     selected ? "bg-[var(--selection)]" : "hover:bg-accent/70",
                   )}
                   aria-pressed={selected}
@@ -307,7 +307,7 @@ export function TaskWorkspace({
                       <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{taskDirectory(task)}</span>
                     </span>
                   </span>
-                  <span className="truncate pr-3 text-[11px] text-muted-foreground" title={profile?.name}><Folder className="mr-1 inline size-3 -translate-y-px" />{profile?.name ?? "未知"}</span>
+                  <span className="truncate pr-3 text-[11px] text-muted-foreground" title={profile?.name}><Folder className="mr-1 inline size-3 -translate-y-px" />{profile?.name ?? t("未知")}</span>
                   <span className="text-[10px] tabular-nums text-muted-foreground">{formatUpdatedAt(task.updatedAt).split(" ").at(-1)}</span>
                   <TaskStatus status={task.status} />
                   <TaskTagStatus task={task} />

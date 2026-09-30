@@ -1,35 +1,38 @@
-# 参与贡献
+# Contributing to CPAH Docs
 
-感谢你愿意改进 CPAH Docs。提交代码前，请先搜索现有 Issue，较大的功能建议先开 Issue 对齐范围。
+**English** | [简体中文](CONTRIBUTING.zh-CN.md)
 
-## 本地开发
+Contributions in English or Chinese are welcome: bug reports, documentation, translations and code. Search existing issues first. For substantial changes, open an issue to discuss the scope before implementing them.
 
-需要 Node.js 24.15+ 和 Rust 1.97+。Windows 10/11 还需要 Visual Studio Installer 中的“使用 C++ 的桌面开发”、MSVC x64/x86 和 Windows SDK；macOS 需要 Xcode Command Line Tools 或完整 Xcode。
+## Local development
+
+Use Node.js 24.15+ and Rust 1.97+. Windows requires Visual Studio’s Desktop development with C++, MSVC x64/x86 and the Windows SDK. macOS requires Xcode Command Line Tools or Xcode.
 
 ```shell
 npm ci
 npm run tauri dev
 ```
 
-提交前请运行：
+Use `npm run dev` and open `http://localhost:1420/?preview` to inspect the frontend with synthetic data, without accessing personal documents or model services.
+
+Before submitting a pull request:
 
 ```shell
 npm run build
+npm test
 cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 cargo test --manifest-path src-tauri/Cargo.toml --all-targets
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 ```
 
-## Pull Request
+## Pull requests
 
-- 一个 PR 聚焦一个问题，说明用户场景、改动和验证方式。
-- 行为变化应补充测试；界面变化请附脱敏截图。
-- 不要提交真实文档、任务数据库、运行日志、Token、API Key、证书或个人完整路径。
-- 不要把 `debug-ai.json`、`.env` 或本机 E2E 资料加入 Git。
-- 用户可见行为变化请同步更新 README 或帮助页。
+- Focus each PR on one problem and explain the user scenario, resulting behavior and validation.
+- Add meaningful tests for behavior changes. Include redacted screenshots for interface changes, covering both supported languages when applicable.
+- Do not commit real documents, databases, logs, tokens, API keys, certificates or full personal paths. Keep `.env`, `debug-ai.json` and real E2E fixtures out of Git.
+- Update the English and Chinese README or in-app help when user-visible behavior changes.
+- Use translation catalog entries for interface messages. Keep filenames, custom category names, database identifiers and persisted YAML values independent of the interface language. See [the translation guide](docs/internationalization.md).
 
-提交信息推荐使用简洁的 Conventional Commits，例如 `fix: resume MinerU polling after restart`。
+Concise Conventional Commit messages are recommended, for example `fix: resume MinerU polling after restart`.
 
-## 报告安全问题
-
-安全漏洞不要发布到公开 Issue，请按照 [SECURITY.md](SECURITY.md) 私下报告。
+Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report security vulnerabilities privately through [SECURITY.md](SECURITY.md), rather than public issues.

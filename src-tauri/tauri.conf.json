@@ -37,13 +37,14 @@
     ],
     "windows": {
       "wix": {
-        "language": "zh-CN"
+        "language": ["en-US", "zh-CN"]
       },
       "nsis": {
-        "languages": ["SimpChinese"]
+        "languages": ["English", "SimpChinese"],
+        "displayLanguageSelector": true
       }
     },
-    "shortDescription": "自动将 Office、PDF 和图片转换为 Markdown",
-    "longDescription": "CPAH Docs 监控多个文件夹，使用纯 Rust 本地转换器和 MinerU 云端解析自动生成 Markdown，并可通过 OpenAI 兼容模型写入文档类别。"
+    "shortDescription": "Convert documents to Markdown and build local knowledge indexes",
+    "longDescription": "CPAH Docs watches folders on Windows and macOS, converts Office documents and PDFs locally, uses MinerU for OCR, and optionally classifies Markdown with compatible language or decision models. Available in English and Simplified Chinese."
   }
 }

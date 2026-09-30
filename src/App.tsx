@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
@@ -33,9 +34,11 @@ import { TagTasksView } from "@/components/app/tag-tasks-view";
 import { IconAction } from "@/components/app/icon-action";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/i18n-react";
 import type { AppSettings, ClassificationModelType, Dashboard, FileAction, FileEntry, HealthReport, TagJobRecord, TaggingConfig, TaggingImpact, TaskRecord, WatchProfile } from "./types";
 
 export default function App() {
+  const { locale } = useLanguage();
   const [settings, setSettings] = useState<AppSettings>(emptySettings);
   const [persistedSettings, setPersistedSettings] = useState<AppSettings>(emptySettings);
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
@@ -61,7 +64,7 @@ export default function App() {
   const [rescanning, setRescanning] = useState(false);
   const [retryingFailed, setRetryingFailed] = useState(false);
   const [healthReport, setHealthReport] = useState<HealthReport | null>(null);
-  const [appVersion, setAppVersion] = useState("1.1.1");
+  const [appVersion, setAppVersion] = useState("1.3.0");
   const [checkingHealth, setCheckingHealth] = useState(false);
   const [copyingDiagnostics, setCopyingDiagnostics] = useState(false);
   const [pausing, setPausing] = useState(false);
@@ -78,6 +81,15 @@ export default function App() {
   const removingProfileIdRef = useRef<string | null>(null);
   const initialViewResolvedRef = useRef(false);
   const { theme, setTheme } = useThemeMode();
+
+  useEffect(() => {
+    if (previewMode) return;
+    let current = true;
+    void invoke("set_ui_language", { language: locale }).catch((error) => {
+      if (current) setNotice({ kind: "error", message: t("语言已切换，但系统菜单同步失败：{p0}", { p0: errorMessage(error) }) });
+    });
+    return () => { current = false; };
+  }, [locale]);
 
   const refresh = useCallback(async (includeSettings = false) => {
     try {
@@ -164,7 +176,7 @@ export default function App() {
 
   useEffect(() => {
     function handleKeyboard(event: KeyboardEvent) {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "k") {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         commandInputRef.current?.focus();
       }
@@ -288,14 +300,14 @@ export default function App() {
         ? { ...persistedSettings, profiles: persistedSettings.profiles.filter((profile) => profile.id !== id) }
         : await invoke<AppSettings>("remove_profile", { profileId: id });
       adoptSavedRemoval(saved);
-      setNotice({ kind: "success", message: "监控目录已删除，相关后台任务已停止。" });
+      setNotice({ kind: "success", message: t("监控目录已删除，相关后台任务已停止。") });
       await refresh();
     } catch (error) {
       try {
         const dashboard = await invoke<Dashboard>("get_dashboard");
         if (!dashboard.settings.profiles.some((profile) => profile.id === id)) {
           adoptSavedRemoval(dashboard.settings);
-          setNotice({ kind: "error", message: `监控目录已移除，但后续清理未完成：${errorMessage(error)}` });
+          setNotice({ kind: "error", message: t("监控目录已移除，但后续清理未完成：{p0}", { p0: errorMessage(error) }) });
         } else {
           setNotice({ kind: "error", message: errorMessage(error) });
         }
@@ -325,8 +337,8 @@ export default function App() {
     if (previewMode) {
       const macOS = navigator.userAgent.includes("Mac");
       const selected = macOS
-        ? field === "inputDir" ? "/Users/demo/Documents/待转换文档" : "/Users/demo/Documents/Markdown知识库"
-        : field === "inputDir" ? "C:\\Users\\Demo\\Documents\\待转换文档" : "D:\\MarkdownKnowledgeBase\\转换结果";
+        ? field === "inputDir" ? t("/Users/demo/Documents/待转换文档") : t("/Users/demo/Documents/Markdown知识库")
+        : field === "inputDir" ? t("C:\\Users\\Demo\\Documents\\待转换文档") : t("D:\\MarkdownKnowledgeBase\\转换结果");
       patchProfile(profileId, { [field]: selected });
       return;
     }
@@ -359,15 +371,15 @@ export default function App() {
       ));
       failedAutoSaveSignatureRef.current = null;
       if (!automatic) {
-        setNotice({ kind: "success", message: "设置已保存，监控任务已重新加载。" });
+        setNotice({ kind: "success", message: t("设置已保存，监控任务已重新加载。") });
       } else if (containsNewProfile) {
-        setNotice({ kind: "success", message: "新目录已自动保存，监听会扫描现有文件并加入待执行。" });
+        setNotice({ kind: "success", message: t("新目录已自动保存，监听会扫描现有文件并加入待执行。") });
       }
     } catch (error) {
       const message = errorMessage(error);
       setAutoSaveError(message);
       if (automatic) failedAutoSaveSignatureRef.current = submittedSignature;
-      setNotice({ kind: "error", message: automatic ? `自动保存失败：${message}` : message });
+      setNotice({ kind: "error", message: automatic ? t("自动保存失败：{p0}", { p0: message }) : message });
     } finally {
       savingSettingsRef.current = false;
       setSavingSettings(false);
@@ -386,7 +398,7 @@ export default function App() {
         setPersistedSettings((current) => ({ ...current, mineruConfigured: true }));
       }
       setToken("");
-      setNotice({ kind: "success", message: "MinerU Token 已安全保存。" });
+      setNotice({ kind: "success", message: t("MinerU Token 已安全保存。") });
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
     } finally {
@@ -413,7 +425,7 @@ export default function App() {
         : await invoke<AppSettings["agent"]>("save_agent_settings", { ...value, apiKey: value.apiKey || null });
       setSettings((current) => ({ ...current, agent }));
       setPersistedSettings((current) => ({ ...current, agent }));
-      setNotice({ kind: "success", message: "分类模型设置已安全保存。" });
+      setNotice({ kind: "success", message: t("分类模型设置已安全保存。") });
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
       throw error;
@@ -423,7 +435,7 @@ export default function App() {
   async function testAgent(value: { modelType: ClassificationModelType; baseUrl: string; model: string; apiKey: string }) {
     try {
       if (!previewMode) await invoke("test_agent_connection", { ...value, apiKey: value.apiKey || null });
-      setNotice({ kind: "success", message: value.modelType === "decision" ? "连接成功，模型已完成单分类和多标签判断测试。" : "连接成功，模型已完成 Tool Calling 测试。" });
+      setNotice({ kind: "success", message: value.modelType === "decision" ? t("连接成功，模型已完成单分类和多标签判断测试。") : t("连接成功，模型已完成 Tool Calling 测试。") });
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
       throw error;
@@ -447,7 +459,7 @@ export default function App() {
         : await invoke<AppSettings>("apply_tagging_config", { profileId, tagging, processExisting });
       setSettings(saved);
       setPersistedSettings(saved);
-      setNotice({ kind: "success", message: tagging.enabled ? (processExisting ? "分类规则已应用，现有 Markdown 正在排队。" : "分类规则已应用，仅自动分类新文件。") : "该目录的 Agent 文档分类已关闭，待执行任务已取消。" });
+      setNotice({ kind: "success", message: tagging.enabled ? (processExisting ? t("分类规则已应用，现有 Markdown 正在排队。") : t("分类规则已应用，仅自动分类新文件。")) : t("该目录的 Agent 文档分类已关闭，待执行任务已取消。") });
       await refresh();
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
@@ -466,8 +478,8 @@ export default function App() {
       setNotice({
         kind: "success",
         message: settings.classificationPaused
-          ? `已将 ${ids.length} 个任务加入待执行；开始分类后运行。`
-          : `已重新提交 ${ids.length} 个分类任务。`,
+          ? t("已将 {p0} 个任务加入待执行；开始分类后运行。", { p0: ids.length })
+          : t("已重新提交 {p0} 个分类任务。", { p0: ids.length }),
       });
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
@@ -501,7 +513,7 @@ export default function App() {
     const patch = classification ? { classificationPaused: false } : { paused: false };
     setSettings((current) => ({ ...current, ...patch }));
     setPersistedSettings((current) => ({ ...current, ...patch }));
-    setNotice({ kind: "success", message: `已优先安排「${entry.name}」${classification ? "分类" : "转换"}，结束后继续其他${classification ? "分类" : "转换"}任务。` });
+    setNotice({ kind: "success", message: t("已优先安排「{p0}」{p1}，结束后继续其他{p2}任务。", { p0: entry.name, p1: classification ? t("分类") : t("转换"), p2: classification ? t("分类") : t("转换") }) });
   }
 
   async function retryTask(task: TaskRecord) {
@@ -513,7 +525,7 @@ export default function App() {
         await invoke("retry_task", { taskId: task.id, forceLocal: false });
         await refresh();
       }
-      setNotice({ kind: "success", message: `已重新提交「${task.relativePath}」。` });
+      setNotice({ kind: "success", message: t("已重新提交「{p0}」。", { p0: task.relativePath }) });
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
     } finally {
@@ -535,8 +547,8 @@ export default function App() {
       setNotice({
         kind: "success",
         message: settings.paused
-          ? `已将 ${count} 个失败任务放回待执行；开始转换后运行。`
-          : `已重新提交 ${count} 个失败任务。`,
+          ? t("已将 {p0} 个失败任务放回待执行；开始转换后运行。", { p0: count })
+          : t("已重新提交 {p0} 个失败任务。", { p0: count }),
       });
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
@@ -550,7 +562,7 @@ export default function App() {
     try {
       if (!previewMode) await invoke("rescan_all_profiles");
       await refresh();
-      setNotice({ kind: "success", message: "已重新扫描监控目录，新文件会进入待执行。" });
+      setNotice({ kind: "success", message: t("已重新扫描监控目录，新文件会进入待执行。") });
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
     } finally {
@@ -562,10 +574,10 @@ export default function App() {
     setCheckingHealth(true);
     try {
       const report = previewMode
-        ? { appVersion: "1.1.1", checkedAt: new Date().toISOString(), overall: "ok", checks: [{ id: "preview", title: "预览模式", level: "ok", detail: "界面预览正常。" }], counts: { conversionPending: 0, conversionActive: 0, conversionWaitingMineru: 0, conversionFailed: 0, classificationPending: 0, classificationActive: 0, classificationFailed: 0, classificationOutdated: 0 } } as HealthReport
+        ? { appVersion, checkedAt: new Date().toISOString(), overall: "ok", checks: [{ id: "preview", title: "预览模式", level: "ok", detail: "界面预览正常。" }], counts: { conversionPending: 0, conversionActive: 0, conversionWaitingMineru: 0, conversionFailed: 0, classificationPending: 0, classificationActive: 0, classificationFailed: 0, classificationOutdated: 0 } } as HealthReport
         : await invoke<HealthReport>("run_health_check");
       setHealthReport(report);
-      setNotice({ kind: "success", message: report.overall === "ok" ? "运行检查完成，所有项目正常。" : "运行检查完成，请查看诊断结果。" });
+      setNotice({ kind: "success", message: report.overall === "ok" ? t("运行检查完成，所有项目正常。") : t("运行检查完成，请查看诊断结果。") });
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
     } finally {
@@ -576,9 +588,9 @@ export default function App() {
   async function copyDiagnostics() {
     setCopyingDiagnostics(true);
     try {
-      const report = previewMode ? "CPAH Docs 诊断信息\n版本: 1.1.1\n预览模式" : await invoke<string>("get_diagnostic_report");
+      const report = previewMode ? t("CPAH Docs 诊断信息\n版本: {version}\n预览模式", { version: appVersion }) : await invoke<string>("get_diagnostic_report");
       await navigator.clipboard.writeText(report);
-      setNotice({ kind: "success", message: "诊断信息已复制，凭据和完整路径已隐藏。" });
+      setNotice({ kind: "success", message: t("诊断信息已复制，凭据和完整路径已隐藏。") });
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
     } finally {
@@ -600,8 +612,8 @@ export default function App() {
       setNotice({
         kind: "success",
         message: nextPaused
-          ? "转换已停止；目录监听仍会把新文件加入待执行，已提交的 MinerU 任务会正常完成。"
-          : "转换已开始；正在处理待执行队列。",
+          ? t("转换已停止；目录监听仍会把新文件加入待执行，已提交的 MinerU 任务会正常完成。")
+          : t("转换已开始；正在处理待执行队列。"),
       });
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
@@ -622,8 +634,8 @@ export default function App() {
       setNotice({
         kind: "success",
         message: saved.monitoringPaused
-          ? "目录监听已停止；已有待执行任务不受影响。"
-          : "目录监听已开始；正在扫描并把发现的文件加入待执行。",
+          ? t("目录监听已停止；已有待执行任务不受影响。")
+          : t("目录监听已开始；正在扫描并把发现的文件加入待执行。"),
       });
       if (!saved.monitoringPaused) await refresh();
     } catch (error) {
@@ -646,8 +658,8 @@ export default function App() {
       setNotice({
         kind: "success",
         message: saved.classificationPaused
-          ? "分类已停止；正在执行的 Agent 会正常完成。"
-          : "分类已开始；正在扫描遗漏文件并处理待分类任务。",
+          ? t("分类已停止；正在执行的 Agent 会正常完成。")
+          : t("分类已开始；正在扫描遗漏文件并处理待分类任务。"),
       });
     } catch (error) {
       setNotice({ kind: "error", message: errorMessage(error) });
@@ -800,8 +812,8 @@ export default function App() {
       copyingDiagnostics={copyingDiagnostics}
       onRunHealthCheck={() => void runHealthCheck()}
       onCopyDiagnostics={() => void copyDiagnostics()}
-      onLoadProjectLicense={() => previewMode ? Promise.resolve("预览模式不载入许可证正文。") : invoke<string>("get_project_license")}
-      onLoadThirdPartyLicenses={() => previewMode ? Promise.resolve("预览模式不载入第三方许可证正文。") : invoke<string>("get_third_party_licenses")}
+      onLoadProjectLicense={() => previewMode ? Promise.resolve(t("预览模式不载入许可证正文。")) : invoke<string>("get_project_license")}
+      onLoadThirdPartyLicenses={() => previewMode ? Promise.resolve(t("预览模式不载入第三方许可证正文。")) : invoke<string>("get_third_party_licenses")}
     />
   ) : (
     <TaskWorkspace
@@ -860,7 +872,7 @@ export default function App() {
         <div role="alert" className="fixed bottom-4 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 items-start gap-2 rounded-md border border-destructive/30 bg-card px-3 py-2 text-[11px] text-destructive shadow-lg">
           <AlertCircle className="mt-1.5 size-3.5 shrink-0" />
           <span className="max-h-36 min-w-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words py-1 leading-5">{loadError}</span>
-          <IconAction label="关闭错误提示" size="icon-sm" className="shrink-0" onClick={() => setDismissedLoadError(loadError)}><X /></IconAction>
+          <IconAction label={t("关闭错误提示")} size="icon-sm" className="shrink-0" onClick={() => setDismissedLoadError(loadError)}><X /></IconAction>
         </div>
       )}
 
@@ -868,7 +880,7 @@ export default function App() {
         <div className={cn("fixed right-4 top-16 z-50 flex max-w-sm items-center gap-2 rounded-md border bg-card px-3 py-2 text-[11px] shadow-lg", notice.kind === "error" ? "border-destructive/30 text-destructive" : "border-success/30 text-foreground")}>
           {notice.kind === "error" ? <AlertCircle className="size-3.5 shrink-0" /> : <Check className="size-3.5 shrink-0 text-success" />}
           <span className="leading-5">{notice.message}</span>
-          <IconAction label="关闭通知" size="icon-sm" onClick={() => setNotice(null)}><X /></IconAction>
+          <IconAction label={t("关闭通知")} size="icon-sm" onClick={() => setNotice(null)}><X /></IconAction>
         </div>
       )}
     </TooltipProvider>

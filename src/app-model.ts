@@ -1,3 +1,4 @@
+import { t, translate, getLocale } from "./i18n.ts";
 import { useEffect, useState } from "react";
 
 import type { AppSettings, Dashboard, JobStatus, TagJobStatus, TaskRecord, WatchProfile } from "./types";
@@ -177,7 +178,7 @@ export const previewDashboard: Dashboard = {
 export function makeProfile(): WatchProfile {
   return {
     id: crypto.randomUUID(),
-    name: "新监控目录",
+    name: t("新监控目录"),
     inputDir: "",
     outputDir: "",
     enabled: true,
@@ -214,7 +215,7 @@ export function profilesReadyToSave(profiles: WatchProfile[]) {
     if (!profile.inputDir.trim() || !profile.outputDir.trim()) return false;
     const names = profile.tagging.labels.map((label) => label.name.trim());
     if (names.some((name) => !name || name === "未分类")) return false;
-    if (new Set(names.map((name) => name.toLocaleLowerCase())).size !== names.length) return false;
+    if (new Set(names.map((name) => name.toLowerCase())).size !== names.length) return false;
     return !profile.tagging.enabled || names.length > 0;
   });
 }
@@ -225,13 +226,13 @@ export function profileIsPersisted(profile: WatchProfile, persistedProfiles: Wat
 }
 
 export function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return translate(error instanceof Error ? error.message : String(error));
 }
 
 export function formatUpdatedAt(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat(getLocale(), {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -244,32 +245,32 @@ export function taskFileName(task: TaskRecord) {
   const fileName = task.relativePath.split(/[\\/]/).at(-1) ?? task.relativePath;
   if (task.kind !== "mineru_part") return fileName;
   const pageRange = typeof task.pageStart === "number" && typeof task.pageEnd === "number"
-    ? `第 ${task.pageStart}–${task.pageEnd} 页`
-    : "PDF 分片";
+    ? t("第 {p0}–{p1} 页", { p0: task.pageStart, p1: task.pageEnd })
+    : t("PDF 分片");
   const partPosition = typeof task.partIndex === "number" && typeof task.partCount === "number"
-    ? `（${task.partIndex}/${task.partCount}）`
+    ? getLocale() === "zh-CN" ? `（${task.partIndex}/${task.partCount}）` : ` (${task.partIndex}/${task.partCount})`
     : "";
   return `${fileName} · ${pageRange}${partPosition}`;
 }
 
 export function taskDirectory(task: TaskRecord) {
-  if (task.kind === "mineru_part") return "MinerU 分片任务";
+  if (task.kind === "mineru_part") return t("MinerU 分片任务");
   const pieces = task.relativePath.split(/[\\/]/);
-  return pieces.length > 1 ? pieces.slice(0, -1).join(" / ") : "根目录";
+  return pieces.length > 1 ? pieces.slice(0, -1).join(" / ") : t("根目录");
 }
 
 export function isMarkdownTask(task: TaskRecord) {
-  return task.relativePath.toLocaleLowerCase().endsWith(".md");
+  return task.relativePath.toLowerCase().endsWith(".md");
 }
 
 export function conversionEngineLabel(task: TaskRecord) {
-  if (task.kind === "mineru_part") return "MinerU PDF 分片";
-  if (isMarkdownTask(task) || task.engine === "copy") return "Markdown 直通同步";
+  if (task.kind === "mineru_part") return t("MinerU PDF 分片");
+  if (isMarkdownTask(task) || task.engine === "copy") return t("Markdown 直通同步");
   const labels: Record<TaskRecord["engine"], string> = {
-    anydoc: "anydoc 本地转换",
-    anytomd: "AnyToMD 本地转换",
-    mineru: "MinerU 文档解析",
-    copy: "Markdown 直通同步",
+    anydoc: t("anydoc 本地转换"),
+    anytomd: t("AnyToMD 本地转换"),
+    mineru: t("MinerU 文档解析"),
+    copy: t("Markdown 直通同步"),
   };
   return labels[task.engine];
 }

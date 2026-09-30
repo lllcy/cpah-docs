@@ -8,6 +8,7 @@ mod file_browser;
 mod index_runtime;
 mod knowledge_index;
 mod local_conversion;
+mod locale;
 mod logging;
 mod mineru;
 mod models;
@@ -26,7 +27,7 @@ use commands::{
     remove_profile, rescan_all_profiles, retry_failed_tasks, retry_tag_job, retry_tag_jobs,
     retry_task, run_health_check, save_agent_settings, save_settings, search_profile_files,
     set_classification_paused, set_mineru_token, set_monitoring_paused, set_paused,
-    test_agent_connection,
+    set_ui_language, test_agent_connection,
 };
 use state::AppState;
 use tauri::Manager;
@@ -43,14 +44,28 @@ pub fn run() {
             state::migrate_legacy_data_dir(&data_dir)?;
             logging::initialize(&data_dir)?;
             let state = AppState::new(data_dir)?;
+            let language = state.language();
             runtime::start(state.clone())?;
             tag_runtime::start(state.clone())?;
             index_runtime::start(state.clone())?;
             app.manage(state);
 
-            let show = MenuItem::with_id(app, "show", "显示主窗口", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+            let show = MenuItem::with_id(
+                app,
+                "show",
+                language.text("显示主窗口", "Show window"),
+                true,
+                None::<&str>,
+            )?;
+            let quit = MenuItem::with_id(
+                app,
+                "quit",
+                language.text("退出", "Quit"),
+                true,
+                None::<&str>,
+            )?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
+            app.manage(locale::TrayMenu { show, quit });
             let mut tray = TrayIconBuilder::new()
                 .menu(&menu)
                 .show_menu_on_left_click(false)
@@ -79,6 +94,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_dashboard,
+            set_ui_language,
             list_profile_files,
             convert_profile_file,
             classify_profile_file,

@@ -163,6 +163,7 @@ async fn rebuild_one(state: &AppState, profile_id: &str) {
 }
 
 async fn rebuild(state: &AppState, profile: WatchProfile) {
+    let language = state.language();
     let profile_name = profile.name.clone();
     let Some(control) = state.profile_control(&profile.id) else {
         return;
@@ -172,7 +173,7 @@ async fn rebuild(state: &AppState, profile: WatchProfile) {
     };
     match tokio::task::spawn_blocking(move || {
         let _write_permit = write_permit;
-        rebuild_profile_index(&profile)
+        rebuild_profile_index(&profile, language)
     })
     .await
     {

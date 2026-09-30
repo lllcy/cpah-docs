@@ -1,4 +1,5 @@
 use crate::index_runtime::IndexRuntimeMessage;
+use crate::locale::Language;
 use crate::models::AppSettings;
 use crate::priority_queue::PriorityQueue;
 use crate::runtime::RuntimeMessage;
@@ -107,6 +108,7 @@ pub struct AppState {
     pub conversion_priority: Arc<PriorityQueue>,
     pub classification_priority: Arc<PriorityQueue>,
     pub settings: Arc<RwLock<AppSettings>>,
+    chinese_ui: Arc<AtomicBool>,
     monitoring_paused: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
     classification_paused: Arc<AtomicBool>,
@@ -121,6 +123,10 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(data_dir: PathBuf) -> Result<Self> {
+        let language = fs::read(data_dir.join("ui-language.json"))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<Language>(&bytes).ok())
+            .unwrap_or_default();
         let storage = Storage::new(data_dir)?;
         let mut settings = storage.load_settings()?;
         settings.mineru_configured = Self::read_mineru_token().is_ok_and(|token| !token.is_empty());
@@ -138,6 +144,7 @@ impl AppState {
             conversion_priority: Arc::new(PriorityQueue::default()),
             classification_priority: Arc::new(PriorityQueue::default()),
             settings: Arc::new(RwLock::new(settings)),
+            chinese_ui: Arc::new(AtomicBool::new(language == Language::Chinese)),
             monitoring_paused: Arc::new(AtomicBool::new(monitoring_paused)),
             paused: Arc::new(AtomicBool::new(paused)),
             classification_paused: Arc::new(AtomicBool::new(classification_paused)),
@@ -149,6 +156,20 @@ impl AppState {
             tag_runtime_error: Arc::new(Mutex::new(None)),
             index_runtime_error: Arc::new(Mutex::new(None)),
         })
+    }
+
+    pub fn language(&self) -> Language {
+        if self.chinese_ui.load(Ordering::Relaxed) {
+            Language::Chinese
+        } else {
+            Language::English
+        }
+    }
+
+    pub fn set_language(&self, language: Language) -> bool {
+        self.chinese_ui
+            .swap(language == Language::Chinese, Ordering::Relaxed)
+            != (language == Language::Chinese)
     }
 
     pub async fn resume_file_queue(&self, classification: bool) -> Result<()> {

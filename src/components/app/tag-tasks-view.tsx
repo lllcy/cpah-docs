@@ -1,3 +1,4 @@
+import { t, translate, getLocale, formatNumber } from "@/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, Bot, FileText, LoaderCircle, Pause, Play, RefreshCw, RotateCcw, X } from "lucide-react";
 
@@ -33,7 +34,7 @@ function TagStatus({ status }: { status: TagJobStatus }) {
       meta.tone === "neutral" && "text-muted-foreground",
     )}>
       <span className={cn("size-1.5 rounded-full bg-current", meta.tone === "active" && "status-pulse")} />
-      {meta.label}
+      {translate(meta.label)}
     </span>
   );
 }
@@ -81,31 +82,30 @@ function TagInspector({ job, profile, retrying, onRetry, onOpen, onClose }: {
   onClose?: () => void;
 }) {
   if (!job) {
-    return <div className="flex h-full flex-col items-center justify-center px-7 text-center"><Bot className="mb-3 size-5 text-muted-foreground/55" /><p className="text-xs font-medium">选择一项分类任务</p></div>;
+    return <div className="flex h-full flex-col items-center justify-center px-7 text-center"><Bot className="mb-3 size-5 text-muted-foreground/55" /><p className="text-xs font-medium">{t("选择一项分类任务")}</p></div>;
   }
   const categories = parsedCategories(job);
   const coverage = job.totalBytes > 0 ? Math.min(100, Math.round((job.readBytes / job.totalBytes) * 100)) : 0;
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex min-h-11 items-center border-b px-4 text-xs font-semibold">
-        分类详情
-        {onClose && <div className="ml-auto"><IconAction label="关闭详情" size="icon-sm" onClick={onClose}><X /></IconAction></div>}
+        {t("分类详情")}{onClose && <div className="ml-auto"><IconAction label={t("关闭详情")} size="icon-sm" onClick={onClose}><X /></IconAction></div>}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <p className="break-words text-[13px] font-semibold leading-5">{job.relativePath.split(/[\\/]/).at(-1)}</p>
         <div className="mt-1"><TagStatus status={job.status} /></div>
         <dl className="mt-5 space-y-3.5 text-[11px]">
-          <div><dt className="mb-1 text-muted-foreground">所属目录</dt><dd>{profile?.name ?? "未知目录"}</dd></div>
+          <div><dt className="mb-1 text-muted-foreground">{t("所属目录")}</dt><dd>{profile?.name ?? t("未知目录")}</dd></div>
           <div><dt className="mb-1 text-muted-foreground">Markdown</dt><dd className="break-all leading-4">{job.markdownPath}</dd></div>
-          <div><dt className="mb-1 text-muted-foreground">读取覆盖量</dt><dd>{job.readBytes > 0 ? `${coverage}%（${job.readBytes} / ${job.totalBytes} bytes）` : "尚未读取"}</dd></div>
-          <div><dt className="mb-1 text-muted-foreground">模型用量</dt><dd className="font-medium tabular-nums">总计 {(job.inputTokens + job.outputTokens).toLocaleString()} Token</dd><dd className="mt-0.5 text-[10px] text-muted-foreground">{job.apiCalls} 次请求 · {job.inputTokens.toLocaleString()} 输入 / {job.outputTokens.toLocaleString()} 输出</dd></div>
+          <div><dt className="mb-1 text-muted-foreground">{t("读取覆盖量")}</dt><dd>{job.readBytes > 0 ? `${coverage}%（${job.readBytes} / ${job.totalBytes} bytes）` : t("尚未读取")}</dd></div>
+          <div><dt className="mb-1 text-muted-foreground">{t("模型用量")}</dt><dd className="font-medium tabular-nums">{t("总计 {p0} Token", { p0: formatNumber(job.inputTokens + job.outputTokens) })}</dd><dd className="mt-0.5 text-[10px] text-muted-foreground">{t("{p0} 次请求 · {p1} 输入 / {p2} 输出", { p0: formatNumber(job.apiCalls), p1: formatNumber(job.inputTokens), p2: formatNumber(job.outputTokens) })}</dd></div>
         </dl>
-        {categories.length > 0 && <div className="mt-5"><p className="mb-2 text-[10px] font-medium text-muted-foreground">所属类别</p><div className="flex flex-wrap gap-1.5">{categories.map((category) => <span key={category} className="rounded-full border bg-card px-2.5 py-1 text-[10px] font-medium">{category}</span>)}</div></div>}
-        {job.error && <div className="mt-5 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2.5 text-[11px] leading-5 text-destructive"><p className="font-medium">{job.errorTitle ?? "分类执行失败"}</p><p className="mt-1 text-destructive/85">{job.errorSuggestion}</p><details className="mt-2"><summary className="cursor-pointer text-[10px]">技术详情</summary><p className="mt-1 break-all text-[10px] opacity-80">{job.error}</p></details></div>}
+        {categories.length > 0 && <div className="mt-5"><p className="mb-2 text-[10px] font-medium text-muted-foreground">{t("所属类别")}</p><div className="flex flex-wrap gap-1.5">{categories.map((category) => <span key={category} className="rounded-full border bg-card px-2.5 py-1 text-[10px] font-medium">{category === "未分类" ? t("未分类") : category}</span>)}</div></div>}
+        {job.error && <div className="mt-5 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2.5 text-[11px] leading-5 text-destructive"><p className="font-medium">{(job.errorTitle ? translate(job.errorTitle) : undefined) ?? t("分类执行失败")}</p><p className="mt-1 text-destructive/85">{job.errorSuggestion && translate(job.errorSuggestion)}</p><details className="mt-2"><summary className="cursor-pointer text-[10px]">{t("技术详情")}</summary><p className="mt-1 break-all text-[10px] opacity-80">{job.error}</p></details></div>}
       </div>
       <div className="flex gap-2 border-t px-4 py-4">
-        <Button className="min-w-0 flex-1" onClick={() => onOpen(job.markdownPath)}><ArrowUpRight />打开 Markdown</Button>
-        <IconAction label="重新分类" variant="outline" disabled={retrying} onClick={() => onRetry([job.id])}>{retrying ? <LoaderCircle className="animate-spin" /> : <RotateCcw />}</IconAction>
+        <Button className="min-w-0 flex-1" onClick={() => onOpen(job.markdownPath)}><ArrowUpRight />{t("打开 Markdown")}</Button>
+        <IconAction label={t("重新分类")} variant="outline" disabled={retrying} onClick={() => onRetry([job.id])}>{retrying ? <LoaderCircle className="animate-spin" /> : <RotateCcw />}</IconAction>
       </div>
     </div>
   );
@@ -121,14 +121,14 @@ export function TagTasksView({ jobs, total, profiles, filter, onFilterChange, qu
     failed: jobs.filter((job) => job.status === "failed").length,
     outdated: jobs.filter((job) => job.status === "outdated").length,
   }), [jobs, total]);
-  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const normalizedQuery = query.trim().toLowerCase();
   const visible = useMemo(() => jobs.filter((job) => {
     if (!matchesFilter(job.status, filter)) return false;
     if (!normalizedQuery) return true;
     const profile = profiles.find((item) => item.id === job.profileId);
     return [job.relativePath, job.markdownPath, profile?.name, job.error]
       .join(" ")
-      .toLocaleLowerCase()
+      .toLowerCase()
       .includes(normalizedQuery);
   }), [filter, jobs, normalizedQuery, profiles]);
   const selected = jobs.find((job) => job.id === selectedId) ?? null;
@@ -158,10 +158,10 @@ export function TagTasksView({ jobs, total, profiles, filter, onFilterChange, qu
   }
 
   const runtimeLabel = classificationPaused
-      ? "分类已停止"
+      ? t("分类已停止")
       : !agentConfigured
-        ? "等待 Agent 配置"
-        : "分类运行中";
+        ? t("等待 Agent 配置")
+        : t("分类运行中");
   const runtimeActive = !classificationPaused && agentConfigured;
 
   return (
@@ -169,9 +169,9 @@ export function TagTasksView({ jobs, total, profiles, filter, onFilterChange, qu
       <section className="relative flex h-full w-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden">
         <div className="grid min-h-[98px] w-full min-w-0 shrink-0 grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto_auto] items-center gap-x-3 gap-y-1.5 border-b px-5 py-2.5 max-[900px]:px-4">
           <div className="shrink-0">
-            <h1 className="text-[15px] font-semibold tracking-[-0.01em]">分类任务</h1>
+            <h1 className="text-[15px] font-semibold tracking-[-0.01em]">{t("分类任务")}</h1>
             <div className="mt-0.5 flex items-center gap-2 whitespace-nowrap text-[11px] text-muted-foreground">
-              <span className="max-[1250px]:hidden">{total > jobs.length ? `显示最近 ${jobs.length.toLocaleString()} / 共 ${total.toLocaleString()} 条` : "Agent 从候选类别中判断文档类型，并写入 cpah_categories"}</span>
+              <span className="max-[1250px]:hidden">{total > jobs.length ? t("显示最近 {p0} / 共 {p1} 条", { p0: jobs.length.toLocaleString(getLocale()), p1: total.toLocaleString(getLocale()) }) : t("Agent 从候选类别中判断文档类型，并写入 cpah_categories")}</span>
               <span className={cn("inline-flex shrink-0 items-center gap-1 font-medium", runtimeActive && "text-success", !agentConfigured && !classificationPaused && "text-amber-600 dark:text-amber-400")}>
                 <span className={cn("size-1.5 rounded-full bg-current", runtimeActive && "status-pulse")} />
                 {runtimeLabel}
@@ -181,7 +181,7 @@ export function TagTasksView({ jobs, total, profiles, filter, onFilterChange, qu
           <div className="col-span-2 row-start-2 flex w-fit max-w-full shrink-0 items-center gap-0.5 overflow-x-auto whitespace-nowrap rounded-md border bg-card p-0.5 shadow-xs [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {filters.map((item) => (
               <button key={item.id} type="button" onClick={() => onFilterChange(item.id)} className={cn("h-6 shrink-0 whitespace-nowrap rounded px-2 text-[10px] outline-none transition focus-visible:ring-2 focus-visible:ring-ring", filter === item.id ? "bg-[var(--selection)] font-medium" : "text-muted-foreground hover:bg-accent")}>
-                {item.label} <span className="ml-0.5 tabular-nums opacity-75">{counts[item.id]}</span>
+                {translate(item.label)} <span className="ml-0.5 tabular-nums opacity-75">{counts[item.id]}</span>
               </button>
             ))}
           </div>
@@ -189,11 +189,11 @@ export function TagTasksView({ jobs, total, profiles, filter, onFilterChange, qu
             {runtimeActive && actionable.length > 0 && (
               <Button className="shrink-0 whitespace-nowrap" variant={confirmation === "process" ? "default" : "outline"} size="sm" disabled={retryingActionable} onClick={processActionable}>
                 {retryingActionable ? <LoaderCircle className="animate-spin" /> : <RotateCcw />}
-                {confirmation === "process" ? `确认调用模型 · ${actionable.length} 篇` : `处理待分类 ${actionable.length}`}
+                {confirmation === "process" ? t("确认调用模型 · {p0} 篇", { p0: actionable.length }) : t("处理待分类 {p0}", { p0: actionable.length })}
               </Button>
             )}
             {!agentConfigured ? (
-              <Button className="shrink-0 whitespace-nowrap" variant="outline" size="sm" onClick={onOpenSettings}><Bot />配置 Agent</Button>
+              <Button className="shrink-0 whitespace-nowrap" variant="outline" size="sm" onClick={onOpenSettings}><Bot />{t("配置 Agent")}</Button>
             ) : (
               <Button
                 className="shrink-0 whitespace-nowrap"
@@ -203,32 +203,32 @@ export function TagTasksView({ jobs, total, profiles, filter, onFilterChange, qu
                 onClick={toggleClassification}
               >
                 {changingClassificationState ? <LoaderCircle className="animate-spin" /> : classificationPaused ? <Play /> : <Pause />}
-                {classificationPaused && confirmation === "start" ? `确认开始 · ${startableCount} 篇` : classificationPaused ? "开始分类" : "停止分类"}
+                {classificationPaused && confirmation === "start" ? t("确认开始 · {p0} 篇", { p0: startableCount }) : classificationPaused ? t("开始分类") : t("停止分类")}
               </Button>
             )}
-            <IconAction label="刷新分类任务" size="icon-sm" disabled={refreshing} onClick={onRefresh}><RefreshCw className={cn(refreshing && "animate-spin")} /></IconAction>
+            <IconAction label={t("刷新分类任务")} size="icon-sm" disabled={refreshing} onClick={onRefresh}><RefreshCw className={cn(refreshing && "animate-spin")} /></IconAction>
           </div>
         </div>
 
         <div className="absolute inset-x-0 bottom-0 top-[98px] min-h-0 min-w-0 overflow-auto">
-          <div className="min-w-[730px]">
-            <div className="grid h-8 grid-cols-[minmax(230px,1fr)_120px_80px_100px_80px_100px] items-center border-b bg-[var(--table-head)] px-4 text-[10px] font-medium text-muted-foreground">
-              <span>Markdown</span><span>目录</span><span>更新</span><span>读取覆盖</span><span>Token</span><span>状态</span>
+          <div className="min-w-[810px]">
+            <div className="grid h-8 grid-cols-[minmax(230px,1fr)_112px_68px_96px_80px_192px] items-center border-b bg-[var(--table-head)] px-4 text-[10px] font-medium text-muted-foreground">
+              <span>Markdown</span><span>{t("目录")}</span><span>{t("更新")}</span><span>{t("读取覆盖")}</span><span>Token</span><span>{t("状态")}</span>
             </div>
             {loading ? (
-              <div className="flex h-40 items-center justify-center gap-2 text-xs text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />正在载入任务</div>
+              <div className="flex h-40 items-center justify-center gap-2 text-xs text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />{t("正在载入任务")}</div>
             ) : visible.length === 0 ? (
-              <div className="flex h-48 flex-col items-center justify-center px-6 text-center"><Bot className="mb-3 size-5 text-muted-foreground/55" /><p className="text-xs font-medium">没有匹配的分类任务</p><p className="mt-1 text-[11px] text-muted-foreground">先在监控目录中开启分类并配置候选类别；新增 Markdown 会在这里出现。</p></div>
+              <div className="flex h-48 flex-col items-center justify-center px-6 text-center"><Bot className="mb-3 size-5 text-muted-foreground/55" /><p className="text-xs font-medium">{t("没有匹配的分类任务")}</p><p className="mt-1 text-[11px] text-muted-foreground">{t("先在监控目录中开启分类并配置候选类别；新增 Markdown 会在这里出现。")}</p></div>
             ) : visible.map((job) => {
               const itemProfile = profiles.find((item) => item.id === job.profileId);
               const itemCoverage = job.totalBytes > 0 ? Math.min(100, Math.round((job.readBytes / job.totalBytes) * 100)) : 0;
               return (
-                <button key={job.id} type="button" onClick={() => onSelect(job.id)} className={cn("grid h-[50px] w-full grid-cols-[minmax(230px,1fr)_120px_80px_100px_80px_100px] items-center border-b px-4 text-left text-xs outline-none hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring", selectedId === job.id && "bg-[var(--selection)]")}>
+                <button key={job.id} type="button" onClick={() => onSelect(job.id)} className={cn("grid h-[50px] w-full grid-cols-[minmax(230px,1fr)_112px_68px_96px_80px_192px] items-center border-b px-4 text-left text-xs outline-none hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring", selectedId === job.id && "bg-[var(--selection)]")}>
                   <span className="flex min-w-0 items-center gap-2.5"><span className="flex size-7 shrink-0 items-center justify-center rounded-md border bg-card text-muted-foreground"><FileText className="size-3.5" /></span><span className="min-w-0"><span className="block truncate font-medium">{job.relativePath.split(/[\\/]/).at(-1)}</span><span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{job.relativePath}</span></span></span>
-                  <span className="truncate pr-2 text-[11px] text-muted-foreground">{itemProfile?.name ?? "未知"}</span>
+                  <span className="truncate pr-2 text-[11px] text-muted-foreground">{itemProfile?.name ?? t("未知")}</span>
                   <span className="text-[10px] tabular-nums text-muted-foreground">{formatUpdatedAt(job.updatedAt).split(" ").at(-1)}</span>
                   <span className="text-[10px] tabular-nums text-muted-foreground">{job.readBytes > 0 ? `${itemCoverage}% · ${Math.ceil(job.readBytes / 1024)} KiB` : "—"}</span>
-                  <span className="text-[10px] tabular-nums text-muted-foreground">{job.inputTokens + job.outputTokens > 0 ? (job.inputTokens + job.outputTokens).toLocaleString() : "—"}</span>
+                  <span className="text-[10px] tabular-nums text-muted-foreground">{job.inputTokens + job.outputTokens > 0 ? (job.inputTokens + job.outputTokens).toLocaleString(getLocale()) : "—"}</span>
                   <TagStatus status={job.status} />
                 </button>
               );
