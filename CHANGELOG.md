@@ -15,6 +15,10 @@ Notable changes are recorded here. Versions follow [Semantic Versioning](https:/
 - English project documentation with retained Chinese versions, bilingual issue/PR templates and a translation contribution guide.
 - English and Simplified Chinese Windows installer configuration, and internationalization checks in CI and release scripts.
 
+### Security
+
+- Updated the locked build dependency source-map-js to 1.2.2 to address CVE-2026-93749.
+
 ### Compatibility
 
 - User filenames, folder names, custom categories and document content are preserved when switching languages. The reserved `未分类` YAML value remains unchanged and displays as “Unclassified” in English.
