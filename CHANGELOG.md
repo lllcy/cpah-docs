@@ -6,6 +6,8 @@ Notable changes are recorded here. Versions follow [Semantic Versioning](https:/
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-08
+
 ### Added
 
 - English and Simplified Chinese interfaces, automatic system-language detection and a persistent language selector in Settings.
@@ -102,3 +104,4 @@ Notable changes are recorded here. Versions follow [Semantic Versioning](https:/
 [1.1.3]: https://github.com/lllcy/cpah-docs/releases/tag/v1.1.3
 [1.2.0]: https://github.com/lllcy/cpah-docs/releases/tag/v1.2.0
 [1.3.0]: https://github.com/lllcy/cpah-docs/releases/tag/v1.3.0
+[1.4.0]: https://github.com/lllcy/cpah-docs/releases/tag/v1.4.0

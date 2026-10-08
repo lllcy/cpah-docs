@@ -6,6 +6,8 @@
 
 ## [未发布]
 
+## [1.4.0] - 2026-10-08
+
 ### 新增
 
 - 英文与简体中文界面、系统语言自动识别，以及记住选择的语言设置。
@@ -103,3 +105,4 @@
 
 [1.2.0]: https://github.com/lllcy/cpah-docs/releases/tag/v1.2.0
 [1.3.0]: https://github.com/lllcy/cpah-docs/releases/tag/v1.3.0
+[1.4.0]: https://github.com/lllcy/cpah-docs/releases/tag/v1.4.0
