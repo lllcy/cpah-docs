@@ -13,7 +13,7 @@ use crate::state::{AppState, ProfileCancelled, ProfileRuntimeControl, is_profile
 use crate::tag_runtime::TagRuntimeMessage;
 use anyhow::{Context, Result};
 use notify::event::ModifyKind;
-use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{Event, EventKind, RecursiveMode, Watcher};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write as _;
@@ -25,6 +25,9 @@ use std::time::{Duration, UNIX_EPOCH};
 use tokio::sync::{Mutex, Semaphore, mpsc};
 use uuid::Uuid;
 use walkdir::WalkDir;
+
+#[cfg(test)]
+mod monitoring_tests;
 
 #[derive(Debug)]
 pub enum RuntimeMessage {
@@ -232,6 +235,9 @@ async fn run(
                 }
             }
             _ = interval.tick() => {
+                if let Err(error) = reload_watches(&state, &mut watcher, &mut watched_roots).await {
+                    tracing::error!(error = %format!("{error:#}"), "scheduled watcher reload failed");
+                }
                 if !state.is_monitoring_paused()
                     && let Err(error) = reconcile_missing_sources(&state, &active).await
                 {
@@ -433,25 +439,42 @@ async fn pump_priority_files(
 
 async fn reload_watches(
     state: &AppState,
-    watcher: &mut RecommendedWatcher,
+    watcher: &mut impl Watcher,
     watched_roots: &mut Vec<PathBuf>,
 ) -> Result<()> {
-    for root in watched_roots.drain(..) {
-        let _ = watcher.unwatch(&root);
-    }
     let settings = state.settings.read().await.clone();
-    if settings.monitoring_paused {
-        return Ok(());
-    }
-    for profile in settings
+    let desired = settings
         .profiles
         .into_iter()
-        .filter(|profile| profile.enabled)
-    {
-        let root = PathBuf::from(profile.input_dir);
-        if root.is_dir() {
-            watcher.watch(&root, RecursiveMode::Recursive)?;
-            watched_roots.push(root);
+        .filter(|profile| profile.enabled && !settings.monitoring_paused)
+        .map(|profile| (PathBuf::from(&profile.input_dir), profile))
+        .filter(|(root, _)| root.is_dir())
+        .collect::<Vec<_>>();
+
+    // Keep unchanged roots subscribed so editing one profile cannot open an
+    // event gap in the others. Retain failed removals so the next reload retries.
+    watched_roots.retain(|root| {
+        if desired.iter().any(|(desired_root, _)| desired_root == root) {
+            return true;
+        }
+        match watcher.unwatch(root) {
+            Ok(()) => false,
+            Err(error) if matches!(&error.kind, notify::ErrorKind::WatchNotFound) => false,
+            Err(error) => {
+                tracing::warn!(input_root = %root.display(), error = %error, "source watch removal failed; will retry");
+                true
+            }
+        }
+    });
+    for (root, profile) in desired {
+        if watched_roots.contains(&root) {
+            continue;
+        }
+        match watcher.watch(&root, RecursiveMode::Recursive) {
+            Ok(()) => watched_roots.push(root),
+            Err(error) => {
+                tracing::warn!(profile_id = %profile.id, input_root = %root.display(), error = %error, "source watch registration failed; continuing other profiles");
+            }
         }
     }
     Ok(())
@@ -473,7 +496,6 @@ async fn scan_all(
         .filter(|profile| profile.enabled)
         .collect();
     let enabled_extensions = settings.enabled_extensions;
-    let mut paths = Vec::new();
     for profile in profiles {
         let Some(control) = state.profile_control(&profile.id) else {
             continue;
@@ -482,23 +504,38 @@ async fn scan_all(
             continue;
         };
         let extensions = enabled_extensions.clone();
+        let profile_for_scan = profile.clone();
         let discovered = tokio::task::spawn_blocking(move || {
             let _write_permit = write_permit;
-            scan_profile_tree(&profile, Path::new(&profile.input_dir), &extensions)
+            scan_profile_tree(
+                &profile_for_scan,
+                Path::new(&profile_for_scan.input_dir),
+                &extensions,
+            )
         })
-        .await??;
-        paths.extend(discovered);
-    }
-    for path in paths {
-        schedule_path(
-            state,
-            mineru,
-            active,
-            semaphore,
-            path,
-            ScheduleRequest::Normal,
-        )
-        .await;
+        .await
+        .context("目录扫描任务执行失败")
+        .and_then(|result| result);
+        let paths = match discovered {
+            Ok(paths) => paths,
+            Err(error) => {
+                tracing::warn!(profile_id = %profile.id, input_root = %profile.input_dir, error = %format!("{error:#}"), "source profile scan failed; continuing other profiles");
+                continue;
+            }
+        };
+        // Queue each successful profile before scanning the next one. A missing
+        // or unreadable root must not discard another profile's discovered files.
+        for path in paths {
+            schedule_path(
+                state,
+                mineru,
+                active,
+                semaphore,
+                path,
+                ScheduleRequest::Normal,
+            )
+            .await;
+        }
     }
     Ok(())
 }
