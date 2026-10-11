@@ -1,12 +1,37 @@
 # 第三方软件许可与声明
 
-本清单适用于 CPAH Docs v1.4.0。CPAH Docs 的原创代码以 MIT License 授权；下列第三方组件继续适用其各自的许可证。
+本清单适用于 CPAH Docs v1.5.0。CPAH Docs 的原创代码以 MIT License 授权；下列第三方组件继续适用其各自的许可证。
 
 本清单根据本版本锁定的依赖自动生成。组件名称后的 crates.io 精确版本页面提供对应源码包；其中 MPL-2.0 组件的源码继续以 MPL-2.0 提供。
 
 ## Rust 依赖
 
 以下内容由 [cargo-about](https://github.com/EmbarkStudios/cargo-about) 根据锁定的依赖图生成。
+
+### BSD Zero Clause License
+
+用于：
+- [mailparse 0.18.0](https://crates.io/crates/mailparse/0.18.0)（[上游仓库](https://github.com/staktrace/mailparse)）
+- [quoted_printable 0.5.2](https://crates.io/crates/quoted_printable/0.5.2)（[上游仓库](https://github.com/staktrace/quoted-printable)）
+
+<details>
+<summary>查看许可证正文</summary>
+
+<pre>Copyright (C) 2019 by Kartikaya Gupta
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot; AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+
+</pre>
+</details>
 
 ### BSD Zero Clause License
 
@@ -461,6 +486,7 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 用于：
 - [as-any 0.3.2](https://crates.io/crates/as-any/0.3.2)（[上游仓库](https://codeberg.org/fogti/as-any)）
+- [charset 0.1.5](https://crates.io/crates/charset/0.1.5)（[上游仓库](https://github.com/hsivonen/charset)）
 - [codepage 0.1.2](https://crates.io/crates/codepage/0.1.2)（[上游仓库](https://github.com/hsivonen/codepage)）
 - [embed_plist 1.2.2](https://crates.io/crates/embed_plist/1.2.2)（[上游仓库](https://github.com/nvzqz/embed-plist-rs)）
 - [encoding_rs 0.8.35](https://crates.io/crates/encoding_rs/0.8.35)（[上游仓库](https://github.com/hsivonen/encoding_rs)）
@@ -10527,7 +10553,7 @@ SOFTWARE.
 ### MIT License
 
 用于：
-- [cpah-docs 1.4.0](https://crates.io/crates/cpah-docs/1.4.0)（[上游仓库](https://github.com/lllcy/cpah-docs)）
+- [cpah-docs 1.5.0](https://crates.io/crates/cpah-docs/1.5.0)（[上游仓库](https://github.com/lllcy/cpah-docs)）
 - [anydoc 0.2.4](https://crates.io/crates/anydoc/0.2.4)（[上游仓库](https://github.com/firecrawl/anydoc)）
 
 <details>
@@ -10904,6 +10930,39 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+</pre>
+</details>
+
+### MIT License
+
+用于：
+- [data-encoding 2.11.1](https://crates.io/crates/data-encoding/2.11.1)（[上游仓库](https://github.com/ia0/data-encoding)）
+
+<details>
+<summary>查看许可证正文</summary>
+
+<pre>The MIT License (MIT)
+
+Copyright (c) 2015-2020 Julien Cretin
+Copyright (c) 2017-2020 Google Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 </pre>
 </details>
 
