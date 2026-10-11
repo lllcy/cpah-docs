@@ -6,6 +6,8 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+mod mhtml;
+
 #[cfg(test)]
 pub(crate) mod tests;
 
@@ -34,35 +36,8 @@ pub fn convert(source: &Path) -> Result<LocalConversion> {
         .unwrap_or_default()
         .to_ascii_lowercase();
     let artifact = match extension.as_str() {
-        "txt" | "html" | "htm" => {
-            let options = anytomd::ConversionOptions {
-                extract_images: true,
-                extract_comments: false,
-                max_total_image_bytes: MAX_ASSET_BYTES,
-                max_input_bytes: MAX_INPUT_BYTES as usize,
-                max_uncompressed_zip_bytes: 2 * 1024 * 1024 * 1024,
-                strict: false,
-                image_describer: None,
-            };
-            let result = anytomd::convert_bytes(&bytes, &extension, &options)
-                .context("anytomd 文本转换失败")?;
-            ConversionArtifact {
-                markdown: result.markdown,
-                assets: result
-                    .images
-                    .into_iter()
-                    .map(|(name, bytes)| ConversionAsset {
-                        relative_path: PathBuf::from(name),
-                        bytes,
-                    })
-                    .collect(),
-                warnings: result
-                    .warnings
-                    .into_iter()
-                    .map(|warning| warning.message)
-                    .collect(),
-            }
-        }
+        "txt" | "html" | "htm" => convert_text(&bytes, &extension)?,
+        "mhtml" | "mht" => mhtml::convert(&bytes)?,
         "pdf" => match anydoc::to_markdown_bytes(&bytes, anydoc::Format::Pdf) {
             Ok(markdown) => ConversionArtifact {
                 markdown,
@@ -88,6 +63,36 @@ pub fn convert(source: &Path) -> Result<LocalConversion> {
         bail!("本地转换未产生 Markdown 内容");
     }
     Ok(LocalConversion::Converted(artifact))
+}
+
+fn convert_text(bytes: &[u8], extension: &str) -> Result<ConversionArtifact> {
+    let options = anytomd::ConversionOptions {
+        extract_images: true,
+        extract_comments: false,
+        max_total_image_bytes: MAX_ASSET_BYTES,
+        max_input_bytes: MAX_INPUT_BYTES as usize,
+        max_uncompressed_zip_bytes: 2 * 1024 * 1024 * 1024,
+        strict: false,
+        image_describer: None,
+    };
+    let result =
+        anytomd::convert_bytes(bytes, extension, &options).context("anytomd 文本转换失败")?;
+    Ok(ConversionArtifact {
+        markdown: result.markdown,
+        assets: result
+            .images
+            .into_iter()
+            .map(|(name, bytes)| ConversionAsset {
+                relative_path: PathBuf::from(name),
+                bytes,
+            })
+            .collect(),
+        warnings: result
+            .warnings
+            .into_iter()
+            .map(|warning| warning.message)
+            .collect(),
+    })
 }
 
 fn render_document(mut document: Document) -> Result<ConversionArtifact> {

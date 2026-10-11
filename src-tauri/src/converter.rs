@@ -10,7 +10,8 @@ use uuid::Uuid;
 
 const LOCAL_EXTENSIONS: &[&str] = &[
     "md", "doc", "docx", "docm", "xls", "xlsx", "xlsm", "xlsb", "ppt", "pps", "pot", "pptx",
-    "pptm", "ppsx", "ppsm", "odt", "ods", "odp", "rtf", "epub", "pdf", "html", "htm", "csv", "txt",
+    "pptm", "ppsx", "ppsm", "odt", "ods", "odp", "rtf", "epub", "pdf", "html", "htm", "mhtml",
+    "mht", "csv", "txt",
 ];
 const MINERU_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "webp", "bmp"];
 
@@ -53,7 +54,7 @@ pub fn default_engine(path: &Path) -> Option<ConversionEngine> {
     let ext = extension(path)?;
     match ext {
         "md" => Some(ConversionEngine::Copy),
-        "txt" | "html" | "htm" => Some(ConversionEngine::Anytomd),
+        "txt" | "html" | "htm" | "mhtml" | "mht" => Some(ConversionEngine::Anytomd),
         _ if LOCAL_EXTENSIONS.contains(&ext) => Some(ConversionEngine::Anydoc),
         _ if MINERU_EXTENSIONS.contains(&ext) => Some(ConversionEngine::Mineru),
         _ => None,
@@ -836,7 +837,8 @@ mod tests {
 
     #[test]
     fn routes_core_formats() {
-        for extension in ["HTML", "HTM", "TXT"] {
+        for extension in ["HTML", "HTM", "MHTML", "MHT", "TXT"] {
+            assert!(is_supported(Path::new(&format!("a.{extension}"))));
             assert_eq!(
                 default_engine(Path::new(&format!("a.{extension}"))),
                 Some(ConversionEngine::Anytomd)
@@ -865,6 +867,61 @@ mod tests {
             Some(ConversionEngine::Copy)
         );
         assert_eq!(default_engine(Path::new("a.exe")), None);
+    }
+
+    #[test]
+    fn mhtml_conversion_writes_images_and_preserves_same_stem_markdown() {
+        let temporary = tempfile::tempdir().unwrap();
+        let input = temporary.path().join("input");
+        let output_root = temporary.path().join("output");
+        fs::create_dir_all(&input).unwrap();
+        fs::create_dir_all(&output_root).unwrap();
+        let profile = WatchProfile {
+            input_dir: input.to_string_lossy().to_string(),
+            output_dir: output_root.to_string_lossy().to_string(),
+            ..profile()
+        };
+        let source = input.join("page.mhtml");
+        fs::write(input.join("page.md"), b"Existing Markdown").unwrap();
+        fs::write(
+            &source,
+            concat!(
+                "Content-Type: multipart/related; boundary=archive\r\n\r\n",
+                "--archive\r\nContent-Type: text/html; charset=utf-8\r\n\r\n",
+                "<h1>Saved page</h1><img src='cid:photo' alt='Photo'>\r\n",
+                "--archive\r\nContent-Type: image/png\r\nContent-ID: <photo>\r\n",
+                "Content-Transfer-Encoding: base64\r\n\r\ncGljdHVyZQ==\r\n--archive--\r\n"
+            ),
+        )
+        .unwrap();
+        let enabled = crate::models::default_enabled_extensions();
+        assert!(is_enabled(&source, &enabled));
+        assert!(is_enabled(&input.join("page.mht"), &enabled));
+        let output = output_path(&profile, &source).unwrap();
+        assert!(output.ends_with("page.mhtml.md"));
+        let mut task = multipart_task(&output);
+        task.source_path = source.to_string_lossy().to_string();
+        task.relative_path = "page.mhtml".to_string();
+        task.engine = default_engine(&source).unwrap();
+        task.part_count = None;
+        let LocalConversion::Converted(artifact) = convert_locally(&source).unwrap() else {
+            panic!("web archives must not require OCR");
+        };
+        write_artifact(&profile, &task, artifact).unwrap();
+        let markdown = fs::read_to_string(&output).unwrap();
+        assert!(markdown.contains("# Saved page"));
+        assert!(
+            markdown.contains("![Photo](<page.mhtml.assets/mhtml-0000.png>)"),
+            "{markdown}"
+        );
+        assert_eq!(
+            fs::read(output_root.join("page.mhtml.assets/mhtml-0000.png")).unwrap(),
+            b"picture"
+        );
+        assert_eq!(
+            fs::read(input.join("page.md")).unwrap(),
+            b"Existing Markdown"
+        );
     }
 
     #[test]

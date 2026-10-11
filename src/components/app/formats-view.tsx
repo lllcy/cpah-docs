@@ -35,6 +35,7 @@ const localFormats: FormatRow[] = [
   { name: "电子书与富文本", extensions: ["epub", "rtf"], icon: FileText, note: "保留正文结构和图片引用" },
   { name: "PDF 文档", extensions: ["pdf"], icon: FileArchive, note: "本地提取；需 OCR 时整份交给 MinerU" },
   { name: "网页文档", extensions: ["html", "htm"], icon: FileType2, note: "保留正文结构和链接" },
+  { name: "网页存档", extensions: ["mhtml", "mht"], icon: FileArchive, note: "本地转换正文、链接和内嵌图片" },
   { name: "表格数据", extensions: ["csv"], icon: FileSpreadsheet, note: "转换为 Markdown 表格" },
   { name: "纯文本", extensions: ["txt"], icon: FileText, note: "直接生成 Markdown 文本" },
 ];
@@ -119,7 +120,7 @@ export function FormatsView({ mineruConfigured, enabledExtensions, saveState, on
               <HardDrive className="size-4 text-foreground" />
               <div className="min-w-0">
                 <h2 className="text-xs font-semibold">{t("本地转换")}</h2>
-                <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{t("Office 等文档使用 anydoc；HTML、HTM、TXT 使用 AnyToMD；Markdown 原样同步。PDF 先本地提取，需要 OCR 时上传 MinerU。")}</p>
+                <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{t("Office 等文档使用 anydoc；HTML、HTM、MHTML、MHT、TXT 使用 AnyToMD；Markdown 原样同步。PDF 先本地提取，需要 OCR 时上传 MinerU。")}</p>
               </div>
             </div>
             <FormatList rows={localFormats} enabledExtensions={enabledExtensions} onToggleExtensions={onToggleExtensions} />

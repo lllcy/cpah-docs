@@ -126,8 +126,8 @@ impl Default for AppSettings {
 pub fn default_enabled_extensions() -> Vec<String> {
     [
         "md", "doc", "docx", "docm", "xlsx", "xls", "xlsm", "xlsb", "ppt", "pps", "pot", "pptx",
-        "pptm", "ppsx", "ppsm", "odt", "ods", "odp", "rtf", "epub", "html", "htm", "csv", "txt",
-        "pdf", "png", "jpg", "jpeg", "webp", "bmp",
+        "pptm", "ppsx", "ppsm", "odt", "ods", "odp", "rtf", "epub", "html", "htm", "mhtml", "mht",
+        "csv", "txt", "pdf", "png", "jpg", "jpeg", "webp", "bmp",
     ]
     .into_iter()
     .map(str::to_string)

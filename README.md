@@ -14,7 +14,7 @@ The interface supports **English and Simplified Chinese**. It follows your syste
 
 - **Watch multiple folders.** Mirror each source folder into a separate output folder, preserving subfolders, including empty ones. Changes and deletions are synchronized.
 - **Control each queue independently.** Watching discovers and queues files; conversion and classification start separately. New installations watch automatically and wait for you to start conversion.
-- **Convert locally.** Office, legacy DOC/XLS/PPT, macro-enabled Office, OpenDocument, EPUB, RTF and CSV use the vendored anydoc 0.2.4 converter. HTML/HTM/TXT use AnyToMD. Markdown is copied byte for byte.
+- **Convert locally.** Office, legacy DOC/XLS/PPT, macro-enabled Office, OpenDocument, EPUB, RTF and CSV use the vendored anydoc 0.2.4 converter. HTML/HTM/TXT use AnyToMD. MHTML/MHT web archives are unpacked locally and converted with their embedded images and links. Markdown is copied byte for byte.
 - **Use OCR when needed.** PDFs are extracted locally first. Only an explicit “OCR required” result sends a PDF to MinerU. Damaged, encrypted or oversized PDFs are not uploaded as a fallback. Images use MinerU.
 - **Process large PDFs.** OCR documents over 200 pages are submitted in page ranges; files exceeding MinerU’s 200 MB limit are split losslessly. Source files up to 512 MiB are supported. Parts resume independently and merge into one Markdown file.
 - **Classify with your own categories.** Choose single or multiple categories, import category definitions from JSON, and inspect model calls, read coverage and token usage. Both OpenAI-compatible language models and System One-compatible decision models are supported.
@@ -46,6 +46,8 @@ Releases currently have no commercial Windows signing certificate or Apple Devel
 7. Optionally configure and test a classification model in **Settings**, enable classification in the folder’s settings, and define candidate categories. Then click **Start classification** on the **Classification** page.
 
 Each folder’s **Enabled** switch controls watching, conversion, classification and indexing for that folder. Format switches determine which files enter the conversion queue. Existing installations retain their saved queue states after upgrading.
+
+To convert saved web archives, enable **Web archives** (`.mhtml`, `.mht`) on the **Formats** page. New installations enable these formats by default; existing installations retain their saved format choices. No browser or cloud service is required. Embedded images are saved in the document’s `.assets` folder; external resources are not downloaded.
 
 Browse files under **Watch folders → Files**. Searching and refreshing do not enqueue tasks or call a model. A file’s conversion/classification action resumes the corresponding queue, prioritizes that file and continues other tasks afterward. Active tasks are not interrupted. Classification requires current, completed conversion output and configured folder rules and model settings.
 

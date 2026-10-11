@@ -23,12 +23,16 @@ anydoc = { path = "vendor/anydoc", version = "=0.2.4" }
 anytomd = { version = "1.3.1", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 dunce = "1"
+encoding_rs = "0.8"
 keyring = "4.1.6"
 lopdf = "0.44"
+mailparse = "0.18"
 notify = "8"
+percent-encoding = "2"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "stream"] }
 rig = { version = "=0.42.0", default-features = false, features = ["agent", "derive", "rustls"] }
 rusqlite = { version = "0.40.2", features = ["bundled"] }
+scraper = "0.22"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml_ng = "=0.10.0"

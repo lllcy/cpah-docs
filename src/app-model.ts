@@ -17,7 +17,7 @@ export const emptySettings: AppSettings = {
   classificationPaused: true,
   mineruBaseUrl: "https://mineru.net/api/v4",
   mineruConfigured: false,
-  enabledExtensions: ["md", "doc", "docx", "docm", "xlsx", "xls", "xlsm", "xlsb", "ppt", "pps", "pot", "pptx", "pptm", "ppsx", "ppsm", "odt", "ods", "odp", "rtf", "epub", "html", "htm", "csv", "txt", "pdf", "png", "jpg", "jpeg", "webp", "bmp"],
+  enabledExtensions: ["md", "doc", "docx", "docm", "xlsx", "xls", "xlsm", "xlsb", "ppt", "pps", "pot", "pptx", "pptm", "ppsx", "ppsm", "odt", "ods", "odp", "rtf", "epub", "html", "htm", "mhtml", "mht", "csv", "txt", "pdf", "png", "jpg", "jpeg", "webp", "bmp"],
   agent: { modelType: "llm", baseUrl: "https://api.openai.com/v1", model: "", configured: false, concurrency: 1 },
 };
 
@@ -63,7 +63,7 @@ export const previewDashboard: Dashboard = {
     classificationPaused: false,
     mineruBaseUrl: "https://mineru.net/api/v4",
     mineruConfigured: true,
-    enabledExtensions: ["md", "doc", "docx", "docm", "xlsx", "xls", "xlsm", "xlsb", "ppt", "pps", "pot", "pptx", "pptm", "ppsx", "ppsm", "odt", "ods", "odp", "rtf", "epub", "html", "htm", "csv", "txt", "pdf", "png", "jpg", "jpeg", "webp", "bmp"],
+    enabledExtensions: ["md", "doc", "docx", "docm", "xlsx", "xls", "xlsm", "xlsb", "ppt", "pps", "pot", "pptx", "pptm", "ppsx", "ppsm", "odt", "ods", "odp", "rtf", "epub", "html", "htm", "mhtml", "mht", "csv", "txt", "pdf", "png", "jpg", "jpeg", "webp", "bmp"],
     agent: { modelType: "llm", baseUrl: "https://api.openai.com/v1", model: "gpt-4.1-mini", configured: true, concurrency: 1 },
     profiles: [
       {
