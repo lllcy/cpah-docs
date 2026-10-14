@@ -7,12 +7,28 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 mod mhtml;
+mod word_doc;
 
 #[cfg(test)]
 pub(crate) mod tests;
 
 pub const MAX_INPUT_BYTES: u64 = 512 * 1024 * 1024;
 const MAX_ASSET_BYTES: usize = 256 * 1024 * 1024;
+
+pub(crate) fn validate_source_size(source: &Path, size: u64) -> Result<u64> {
+    if crate::converter::is_pdf(source) {
+        let limit = crate::pdf_split::MAX_SOURCE_BYTES;
+        if size > limit {
+            bail!("PDF 超过 1 GiB 安全上限");
+        }
+        Ok(limit)
+    } else {
+        if size > MAX_INPUT_BYTES {
+            bail!("原文件超过 512 MiB 安全上限");
+        }
+        Ok(MAX_INPUT_BYTES)
+    }
+}
 
 #[derive(Debug)]
 pub enum LocalConversion {
@@ -21,15 +37,97 @@ pub enum LocalConversion {
 }
 
 pub fn convert(source: &Path) -> Result<LocalConversion> {
+    convert_with_control(source, None)
+}
+
+pub(crate) fn convert_with_control(
+    source: &Path,
+    control: Option<&crate::state::ProfileRuntimeControl>,
+) -> Result<LocalConversion> {
+    crate::qpdf::check_cancelled(control)?;
+    let size = std::fs::metadata(source)
+        .context("无法读取待转换文件信息")?
+        .len();
+    validate_source_size(source, size)?;
+    if crate::converter::is_pdf(source) && size > crate::pdf_split::LOW_MEMORY_THRESHOLD_BYTES {
+        return convert_large_pdf(source, control);
+    }
+    convert_in_memory(source)
+}
+
+fn convert_large_pdf(
+    source: &Path,
+    control: Option<&crate::state::ProfileRuntimeControl>,
+) -> Result<LocalConversion> {
+    let temporary = tempfile::Builder::new()
+        .prefix("cpah-docs-pdf-")
+        .tempdir()?;
+    let crate::pdf_split::PdfPlan::Multipart { page_count, parts } =
+        crate::pdf_split::split_for_local(source, temporary.path(), control)?
+    else {
+        bail!("QPDF 本地分片计划无效");
+    };
+    let mut markdown = String::new();
+    let mut warnings = Vec::new();
+    let mut ocr_pages = Vec::new();
+    for part in parts {
+        crate::qpdf::check_cancelled(control)?;
+        let input = part.input_path.context("QPDF 分片缺少输入文件")?;
+        match convert_in_memory(&input)? {
+            LocalConversion::NeedsOcr { pages, .. } => {
+                // Check remaining chunks too: a later parsing failure must
+                // not silently become an OCR fallback or incomplete output.
+                markdown = String::new();
+                ocr_pages.extend(pages.into_iter().map(|page| page + part.page_start - 1));
+            }
+            LocalConversion::Converted(artifact) => {
+                if !ocr_pages.is_empty() {
+                    std::fs::remove_file(input)?;
+                    continue;
+                }
+                if !markdown.is_empty() {
+                    markdown.push('\n');
+                }
+                markdown.push_str(&artifact.markdown);
+                for warning in artifact.warnings {
+                    if !warnings.contains(&warning) {
+                        warnings.push(warning);
+                    }
+                }
+            }
+        }
+        std::fs::remove_file(input)?;
+    }
+    crate::qpdf::check_cancelled(control)?;
+    if !ocr_pages.is_empty() {
+        return Ok(LocalConversion::NeedsOcr {
+            pages: ocr_pages,
+            page_count,
+        });
+    }
+    Ok(LocalConversion::Converted(ConversionArtifact {
+        markdown,
+        assets: Vec::new(),
+        warnings,
+    }))
+}
+
+fn convert_in_memory(source: &Path) -> Result<LocalConversion> {
     let file = File::open(source).context("无法读取待转换文件")?;
-    if file.metadata()?.len() > MAX_INPUT_BYTES {
-        bail!("原文件超过 512 MiB 安全上限");
+    let size = file.metadata()?.len();
+    let mut input_limit = validate_source_size(source, size)?;
+    if crate::converter::is_pdf(source) {
+        input_limit = input_limit.min(crate::pdf_split::MAX_SINGLE_PAGE_PART_BYTES - 1);
+        if size > input_limit {
+            bail!("PDF 本地分片达到或超过 190 MB，请重新转换");
+        }
     }
     let mut bytes = Vec::new();
-    file.take(MAX_INPUT_BYTES + 1).read_to_end(&mut bytes)?;
-    if bytes.len() as u64 > MAX_INPUT_BYTES {
-        bail!("原文件超过 512 MiB 安全上限");
+    file.take(input_limit + 1).read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > input_limit {
+        bail!("待转换文件在读取时超过安全大小，请重新转换");
     }
+    validate_source_size(source, bytes.len() as u64)?;
     let extension = source
         .extension()
         .and_then(|value| value.to_str())
@@ -38,6 +136,14 @@ pub fn convert(source: &Path) -> Result<LocalConversion> {
     let artifact = match extension.as_str() {
         "txt" | "html" | "htm" => convert_text(&bytes, &extension)?,
         "mhtml" | "mht" => mhtml::convert(&bytes)?,
+        "doc" | "docx" | "docm" => {
+            let fallback = if extension == "doc" {
+                anydoc::Format::Doc
+            } else {
+                anydoc::Format::Docx
+            };
+            word_doc::convert(&bytes, fallback)?
+        }
         "pdf" => match anydoc::to_markdown_bytes(&bytes, anydoc::Format::Pdf) {
             Ok(markdown) => ConversionArtifact {
                 markdown,

@@ -634,8 +634,8 @@ export default function App() {
       setNotice({
         kind: "success",
         message: saved.monitoringPaused
-          ? t("目录监听已停止；已有待执行任务不受影响。")
-          : t("目录监听已开始；正在扫描并把发现的文件加入待执行。"),
+          ? t("全部目录已暂停监听；已有待执行任务不受影响。")
+          : t("全部目录已开始监听；正在扫描并把发现的文件加入待执行。"),
       });
       if (!saved.monitoringPaused) await refresh();
     } catch (error) {

@@ -42,6 +42,8 @@ if (($packageVersion -ne $cargoVersion) -or ($packageVersion -ne $tauriVersion))
 
 Push-Location $projectRoot
 try {
+    node scripts/prepare-qpdf.mjs
+    if ($LASTEXITCODE -ne 0) { throw "QPDF runtime preparation failed" }
     $licenseHashBefore = if (Test-Path -LiteralPath $thirdPartyLicensesPath -PathType Leaf) {
         Get-Sha256Hex $thirdPartyLicensesPath
     } else {

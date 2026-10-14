@@ -11,6 +11,9 @@
 /src-tauri/target/
 /src-tauri/target-*/
 /src-tauri/gen/schemas/
+/src-tauri/resources/qpdf/*.zip
+/src-tauri/resources/qpdf/*.tmp
+/src-tauri/resources/qpdf/downloads/
 
 # Local runtime and E2E state
 /e2e/runs/

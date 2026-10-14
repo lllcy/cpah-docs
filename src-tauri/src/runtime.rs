@@ -8,7 +8,7 @@ use crate::models::{
     ConversionEngine, DeletePolicy, JobStatus, MinerUPartMode, MinerUPartRecord, TaskRecord,
     WatchProfile,
 };
-use crate::pdf_split::{PdfPlan, plan_pdf, recreate_physical_part};
+use crate::pdf_split::{PdfPlan, plan_pdf_with_control, recreate_physical_part_with_control};
 use crate::state::{AppState, ProfileCancelled, ProfileRuntimeControl, is_profile_cancelled};
 use crate::tag_runtime::TagRuntimeMessage;
 use anyhow::{Context, Result};
@@ -23,7 +23,6 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
 use tokio::sync::{Mutex, Semaphore, mpsc};
-use uuid::Uuid;
 use walkdir::WalkDir;
 
 #[cfg(test)]
@@ -834,8 +833,8 @@ async fn process_path(
     control: &ProfileRuntimeControl,
 ) -> Result<()> {
     let metadata = wait_until_stable(path).await?;
-    if !is_markdown(path) && metadata.len() > crate::local_conversion::MAX_INPUT_BYTES {
-        anyhow::bail!("原文件超过 512 MiB 安全上限");
+    if !is_markdown(path) {
+        crate::local_conversion::validate_source_size(path, metadata.len())?;
     }
     let source = path.to_path_buf();
     let hash = tokio::task::spawn_blocking(move || sha256_file(&source)).await??;
@@ -905,8 +904,18 @@ async fn process_path(
                     })
                     .await??;
                 } else {
-                    let outcome =
-                        tokio::task::spawn_blocking(move || convert_locally(&source)).await??;
+                    let conversion_control = control.clone();
+                    let outcome = tokio::task::spawn_blocking(move || {
+                        if is_pdf(&source) {
+                            crate::local_conversion::convert_with_control(
+                                &source,
+                                Some(&conversion_control),
+                            )
+                        } else {
+                            convert_locally(&source)
+                        }
+                    })
+                    .await??;
                     verify_source_version(path, &hash).await?;
                     let artifact = match outcome {
                         LocalConversion::Converted(artifact) => artifact,
@@ -1026,8 +1035,13 @@ async fn run_mineru(
         .and_then(|extension| extension.to_str())
         .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"));
     if is_pdf {
+        // Bound preprocessing workers as well as extraction. Release this
+        // permit before scheduling parts, including with a single worker.
+        let planning_permit = semaphore.clone().acquire_owned().await?;
+        if state.is_paused() || !state.conversion_priority.allows(&task.id) {
+            return Ok(false);
+        }
         let work_dir = parent_work_dir(state, &task.id);
-        let planning_work_dir = work_dir.join(format!("planning-{}", Uuid::new_v4().simple()));
         let work_dir_for_create = work_dir.clone();
         let write_permit = control.write_permit().await?;
         tokio::task::spawn_blocking(move || {
@@ -1038,24 +1052,29 @@ async fn run_mineru(
         .await??;
         state.storage.delete_mineru_parts(&task.id)?;
         let source_for_plan = source.to_path_buf();
-        let work_for_plan = planning_work_dir.clone();
+        let work_for_plan = work_dir.clone();
+        let planning_control = control.clone();
         let write_permit = control.write_permit().await?;
         let plan_result = tokio::task::spawn_blocking(move || {
             let _write_permit = write_permit;
-            plan_pdf(&source_for_plan, &work_for_plan)
+            let planning = tempfile::Builder::new()
+                .prefix("planning-")
+                .tempdir_in(work_for_plan)?;
+            let plan =
+                plan_pdf_with_control(&source_for_plan, planning.path(), Some(&planning_control))?;
+            Ok::<_, anyhow::Error>((plan, planning))
         })
         .await;
-        let plan = match plan_result {
+        let (plan, planning) = match plan_result {
             Ok(Ok(plan)) => plan,
             Ok(Err(error)) => {
-                tokio::fs::remove_dir_all(&planning_work_dir).await.ok();
                 return Err(error);
             }
             Err(error) => {
-                tokio::fs::remove_dir_all(&planning_work_dir).await.ok();
                 return Err(error.into());
             }
         };
+        drop(planning_permit);
         if let PdfPlan::Multipart { page_count, parts } = plan {
             let source_hash = task
                 .source_hash
@@ -1092,13 +1111,13 @@ async fn run_mineru(
                 Ok::<(), anyhow::Error>(())
             })
             .await??;
-            tokio::fs::remove_dir_all(&planning_work_dir).await.ok();
+            drop(planning);
             for part in records {
                 schedule_new_mineru_part(state, mineru, semaphore, part).await?;
             }
             return Ok(false);
         }
-        tokio::fs::remove_dir_all(&planning_work_dir).await.ok();
+        drop(planning);
     }
 
     let _direct_pdf_permit = if is_pdf {
@@ -1360,13 +1379,15 @@ async fn process_mineru_part(
                     let page_start = u32::try_from(part.page_start).context("分片起始页无效")?;
                     let page_end = u32::try_from(part.page_end).context("分片结束页无效")?;
                     let write_permit = control.write_permit().await?;
+                    let split_control = control.clone();
                     tokio::task::spawn_blocking(move || {
                         let _write_permit = write_permit;
-                        recreate_physical_part(
+                        recreate_physical_part_with_control(
                             &source_for_split,
                             page_start,
                             page_end,
                             &destination,
+                            Some(&split_control),
                         )
                     })
                     .await??;
@@ -2213,6 +2234,48 @@ mod tests {
 
     fn missing_cloud_token() -> Result<String> {
         anyhow::bail!("未配置 MinerU Token");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires CPAHDOCS_DOC_E2E to point to a local Word document"]
+    async fn external_word_document_completes_local_task_pipeline() {
+        let original = PathBuf::from(
+            std::env::var("CPAHDOCS_DOC_E2E")
+                .expect("CPAHDOCS_DOC_E2E must point to a Word document"),
+        );
+        let (_root, state, profile, _active, mineru, semaphore) = priority_fixture().await;
+        let input = Path::new(&profile.input_dir).join("监管文件/地方监管通讯/年度资料");
+        std::fs::create_dir_all(&input).unwrap();
+        let source = input.join(original.file_name().unwrap());
+        std::fs::copy(&original, &source).unwrap();
+        state.set_paused_flag(false);
+        process_path(
+            &state,
+            &mineru,
+            &profile,
+            &source,
+            false,
+            &semaphore,
+            no_cloud_token,
+            &state.profile_control(&profile.id).unwrap(),
+        )
+        .await
+        .unwrap();
+        let task = state
+            .storage
+            .find_by_source(&source.to_string_lossy())
+            .unwrap()
+            .unwrap();
+        assert_eq!(task.status, JobStatus::Completed, "{:?}", task.error);
+        assert_eq!(task.engine, ConversionEngine::Anydoc);
+        assert!(task.error.is_none());
+        let output = output_path(&profile, &source).unwrap();
+        let markdown = std::fs::read_to_string(output).unwrap();
+        assert!(markdown.contains("converter: anydoc"));
+        if let Ok(expected) = std::env::var("CPAHDOCS_DOC_EXPECTED") {
+            assert!(markdown.contains(&expected));
+        }
+        eprintln!("completed local task; markdown_bytes={}", markdown.len());
     }
 
     #[tokio::test]

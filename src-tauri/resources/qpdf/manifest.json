@@ -1,0 +1,12 @@
+{
+  "version": "12.4.2",
+  "release": "https://github.com/qpdf/qpdf/releases/tag/v12.4.2",
+  "targets": {
+    "windows-x64": {"asset":"qpdf-12.4.2-msvc64.zip","sha256":"db87077e683630c1217e0e8f9a20a9749d952ab676e881c3689187763a5de25d"},
+    "windows-arm64": {"asset":"qpdf-12.4.2-msvc-arm64.zip","sha256":"2b5d7740a2513d8a841116692dc2cf7efe83f35262386ebab18bed35fbf15ab1"},
+    "macos-x64": {"asset":"qpdf-12.4.2-bin-macos-x86_64.zip","sha256":"dd3b01f4414d198529bb0f13bba59c2f016a328bb3506695087a96fb80fc1481"},
+    "macos-arm64": {"asset":"qpdf-12.4.2-bin-macos-arm64.zip","sha256":"62e46987a30ea167cbc530ccb22690aec3d8c812ed09979a941bcee92e504b79"},
+    "linux-x64": {"asset":"qpdf-12.4.2-bin-linux-x86_64.zip","sha256":"db367d897829f22c4198ce1094143c9d467bd6ee7dfabc44ba6f02056b24f8b1"},
+    "linux-arm64": {"asset":"qpdf-12.4.2-bin-linux-aarch64.zip","sha256":"8fd9d009eb0838398180a603f2cf76531e5c68a4ecc8847598e0a1ccb1d3b600"}
+  }
+}

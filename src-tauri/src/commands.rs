@@ -187,7 +187,7 @@ pub fn get_third_party_licenses() -> String {
 #[tauri::command]
 pub fn rescan_all_profiles(state: State<'_, AppState>) -> CommandResult<()> {
     if state.is_monitoring_paused() {
-        return Err("目录监听已停止，请先点击“开始监听”再重新扫描目录".to_string());
+        return Err("全部目录已暂停监听，请先点击“全部开始监听”再重新扫描目录".to_string());
     }
     tracing::info!("manual directory rescan requested");
     state

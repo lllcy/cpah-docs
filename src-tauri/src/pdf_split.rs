@@ -1,4 +1,5 @@
 use crate::models::MinerUPartMode;
+use crate::state::ProfileRuntimeControl;
 use anyhow::{Context, Result, bail};
 use lopdf::Document;
 use std::collections::VecDeque;
@@ -6,10 +7,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub const MINERU_FILE_LIMIT_BYTES: u64 = 200_000_000;
-pub const MAX_SOURCE_BYTES: u64 = 512 * 1024 * 1024;
+pub const MAX_SOURCE_BYTES: u64 = 1024 * 1024 * 1024;
 pub const TARGET_PART_BYTES: u64 = 180_000_000;
 pub const MAX_SINGLE_PAGE_PART_BYTES: u64 = 190_000_000;
 pub const MAX_PART_PAGES: u32 = 200;
+pub const LOW_MEMORY_THRESHOLD_BYTES: u64 = 64 * 1024 * 1024;
+const LOCAL_PART_BYTES: u64 = 32 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PdfPartPlan {
@@ -39,16 +42,30 @@ enum PdfStrategy {
     SplitPdf,
 }
 
+#[cfg(test)]
 pub fn plan_pdf(source: &Path, work_dir: &Path) -> Result<PdfPlan> {
+    plan_pdf_with_control(source, work_dir, None)
+}
+
+pub fn plan_pdf_with_control(
+    source: &Path,
+    work_dir: &Path,
+    control: Option<&ProfileRuntimeControl>,
+) -> Result<PdfPlan> {
     let source_size = fs::metadata(source)
         .with_context(|| format!("无法读取 PDF 文件信息：{}", source.display()))?
         .len();
     if source_size > MAX_SOURCE_BYTES {
-        bail!("PDF 超过 512 MiB 本地预处理安全上限：{}", source.display());
+        bail!("PDF 超过 1 GiB 本地预处理安全上限：{}", source.display());
     }
 
-    let document = load_unencrypted_pdf(source)?;
-    let page_count = u32::try_from(document.get_pages().len()).context("PDF 页数超过支持范围")?;
+    crate::qpdf::check_cancelled(control)?;
+    let page_count = if source_size > LOW_MEMORY_THRESHOLD_BYTES {
+        crate::qpdf::page_count(source, control)?
+    } else {
+        u32::try_from(load_unencrypted_pdf(source)?.get_pages().len())
+            .context("PDF 页数超过支持范围")?
+    };
     if page_count == 0 {
         bail!("PDF 不包含可解析页面：{}", source.display());
     }
@@ -63,30 +80,58 @@ pub fn plan_pdf(source: &Path, work_dir: &Path) -> Result<PdfPlan> {
         PdfStrategy::SplitPdf => {}
     }
 
-    let input_dir = work_dir.join("input");
-    if input_dir.exists() {
-        fs::remove_dir_all(&input_dir)
-            .with_context(|| format!("无法清理旧 PDF 分片：{}", input_dir.display()))?;
-    }
-    fs::create_dir_all(&input_dir)
-        .with_context(|| format!("无法创建 PDF 分片目录：{}", input_dir.display()))?;
+    split_physical(
+        source,
+        work_dir,
+        page_count,
+        TARGET_PART_BYTES,
+        MAX_PART_PAGES,
+        control,
+    )
+}
+
+pub(crate) fn split_for_local(
+    source: &Path,
+    work_dir: &Path,
+    control: Option<&ProfileRuntimeControl>,
+) -> Result<PdfPlan> {
+    crate::local_conversion::validate_source_size(source, fs::metadata(source)?.len())?;
+    let page_count = crate::qpdf::page_count(source, control)?;
+    split_physical(source, work_dir, page_count, LOCAL_PART_BYTES, 50, control)
+}
+
+fn split_physical(
+    source: &Path,
+    work_dir: &Path,
+    page_count: u32,
+    target_bytes: u64,
+    max_pages: u32,
+    control: Option<&ProfileRuntimeControl>,
+) -> Result<PdfPlan> {
+    fs::create_dir_all(work_dir)?;
+    let input = tempfile::Builder::new()
+        .prefix("input-")
+        .tempdir_in(work_dir)?;
+    let input_dir = input.path();
 
     let mut pending = VecDeque::new();
-    for start in (1..=page_count).step_by(MAX_PART_PAGES as usize) {
-        pending.push_back((start, (start + MAX_PART_PAGES - 1).min(page_count)));
+    for start in (1..=page_count).step_by(max_pages as usize) {
+        pending.push_back((start, start.saturating_add(max_pages - 1).min(page_count)));
     }
     let mut accepted = Vec::new();
     while let Some((page_start, page_end)) = pending.pop_front() {
         let candidate = input_dir.join(format!("candidate-{page_start:06}-{page_end:06}.pdf"));
-        let size = write_page_range(&document, page_start, page_end, &candidate)?;
+        crate::qpdf::check_cancelled(control)?;
+        let size =
+            crate::qpdf::write_page_range(source, page_start, page_end, &candidate, control)?;
         let is_single_page = page_start == page_end;
-        if size <= TARGET_PART_BYTES || (is_single_page && size < MAX_SINGLE_PAGE_PART_BYTES) {
+        if size <= target_bytes || (is_single_page && size < MAX_SINGLE_PAGE_PART_BYTES) {
             accepted.push((page_start, page_end, candidate));
             continue;
         }
         fs::remove_file(&candidate).ok();
         if is_single_page {
-            bail!("PDF 第 {page_start} 页单页分片达到或超过 190 MB，无法安全提交 MinerU");
+            bail!("PDF 第 {page_start} 页单页分片达到或超过 190 MB，无法安全处理");
         }
         let middle = page_start + (page_end - page_start) / 2;
         pending.push_front((middle + 1, page_end));
@@ -105,7 +150,7 @@ pub fn plan_pdf(source: &Path, work_dir: &Path) -> Result<PdfPlan> {
                 input_path.display()
             )
         })?;
-        validate_part(&input_path, page_end - page_start + 1)?;
+        validate_part(&input_path, page_end - page_start + 1, control)?;
         parts.push(PdfPartPlan {
             index,
             count,
@@ -115,6 +160,8 @@ pub fn plan_pdf(source: &Path, work_dir: &Path) -> Result<PdfPlan> {
             input_path: Some(input_path),
         });
     }
+    crate::qpdf::check_cancelled(control)?;
+    let _ = input.keep();
     Ok(PdfPlan::Multipart { page_count, parts })
 }
 
@@ -128,22 +175,45 @@ fn pdf_strategy(source_size: u64, page_count: u32) -> PdfStrategy {
     }
 }
 
+#[cfg(test)]
 pub fn recreate_physical_part(
     source: &Path,
     page_start: u32,
     page_end: u32,
     destination: &Path,
 ) -> Result<u64> {
-    let document = load_unencrypted_pdf(source)?;
-    let size = write_page_range(&document, page_start, page_end, destination)?;
+    recreate_physical_part_with_control(source, page_start, page_end, destination, None)
+}
+
+pub fn recreate_physical_part_with_control(
+    source: &Path,
+    page_start: u32,
+    page_end: u32,
+    destination: &Path,
+    control: Option<&ProfileRuntimeControl>,
+) -> Result<u64> {
+    crate::local_conversion::validate_source_size(source, fs::metadata(source)?.len())?;
+    let total_pages = crate::qpdf::page_count(source, control)?;
+    if page_start == 0 || page_start > page_end || page_end > total_pages {
+        bail!("PDF 分片页码范围无效：{page_start}-{page_end}");
+    }
+    let parent = destination.parent().context("PDF 分片缺少父目录")?;
+    fs::create_dir_all(parent)?;
+    let staging = tempfile::Builder::new()
+        .prefix("recreate-")
+        .tempdir_in(parent)?;
+    let candidate = staging.path().join("part.pdf");
+    let size = crate::qpdf::write_page_range(source, page_start, page_end, &candidate, control)?;
     let page_count = page_end
         .checked_sub(page_start)
         .and_then(|value| value.checked_add(1))
         .context("PDF 分片页码范围无效")?;
-    validate_part(destination, page_count)?;
+    validate_part(&candidate, page_count, control)?;
     if size > TARGET_PART_BYTES && !(page_count == 1 && size < MAX_SINGLE_PAGE_PART_BYTES) {
         bail!("重新生成的 PDF 分片超过安全大小：{}", destination.display());
     }
+    crate::qpdf::check_cancelled(control)?;
+    fs::rename(candidate, destination).context("无法安装重新生成的 PDF 分片")?;
     Ok(size)
 }
 
@@ -185,40 +255,13 @@ fn load_unencrypted_pdf(source: &Path) -> Result<Document> {
     Ok(document)
 }
 
-fn write_page_range(
-    source: &Document,
-    page_start: u32,
-    page_end: u32,
-    destination: &Path,
-) -> Result<u64> {
-    if page_start == 0 || page_start > page_end {
-        bail!("PDF 分片页码范围无效：{page_start}-{page_end}");
-    }
-    if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let mut part = source.clone();
-    let to_delete = part
-        .get_pages()
-        .keys()
-        .copied()
-        .filter(|page| *page < page_start || *page > page_end)
-        .collect::<Vec<_>>();
-    part.delete_pages(&to_delete);
-    part.prune_objects();
-    part.renumber_objects();
-    part.compress();
-    part.save(destination)
-        .with_context(|| format!("无法写入 PDF 分片：{}", destination.display()))?;
-    fs::metadata(destination)
-        .map(|metadata| metadata.len())
-        .with_context(|| format!("无法检查 PDF 分片：{}", destination.display()))
-}
-
-fn validate_part(path: &Path, expected_pages: u32) -> Result<()> {
-    let part = Document::load(path)
-        .with_context(|| format!("生成的 PDF 分片无法重新读取：{}", path.display()))?;
-    let actual_pages = u32::try_from(part.get_pages().len()).context("PDF 分片页数超过支持范围")?;
+fn validate_part(
+    path: &Path,
+    expected_pages: u32,
+    control: Option<&ProfileRuntimeControl>,
+) -> Result<()> {
+    let actual_pages =
+        crate::qpdf::page_count(path, control).context("生成的 PDF 分片无法重新读取")?;
     if actual_pages != expected_pages {
         bail!("PDF 分片页数校验失败：期望 {expected_pages} 页，实际 {actual_pages} 页");
     }
@@ -317,13 +360,100 @@ mod tests {
     }
 
     #[test]
-    fn source_larger_than_512_mib_is_rejected_before_parsing() {
+    fn source_larger_than_one_gib_is_rejected_before_parsing() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("too-large.pdf");
         let file = fs::File::create(&source).unwrap();
         file.set_len(MAX_SOURCE_BYTES + 1).unwrap();
         let error = plan_pdf(&source, &temporary.path().join("work")).unwrap_err();
-        assert!(format!("{error:#}").contains("512 MiB"));
+        assert!(format!("{error:#}").contains("1 GiB"));
+    }
+
+    #[test]
+    fn pdfs_between_old_limit_and_one_gib_select_physical_splitting() {
+        for size in [512 * 1024 * 1024 + 1, MAX_SOURCE_BYTES] {
+            assert_eq!(pdf_strategy(size, 250), PdfStrategy::SplitPdf);
+        }
+    }
+
+    #[test]
+    #[ignore = "requires CPAHDOCS_LARGE_PDF_E2E to point to the generated large PDF"]
+    fn large_pdf_above_old_limit_converts_and_splits_locally() {
+        let source = PathBuf::from(std::env::var("CPAHDOCS_LARGE_PDF_E2E").unwrap());
+        let size = fs::metadata(&source).unwrap().len();
+        assert!(size > 512 * 1024 * 1024 && size <= MAX_SOURCE_BYTES);
+        let result = crate::local_conversion::convert(&source).unwrap();
+        let crate::local_conversion::LocalConversion::Converted(artifact) = result else {
+            panic!("expected local extraction of the synthetic text PDF");
+        };
+        assert!(artifact.markdown.contains("Large PDF regression fixture"));
+        let temporary = tempfile::tempdir().unwrap();
+        let PdfPlan::Multipart { page_count, parts } = plan_pdf(&source, temporary.path()).unwrap()
+        else {
+            panic!("expected physical splitting above the upload limit");
+        };
+        assert_eq!(page_count, 1);
+        assert_eq!(parts.len(), 1);
+        assert_eq!(parts[0].mode, MinerUPartMode::SplitPdf);
+        let part = parts[0].input_path.as_ref().unwrap();
+        assert!(fs::metadata(part).unwrap().len() <= TARGET_PART_BYTES);
+        let crate::local_conversion::LocalConversion::Converted(split_artifact) =
+            crate::local_conversion::convert(part).unwrap()
+        else {
+            panic!("expected local extraction after lossless splitting");
+        };
+        assert!(
+            split_artifact
+                .markdown
+                .contains("Large PDF regression fixture")
+        );
+    }
+
+    #[test]
+    #[ignore = "requires CPAHDOCS_REFERENCED_PDF_E2E generated 64-page fixture"]
+    fn qpdf_large_pdf_plans_and_recreates_mineru_inputs() {
+        let source = PathBuf::from(std::env::var("CPAHDOCS_REFERENCED_PDF_E2E").unwrap());
+        assert!(fs::metadata(&source).unwrap().len() > 512 * 1024 * 1024);
+        let temporary = tempfile::tempdir().unwrap();
+        let PdfPlan::Multipart { page_count, parts } = plan_pdf(&source, temporary.path()).unwrap()
+        else {
+            panic!("large source must be physically split");
+        };
+        assert_eq!(page_count, 64);
+        assert!(parts.len() > 1);
+        let mut expected_start = 1;
+        for part in &parts {
+            assert_eq!(part.page_start, expected_start);
+            expected_start = part.page_end + 1;
+            assert_eq!(part.mode, MinerUPartMode::SplitPdf);
+            let input = part.input_path.as_ref().unwrap();
+            assert!(fs::metadata(input).unwrap().len() <= TARGET_PART_BYTES);
+            assert_eq!(
+                crate::qpdf::page_count(input, None).unwrap(),
+                part.page_end - part.page_start + 1
+            );
+        }
+        assert_eq!(expected_start, 65);
+        let first = &parts[0];
+        let input = first.input_path.as_ref().unwrap();
+        fs::remove_file(input).unwrap();
+        recreate_physical_part(&source, first.page_start, first.page_end, input).unwrap();
+        assert!(fs::metadata(input).unwrap().len() <= TARGET_PART_BYTES);
+        let crate::local_conversion::LocalConversion::Converted(artifact) =
+            crate::local_conversion::convert(input).unwrap()
+        else {
+            panic!("recreated text pages must remain readable");
+        };
+        assert!(artifact.markdown.contains("SourcePage-0001"));
+        assert!(
+            artifact
+                .markdown
+                .contains(&format!("SourcePage-{:04}", first.page_end))
+        );
+        eprintln!(
+            "QPDF MinerU plan validated: {} parts, {page_count} pages; first part regenerated and converted",
+            parts.len()
+        );
     }
 
     #[test]

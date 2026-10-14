@@ -14,6 +14,7 @@ mod mineru;
 mod models;
 mod pdf_split;
 mod priority_queue;
+mod qpdf;
 mod runtime;
 mod state;
 mod storage;
@@ -36,7 +37,15 @@ use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // Register first, so secondary launches exit before any runtime opens the
+    // shared task database or starts directory watching.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        show_main_window(app);
+    }));
+
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -129,6 +138,7 @@ pub fn run() {
 fn show_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
+        let _ = window.unminimize();
         let _ = window.set_focus();
     }
 }

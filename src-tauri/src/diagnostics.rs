@@ -18,7 +18,13 @@ pub struct ErrorGuidance {
 
 pub fn classify_error(message: Option<&str>) -> Option<ErrorGuidance> {
     let message = message?.to_ascii_lowercase();
-    let guidance = if contains_any(&message, &["未配置 mineru", "mineru token", "凭据库"]) {
+    let guidance = if message.contains("未知转换引擎") {
+        ErrorGuidance {
+            code: "engine_version_mismatch",
+            title: "任务记录与当前程序版本不兼容",
+            suggestion: "请从托盘退出所有旧版 CPAH Docs，只运行最新版后重试失败任务；关闭窗口不会退出程序。",
+        }
+    } else if contains_any(&message, &["未配置 mineru", "mineru token", "凭据库"]) {
         ErrorGuidance {
             code: "mineru_not_configured",
             title: "MinerU 尚未配置",
@@ -81,11 +87,19 @@ pub fn classify_error(message: Option<&str>) -> Option<ErrorGuidance> {
             title: "模型返回结果不符合分类规则",
             suggestion: "请重试；若持续失败，请更换支持 Tool Calling 的模型或简化候选类别描述。",
         }
-    } else if contains_any(&message, &["超过 512 mib", "512 mib 本地预处理安全上限"]) {
+    } else if contains_any(&message, &["超过 1 gib", "1 gib 本地预处理安全上限"]) {
         ErrorGuidance {
             code: "pdf_source_too_large",
-            title: "PDF 超过 512 MiB 安全上限",
+            title: "PDF 超过 1 GiB 安全上限",
             suggestion: "请先在可信工具中无损拆分该 PDF，再把拆分后的文件放入监控目录。",
+        }
+    } else if message.contains("pdf")
+        && contains_any(&message, &["超过 512 mib", "512 mib 本地预处理安全上限"])
+    {
+        ErrorGuidance {
+            code: "pdf_legacy_source_limit",
+            title: "PDF 触发了旧版 512 MiB 上限",
+            suggestion: "新版已支持不超过 1 GiB 的 PDF；请退出旧版，在最新版中重试该任务。",
         }
     } else if contains_any(
         &message,
@@ -169,7 +183,7 @@ pub fn classify_error(message: Option<&str>) -> Option<ErrorGuidance> {
             title: "文件或目录已不存在",
             suggestion: "请确认源文件和监控目录仍然存在，然后重新扫描目录。",
         }
-    } else if contains_any(&message, &["不支持", "unsupported", "未知转换引擎"]) {
+    } else if contains_any(&message, &["不支持", "unsupported"]) {
         ErrorGuidance {
             code: "unsupported_format",
             title: "当前转换方式不支持该文档",
@@ -630,6 +644,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn engine_record_errors_report_version_compatibility_instead_of_document_support() {
+        for message in [
+            "Conversion error from type Text at index: 7, 未知转换引擎: anydoc: 未知转换引擎: anydoc",
+            "未知转换引擎：anydoc",
+        ] {
+            let guidance = classify_error(Some(message)).unwrap();
+            assert_eq!(guidance.code, "engine_version_mismatch");
+            assert!(guidance.suggestion.contains("托盘退出"));
+        }
+        assert_eq!(
+            classify_error(Some("unsupported input: unrecognized document"))
+                .unwrap()
+                .code,
+            "unsupported_format"
+        );
+    }
+
+    #[test]
     fn classifies_common_errors() {
         assert_eq!(
             classify_error(Some("HTTP 429 rate limit")).unwrap().code,
@@ -644,10 +676,16 @@ mod tests {
             "agent_tool_calling"
         );
         assert_eq!(
-            classify_error(Some("PDF 超过 512 MiB 本地预处理安全上限"))
+            classify_error(Some("PDF 超过 1 GiB 本地预处理安全上限"))
                 .unwrap()
                 .code,
             "pdf_source_too_large"
+        );
+        assert_eq!(
+            classify_error(Some("PDF 超过 512 MiB 本地预处理安全上限"))
+                .unwrap()
+                .code,
+            "pdf_legacy_source_limit"
         );
         assert_eq!(
             classify_error(Some("2 个 MinerU 分片解析失败"))

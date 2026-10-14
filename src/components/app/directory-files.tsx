@@ -281,7 +281,7 @@ export function DirectoryFiles({ profile, enabledExtensions, tasks, conversionPa
       <IconAction label={t("全部折叠")} variant="outline" onClick={() => { if (isSearch) setSearchExpanded(new Set()); else setExpanded(new Set()); resetScroll(); }}><FoldVertical /></IconAction>
       <IconAction label={t("刷新文件")} variant="outline" disabled={loading || refreshing} onClick={() => setRefreshVersion((version) => version + 1)}><RefreshCw className={cn((loading || refreshing) && "animate-spin")} /></IconAction>
     </div>
-    {(!profile.enabled || monitoringPaused) && <p className="shrink-0 border-b px-4 pb-2 text-[11px] text-muted-foreground">{!profile.enabled ? t("该目录已停用") : t("目录监听已停止")}{t("，仍可浏览文件；新文件不会自动加入任务。")}</p>}
+    {(!profile.enabled || monitoringPaused) && <p className="shrink-0 border-b px-4 pb-2 text-[11px] text-muted-foreground">{!profile.enabled ? t("该目录已停用") : t("全部目录已暂停监听")}{t("，仍可浏览文件；新文件不会自动加入任务。")}</p>}
     {error && <div role="alert" className="shrink-0 border-b bg-destructive/5 px-4 py-2 text-[11px] text-destructive">{error} <button type="button" className="underline" onClick={() => setRefreshVersion((version) => version + 1)}>{t("重新读取")}</button></div>}
     {issues.length > 0 && <details className="shrink-0 border-b px-4 py-2 text-[11px] text-destructive"><summary className="cursor-pointer">{issues.length} {t("个文件夹无法读取")}</summary><ul className="mt-1 max-h-24 overflow-y-auto">{issues.map((issue) => <li className="break-all" key={issue.relativePath}>{issue.relativePath || profile.inputDir}：{issue.error}</li>)}</ul></details>}
     <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_120px] border-y bg-[var(--table-head)] px-4 py-2 text-[11px] text-muted-foreground"><span>{t("名称")}</span><span>{t("转换状态")}</span></div>

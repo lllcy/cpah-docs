@@ -1,6 +1,6 @@
 [package]
 name = "cpah-docs"
-version = "1.5.0"
+version = "1.5.3"
 description = "Watch folders, convert documents to Markdown, and build local knowledge indexes"
 authors = ["lllcy"]
 edition = "2024"
@@ -40,6 +40,7 @@ sha2 = "0.11"
 tauri = { version = "2.11.5", features = ["tray-icon"] }
 tauri-plugin-dialog = "2.7.2"
 tauri-plugin-opener = "2.5.4"
+tempfile = "3"
 tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "sync", "time"] }
 tokio-util = { version = "0.7", features = ["io", "rt"] }
 tracing = "0.1"
@@ -49,8 +50,8 @@ walkdir = "2"
 yaml-edit = { version = "=0.2.3", default-features = false }
 zip = { version = "8.2", default-features = false, features = ["deflate"] }
 
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "=2.4.5"
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
-
-[dev-dependencies]
-tempfile = "3"

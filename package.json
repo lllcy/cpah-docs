@@ -1,7 +1,7 @@
 {
   "name": "cpah-docs",
   "private": true,
-  "version": "1.5.0",
+  "version": "1.5.3",
   "description": "A Windows and macOS desktop tool that watches folders, converts documents to Markdown, and builds local knowledge indexes.",
   "license": "MIT",
   "author": "lllcy",
@@ -18,6 +18,7 @@
   },
   "type": "module",
   "scripts": {
+    "prepare:qpdf": "node scripts/prepare-qpdf.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "test": "node --test tests/*.test.mjs",

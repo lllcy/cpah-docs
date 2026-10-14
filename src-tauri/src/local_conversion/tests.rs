@@ -101,6 +101,130 @@ fn html_htm_and_txt_keep_anytomd_content() {
 }
 
 #[test]
+fn html_word_exports_with_word_extensions_preserve_content() {
+    let temp = tempfile::tempdir().unwrap();
+    let html = r#"<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>body { color: red; }</style></head><body><h1>文档标题</h1><p>正文 <a href="https://example.com/report">链接</a></p><table><tr><th>项目</th><th>金额</th></tr><tr><td>示例</td><td>42</td></tr></table></body></html>"#;
+    for (name, prefix) in [
+        ("export.doc", ""),
+        ("export.docx", ""),
+        ("export.docm", ""),
+        ("uppercase.DOC", "\u{feff}\n "),
+        ("uppercase.DOCX", "\u{feff}\n "),
+        ("doctype.doc", "<!-- Word export -->\n<!DOCTYPE HTML>\n"),
+    ] {
+        let source = temp.path().join(name);
+        fs::write(&source, format!("{prefix}{html}")).unwrap();
+        let result = artifact(&source);
+        assert!(result.markdown.contains("# 文档标题"));
+        assert!(
+            result
+                .markdown
+                .contains("[链接](https://example.com/report)")
+        );
+        assert!(result.markdown.contains("| 示例 | 42 |"));
+        assert!(!result.markdown.contains("color: red"));
+    }
+}
+
+#[test]
+fn utf16_and_gbk_html_word_exports_keep_chinese_text() {
+    let temp = tempfile::tempdir().unwrap();
+    let html = "<html><head><meta charset=\"gb2312\"></head><body><h1>中文报告</h1><p>本地转换正文</p></body></html>";
+    let (gbk, _, errors) = encoding_rs::GBK.encode(html);
+    assert!(!errors);
+    for extension in ["doc", "docx", "docm"] {
+        let source = temp.path().join(format!("gbk.{extension}"));
+        fs::write(&source, &gbk).unwrap();
+        assert!(artifact(&source).markdown.contains("本地转换正文"));
+    }
+    for (name, bom, little_endian) in [
+        ("utf16le.doc", [0xff, 0xfe], true),
+        ("utf16be.doc", [0xfe, 0xff], false),
+    ] {
+        let mut bytes = bom.to_vec();
+        for unit in html.encode_utf16() {
+            bytes.extend(if little_endian {
+                unit.to_le_bytes()
+            } else {
+                unit.to_be_bytes()
+            });
+        }
+        for extension in ["doc", "docx", "docm"] {
+            let source = temp.path().join(name).with_extension(extension);
+            fs::write(&source, &bytes).unwrap();
+            assert!(artifact(&source).markdown.contains("中文报告"));
+        }
+    }
+}
+
+#[test]
+fn rtf_and_docx_word_exports_use_their_actual_formats() {
+    let temp = tempfile::tempdir().unwrap();
+    for extension in ["doc", "docx", "docm"] {
+        let rtf = temp.path().join(format!("rich-text.{extension}"));
+        fs::write(&rtf, b"{\\rtf1\\ansi RTF Word export\\par}").unwrap();
+        assert!(artifact(&rtf).markdown.contains("RTF Word export"));
+        let docx = temp.path().join(format!("ooxml.{extension}"));
+        write_docx(&docx);
+        let result = artifact(&docx);
+        assert!(result.markdown.contains("Document fixture"));
+        assert_eq!(result.assets[0].bytes, IMAGE);
+    }
+}
+
+#[test]
+fn damaged_docx_containers_and_unrecognized_text_do_not_fall_back_to_html() {
+    let temp = tempfile::tempdir().unwrap();
+    for extension in ["docx", "docm"] {
+        let source = temp.path().join(format!("damaged.{extension}"));
+        let mut bytes = b"PK\x03\x04".to_vec();
+        bytes.extend_from_slice(b"<html><body>Not a valid Word package</body></html>");
+        fs::write(&source, bytes).unwrap();
+        assert!(convert(&source).is_err());
+        fs::write(&source, b"Plain text without a recognizable format").unwrap();
+        assert!(convert(&source).is_err());
+        fs::write(&source, b"<htmlish>Not an HTML document</htmlish>").unwrap();
+        assert!(convert(&source).is_err());
+    }
+}
+
+#[test]
+fn damaged_binary_doc_is_not_treated_as_html() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("damaged.doc");
+    let mut bytes = vec![0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+    bytes.extend_from_slice(b"<html><body>This is not a Word document</body></html>");
+    fs::write(&source, bytes).unwrap();
+    let error = convert(&source).unwrap_err();
+    assert!(format!("{error:#}").contains("OLE2"));
+    fs::write(&source, b"<htmlish>Not an HTML document</htmlish>").unwrap();
+    assert!(convert(&source).is_err());
+}
+
+#[test]
+#[ignore = "requires CPAHDOCS_DOC_E2E to point to a local DOC"]
+fn converts_external_doc_regression_file() {
+    let source =
+        std::env::var("CPAHDOCS_DOC_E2E").expect("CPAHDOCS_DOC_E2E must point to a DOC file");
+    let result = artifact(Path::new(&source));
+    assert!(!result.markdown.trim().is_empty());
+    if let Ok(expected) = std::env::var("CPAHDOCS_DOC_EXPECTED") {
+        assert!(result.markdown.contains(&expected));
+    }
+    if let Ok(output) = std::env::var("CPAHDOCS_DOC_OUTPUT") {
+        let output = Path::new(&output);
+        assert_eq!(output.extension().and_then(|ext| ext.to_str()), Some("md"));
+        fs::write(output, &result.markdown).unwrap();
+    }
+    eprintln!(
+        "converted markdown_bytes={} assets={} warnings={}",
+        result.markdown.len(),
+        result.assets.len(),
+        result.warnings.len()
+    );
+}
+
+#[test]
 fn docx_keeps_table_and_embedded_image_bytes() {
     let temp = tempfile::tempdir().unwrap();
     let source = temp.path().join("sample.docx");
@@ -249,6 +373,76 @@ fn pdf_only_requests_ocr_for_scanned_or_mixed_content() {
     assert!(convert(&path).is_err());
 }
 
+fn write_numbered_pdf(path: &Path, scanned: &[bool]) {
+    let mut document = pdf_document(scanned);
+    for (number, page) in document.get_pages() {
+        if scanned[number as usize - 1] {
+            continue;
+        }
+        let content = document.get_page_contents(page)[0];
+        document.objects.get_mut(&content).unwrap().as_stream_mut().unwrap().set_content(format!(
+            "BT /F1 12 Tf 50 500 Td (SourcePage-{number:04}: readable body content survives physical splitting and sequential local extraction.) Tj 0 -20 Td (A second body paragraph supplies enough content for reliable text classification.) Tj ET"
+        ).into_bytes());
+    }
+    document.save(path).unwrap();
+}
+
+#[test]
+fn qpdf_local_chunks_keep_all_pages_once_and_in_original_order() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("中文目录 空格.pdf");
+    write_numbered_pdf(&source, &[false; 101]);
+    let LocalConversion::Converted(result) = convert_large_pdf(&source, None).unwrap() else {
+        panic!("numbered text PDF must stay local");
+    };
+    let mut previous = 0;
+    for page in 1..=101 {
+        let marker = format!("SourcePage-{page:04}");
+        assert_eq!(
+            result.markdown.matches(&marker).count(),
+            1,
+            "missing or duplicate {marker}"
+        );
+        let position = result.markdown.find(&marker).unwrap();
+        assert!(page == 1 || position > previous);
+        previous = position;
+    }
+    assert!(result.assets.is_empty());
+    assert_eq!(result.warnings.len(), 1);
+}
+
+#[test]
+fn qpdf_local_chunks_return_original_ocr_page_without_partial_markdown() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("mixed.pdf");
+    let mut scanned = vec![false; 50];
+    scanned.push(true);
+    write_numbered_pdf(&source, &scanned);
+    assert!(matches!(convert_large_pdf(&source, None).unwrap(),
+        LocalConversion::NeedsOcr { pages, page_count: 51 } if pages == [51]));
+}
+
+#[test]
+fn qpdf_local_chunks_inspect_ocr_pages_across_all_chunks() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("multiple-scans.pdf");
+    let mut scanned = vec![false; 101];
+    for page in [0, 50, 100] {
+        scanned[page] = true;
+    }
+    write_numbered_pdf(&source, &scanned);
+    assert!(matches!(convert_large_pdf(&source, None).unwrap(),
+        LocalConversion::NeedsOcr { pages, page_count: 101 } if pages == [1, 51, 101]));
+}
+
+#[test]
+fn qpdf_rejects_broken_pdf_without_requesting_ocr() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("broken.pdf");
+    fs::write(&source, b"%PDF-1.5\nbroken").unwrap();
+    assert!(convert_large_pdf(&source, None).is_err());
+}
+
 #[test]
 fn encrypted_and_oversized_pdfs_fail_without_requesting_ocr() {
     let temp = tempfile::tempdir().unwrap();
@@ -281,7 +475,19 @@ fn encrypted_and_oversized_pdfs_fail_without_requesting_ocr() {
     );
 
     let file = fs::File::create(&path).unwrap();
-    file.set_len(MAX_INPUT_BYTES + 1).unwrap();
+    file.set_len(crate::pdf_split::MAX_SOURCE_BYTES + 1)
+        .unwrap();
     drop(file);
-    assert!(convert(&path).unwrap_err().to_string().contains("512 MiB"));
+    assert!(convert(&path).unwrap_err().to_string().contains("1 GiB"));
+}
+
+#[test]
+fn source_size_checks_accept_pdfs_up_to_one_gib_and_reject_larger_sources() {
+    let pdf = Path::new("large.PDF");
+    for size in [MAX_INPUT_BYTES + 1, crate::pdf_split::MAX_SOURCE_BYTES] {
+        assert!(validate_source_size(pdf, size).is_ok());
+    }
+    assert!(validate_source_size(pdf, crate::pdf_split::MAX_SOURCE_BYTES + 1).is_err());
+    assert!(validate_source_size(Path::new("large.docx"), MAX_INPUT_BYTES).is_ok());
+    assert!(validate_source_size(Path::new("large.docx"), MAX_INPUT_BYTES + 1).is_err());
 }

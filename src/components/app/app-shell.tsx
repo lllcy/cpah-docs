@@ -82,7 +82,7 @@ export function AppShell({
     try { localStorage.setItem("cpah-sidebar-collapsed", String(collapsed)); }
     catch { /* Keep the toggle usable when browser storage is unavailable. */ }
   }
-  const stateLabel = loadError ? connectionFailed ? t("连接异常") : t("运行异常") : loading ? t("正在连接") : monitoringPaused ? t("监听已停止") : t("正在监听 {p0} 个目录", { p0: enabledDirectories });
+  const stateLabel = loadError ? connectionFailed ? t("连接异常") : t("运行异常") : loading ? t("正在连接") : monitoringPaused ? t("全部监听已暂停") : enabledDirectories > 0 ? t("正在监听 {p0} 个目录", { p0: enabledDirectories }) : t("尚未添加启用目录");
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
@@ -129,7 +129,7 @@ export function AppShell({
               <span className="truncate">{stateLabel}</span>
             </button>
           ) : <div className="mr-1 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
-            <span className={cn("size-1.5 shrink-0 rounded-full", loadError ? "bg-destructive" : monitoringPaused ? "bg-muted-foreground" : "bg-success", !monitoringPaused && !loadError && "status-pulse")} />
+            <span className={cn("size-1.5 shrink-0 rounded-full", loadError ? "bg-destructive" : monitoringPaused || enabledDirectories === 0 ? "bg-muted-foreground" : "bg-success", !monitoringPaused && enabledDirectories > 0 && !loadError && "status-pulse")} />
             <span className="truncate max-[900px]:hidden">{stateLabel}</span>
           </div>}
           <IconAction label={t("刷新状态")} size="icon-sm" disabled={refreshing} onClick={onRefresh}>

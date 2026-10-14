@@ -15,11 +15,13 @@ The interface supports **English and Simplified Chinese**. It follows your syste
 - **Watch multiple folders.** Mirror each source folder into a separate output folder, preserving subfolders, including empty ones. Changes and deletions are synchronized.
 - **Control each queue independently.** Watching discovers and queues files; conversion and classification start separately. New installations watch automatically and wait for you to start conversion.
 - **Convert locally.** Office, legacy DOC/XLS/PPT, macro-enabled Office, OpenDocument, EPUB, RTF and CSV use the vendored anydoc 0.2.4 converter. HTML/HTM/TXT use AnyToMD. MHTML/MHT web archives are unpacked locally and converted with their embedded images and links. Markdown is copied byte for byte.
+- **Recognize Word exports.** Files named `.doc`, `.docx` or `.docm` may contain HTML, RTF or a different Word container. These recognizable exports are converted locally using their actual format, including HTML with UTF-8, UTF-16 or declared legacy encodings such as GBK. Unrecognized or damaged containers still report a parsing error.
 - **Use OCR when needed.** PDFs are extracted locally first. Only an explicit “OCR required” result sends a PDF to MinerU. Damaged, encrypted or oversized PDFs are not uploaded as a fallback. Images use MinerU.
-- **Process large PDFs.** OCR documents over 200 pages are submitted in page ranges; files exceeding MinerU’s 200 MB limit are split losslessly. Source files up to 512 MiB are supported. Parts resume independently and merge into one Markdown file.
+- **Process large PDFs.** PDFs above 64 MiB use an embedded QPDF runtime to split on disk before sequential local extraction, with a 32 MiB chunk target. OCR documents over 200 pages are submitted in page ranges; files exceeding MinerU’s 200 MB limit are split losslessly with QPDF. PDF source files up to 1 GiB are supported. A single page cannot be subdivided and remains subject to a 190 MB safeguard. Parts resume independently and merge into one Markdown file.
 - **Classify with your own categories.** Choose single or multiple categories, import category definitions from JSON, and inspect model calls, read coverage and token usage. Both OpenAI-compatible language models and System One-compatible decision models are supported.
 - **Browse the complete source tree.** Search filenames recursively, filter by conversion status and inspect individual files, including unsupported formats and empty folders. Prioritize conversion or classification of a selected file.
 - **Recover work after restart.** SQLite persists task state and MinerU polling. Offline health checks and redacted diagnostic reports help troubleshoot failures.
+- **Run one app instance.** Launching CPAH Docs again shows and restores the existing window. Before upgrading from versions without this restriction, quit all old copies from the system tray; closing their windows only hides them.
 - **Keep credentials in the OS credential store.** Tokens and API keys use Windows Credential Manager or macOS Keychain. Closing the window keeps the app in the system tray or menu bar.
 
 Office formats can export readable embedded images to `.assets`. Local PDF conversion preserves extracted text, tables and image placeholders, but does not export PDF image attachments. See the vendored converter’s [provenance and patches](src-tauri/vendor/anydoc/UPSTREAM.md).
@@ -157,6 +159,7 @@ Validation:
 ```shell
 npm run build
 npm test
+npm run prepare:qpdf
 cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 cargo test --manifest-path src-tauri/Cargo.toml --all-targets
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings

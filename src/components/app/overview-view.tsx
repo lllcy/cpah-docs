@@ -31,8 +31,8 @@ export function OverviewView({ tasks, tagJobs, taskTotal, profiles, persistedPro
   const services = [
     {
       label: t("目录监听"),
-      status: monitoringPaused ? t("已停止") : enabledProfiles.length > 0 ? t("运行中") : t("等待目录"),
-      detail: enabledProfiles.length > 0 ? t("{p0} 个启用目录", { p0: enabledProfiles.length }) : t("尚未添加启用目录"),
+      status: monitoringPaused ? t("已暂停（全部）") : enabledProfiles.length > 0 ? t("运行中") : t("等待目录"),
+      detail: enabledProfiles.length > 0 ? monitoringPaused ? t("{p0} 个目录已暂停监听", { p0: enabledProfiles.length }) : t("{p0} 个启用目录", { p0: enabledProfiles.length }) : t("尚未添加启用目录"),
       icon: RadioTower,
       active: !monitoringPaused && enabledProfiles.length > 0,
       warning: false,

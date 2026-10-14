@@ -122,6 +122,17 @@ try {
     readFileSync(rustOutput, "utf8").replace(/\r\n?/g, "\n").trimEnd(),
     "",
     ...npmLines,
+    "",
+    "## 内置 QPDF 运行文件",
+    "",
+    readFileSync(join(projectRoot, "src-tauri/resources/qpdf/THIRD_PARTY_NOTICES.md"), "utf8").trimEnd(),
+    "",
+    "<details><summary>QPDF Apache License 2.0</summary>",
+    `<pre>${htmlEncode(readFileSync(join(projectRoot, "src-tauri/resources/qpdf/LICENSE-QPDF.txt"), "utf8"))}</pre>`,
+    "</details>",
+    "<details><summary>Microsoft Visual C++ Runtime license</summary>",
+    `<pre>${htmlEncode(readFileSync(join(projectRoot, "src-tauri/resources/qpdf/LICENSE-MSVC.txt"), "utf8"))}</pre>`,
+    "</details>",
   ].join("\n").replace(/[ \t]+$/gm, "").trimEnd() + "\n";
   writeFileSync(join(projectRoot, "THIRD_PARTY_LICENSES.md"), content, "utf8");
 } finally {

@@ -232,9 +232,9 @@ export function DirectoriesView({ profiles, persistedProfiles, selectedId, onSel
         </div>
         <div className="ml-auto flex min-w-0 items-center gap-2">
           <span className={cn("max-w-40 truncate text-[10px] max-[980px]:hidden", saveState === "error" ? "text-destructive" : "text-muted-foreground")} title={saveError || saveLabel}>{saveLabel}</span>
-          <Button variant={monitoringPaused ? "default" : "outline"} size="sm" disabled={changingMonitoringState} onClick={onToggleMonitoringPaused}>
+          <Button variant={monitoringPaused ? "default" : "outline"} size="sm" disabled={changingMonitoringState} onClick={onToggleMonitoringPaused} title={t("控制所有已启用目录；已有转换任务不受影响。")}>
             {changingMonitoringState ? <LoaderCircle className="animate-spin" /> : monitoringPaused ? <Play /> : <Pause />}
-            {monitoringPaused ? t("开始监听") : t("停止监听")}
+            {monitoringPaused ? t("全部开始监听") : t("全部暂停监听")}
           </Button>
           <Button variant="outline" size="sm" onClick={addProfile}><Plus />{t("添加目录")}</Button>
           <Button size="sm" disabled={saving || saveState === "saved"} onClick={onSave}>{saving ? <LoaderCircle className="animate-spin" /> : <Save />}{saving ? t("保存中") : saveState === "saved" ? t("已保存") : t("立即保存")}</Button>
@@ -251,16 +251,18 @@ export function DirectoriesView({ profiles, persistedProfiles, selectedId, onSel
             </div>
           ) : profiles.map((profile) => {
             const persisted = profileIsPersisted(profile, persistedProfiles);
+            const listening = persisted && profile.enabled && !monitoringPaused;
+            const watchLabel = !persisted ? t("待保存") : !profile.enabled ? t("已停用") : monitoringPaused ? t("已暂停（全部）") : t("监听中");
             return (
             <button key={profile.id} type="button" onClick={() => onSelectedIdChange(profile.id)} className={cn("mb-0.5 flex min-h-12 w-full items-center gap-2.5 rounded-md px-2.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring", selectedId === profile.id ? "bg-[var(--selection)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border)_60%,transparent)]" : "hover:bg-accent") }>
-              <span className={cn("size-1.5 shrink-0 rounded-full", !persisted ? "bg-amber-500" : profile.enabled ? "bg-success" : "bg-muted-foreground/45")} />
+              <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", !persisted ? "bg-amber-500" : listening ? "bg-success" : "bg-muted-foreground/45")} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-medium">{profile.name}</span>
+                <span className="flex items-center gap-1.5"><span className="min-w-0 flex-1 truncate text-xs font-medium">{profile.name}</span><span className={cn("shrink-0 text-[9px]", !persisted ? "text-amber-600 dark:text-amber-400" : listening ? "text-success" : "text-muted-foreground")}>{watchLabel}</span></span>
                 <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{profile.inputDir || t("未选择目录")}</span>
               </span>
               {removingProfileId === profile.id
                 ? <span className="inline-flex shrink-0 items-center gap-1 text-[9px] text-destructive"><LoaderCircle className="size-3 animate-spin" />{t("正在删除")}</span>
-                : !persisted && <span className="shrink-0 text-[9px] text-amber-600 dark:text-amber-400">{t("待保存")}</span>}
+                : null}
             </button>
           );})}
         </aside>
@@ -303,6 +305,8 @@ export function DirectoriesView({ profiles, persistedProfiles, selectedId, onSel
                   )}
                 </div>
               </div>
+
+              <p className="-mt-3 mb-6 text-[10px] leading-4 text-muted-foreground">{t("该开关只控制当前目录；全部暂停时，已启用目录也不会监听。")}</p>
 
               <div className="space-y-5">
                 <div>
