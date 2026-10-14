@@ -6124,7 +6124,7 @@ limitations under the License.</pre>
 - [rowan 0.16.1](https://crates.io/crates/rowan/0.16.1)（[上游仓库](https://github.com/rust-analyzer/rowan)）
 - [rustc-hash 1.1.0](https://crates.io/crates/rustc-hash/1.1.0)（[上游仓库](https://github.com/rust-lang-nursery/rustc-hash)）
 - [rustix 1.1.4](https://crates.io/crates/rustix/1.1.4)（[上游仓库](https://github.com/bytecodealliance/rustix)）
-- [rustls 0.23.45](https://crates.io/crates/rustls/0.23.45)（[上游仓库](https://github.com/rustls/rustls)）
+- [rustls 0.23.46](https://crates.io/crates/rustls/0.23.46)（[上游仓库](https://github.com/rustls/rustls)）
 - [scopeguard 1.2.0](https://crates.io/crates/scopeguard/1.2.0)（[上游仓库](https://github.com/bluss/scopeguard)）
 - [security-framework-sys 2.17.0](https://crates.io/crates/security-framework-sys/2.17.0)（[上游仓库](https://github.com/kornelski/rust-security-framework)）
 - [security-framework 3.7.0](https://crates.io/crates/security-framework/3.7.0)（[上游仓库](https://github.com/kornelski/rust-security-framework)）
